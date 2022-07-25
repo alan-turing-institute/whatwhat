@@ -3,7 +3,6 @@ open CalendarLib
 module Raw = ForecastRaw
 
 let (>>=) = Option.bind
-let (>|=) o m = Option.map m o
 
 (* Matches "hut23-NNN" where NNN is a number *)
 let hut23_code_re = 
@@ -12,7 +11,7 @@ let hut23_code_re =
 type project =
   { number       : int; (* Ought to be a GitHub issue number *)
     name         : string;
-    client       : string;
+    client       : string option;
   }
   
 type schedule =
@@ -22,38 +21,54 @@ type schedule =
     (* assignments : assignment list *)
   }
 
+exception InvalidProjectCode of string
+
 (** Emit a notification for an invalid project *)
-let notify_of_invalid_project (_ : Raw.project) : unit =
-  assert false
+let notify_of_invalid_project (p : Raw.project) (msg : string): unit =
+  print_endline @@ msg ^ " for project '" ^ p.name
+                   ^ "' [" ^ (Option.value ~default:"" p.code) ^ "]"
 
 let extract_project_code (cd : string option) =
-    cd
-    >>= Re.exec_opt hut23_code_re
-    >>= fun gp -> Re.Group.get_opt gp 1
-    >|= int_of_string 
-
-let validate_project (p : Raw.project) : project option = 
-  if p.archived then None else
-    (* TODO: This out to be an Option.map *)
-    match extract_project_code p.code with
-    | None ->
-       begin
-         notify_of_invalid_project p;
-         None
-       end
-    | Some code ->
-       Some { number = code;
-              name = p.name;
-              client = "TODO: LOOK THIS UP";
-         }
-       
+  try 
+    Option.get cd  
+    |> Re.exec hut23_code_re
+    |> (fun gp -> Re.Group.get gp 1)
+    |> int_of_string
+  with 
+  | Invalid_argument _ -> raise (InvalidProjectCode "Missing project code")
+  | Not_found -> raise (InvalidProjectCode "Invalid project code")
+  
+let validate_project clientmap (p : Raw.project) : project option = 
+  (* TODO: Get rid of "Time off" project *)
+  (* TODO: Add Finance code *)
+  (* TODO: De-dupe projects (but assign finance codes to allocations *) 
+  if p.archived then None
+  else try
+      let code = extract_project_code p.code in 
+      Some { number = code;
+             name = p.name;
+             client = p.client_id
+                      >>= (fun cid ->  
+               List.assoc_opt cid clientmap);
+        }
+    with
+    | InvalidProjectCode msg ->
+       notify_of_invalid_project p msg;
+       None 
+    
+let make_client_assoc (clients : Raw.client list) =
+  List.map (fun (c : Raw.client) -> (c.id, c.name)) clients
+             
 let getTheSchedule (startDate : Date.t) (endDate : Date.t) =
-  let _, _, _, projs, _ = Raw.getTheSchedule startDate endDate in
-  let valid_projs = List.filter_map validate_project projs in
+  let clnts, _, _, projs, _ = Raw.getTheSchedule startDate endDate in 
+  let valid_projs = List.filter_map
+                      (validate_project (make_client_assoc clnts))
+                      projs in
   { projects = valid_projs }
 
+let getTheCurrentSchedule () =
+  getTheSchedule (Date.today ()) (Date.today ())
 
-    
     (* Validate projects:
        
        - remove archived projects

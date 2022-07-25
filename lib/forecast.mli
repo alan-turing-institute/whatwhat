@@ -13,7 +13,7 @@ open CalendarLib
 type project =
   { number       : int; (* Ought to be a GitHub issue number *)
     name         : string;
-    client       : string;
+    client       : string option;
   }
 (** A [project] represents what is known about a project from Forecast.
 
@@ -35,3 +35,5 @@ type schedule =
 
  
 val getTheSchedule : Date.t -> Date.t -> schedule
+
+val getTheCurrentSchedule : unit -> schedule

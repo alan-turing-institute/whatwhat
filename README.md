@@ -10,23 +10,21 @@ A reimagining of `nowwhat` in OCaml.
 
    ```eval `opam env` ```
 
-3. `opam switch create` ("Switch" means something like "virtual environment")
+3. `opam install dune utop merlin odig` (And I think you will need to do this again if you create a
+new switch. Maybe there's some way to say "this switch builds on this other one?") 
 
-   `eval $(opam env)` (I don't know why it's different or whether it needs to be.)
+4. (For VS Code) `opam install ocaml-lsp-server`
 
-4. `opam install dune utop merlin` 
+5. (For Emacs) `opam install tuareg`
 
-5. (For VS Code) `opam install ocaml-lsp-server`
-
-6. (For Emacs) `opam install tuareg`
-
-7. (For Emacs and Vim) `opam user-setup install`
+6. (For Emacs and Vim) `opam user-setup install` (I don't have an example yet of a successful Vim set
+   up. Someone **has** used `ocaml-lsp-server` with Vim, however.)
 
 ### Project setup (existing project)
 
 1. In `whatwhat/`...
 
-2. I think ... `opam switch .` (Then `eval $(opam env)`)
+2. I think ... `opam switch create .` (Then `eval $(opam env)`)
 
 
 ### Resources
