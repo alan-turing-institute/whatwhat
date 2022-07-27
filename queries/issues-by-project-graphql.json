@@ -1,0 +1,41 @@
+{
+  "query": "query {
+    repository(owner: \"alan-turing-institute\", name: \"Hut23\") {
+      projects(first: 1, search: PROJECTNAME) {
+        edges {
+          node {
+            number
+            name
+            columns(first: 15) {
+              edges {
+                node {
+                  name
+                  cards(first: 100, after: CURSOR) {
+                    edges {
+                      cursor
+                      node {
+                        id
+                        note
+                        state
+                        content {
+                          ... on Issue {
+                            id
+                            number
+                            title
+                            url
+                            body
+                            state
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }"
+}
