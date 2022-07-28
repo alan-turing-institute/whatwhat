@@ -1,13 +1,15 @@
 open Batteries
 open Cohttp
 open Cohttp_lwt_unix
+open Yojson
 
 (* ---------------------------------------------------------------------- *)
 
 type issue = { number: int;
       title: string;
       body: string;
-      state: string }
+      state: string
+}
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
 type column = { name: string;
@@ -69,43 +71,38 @@ let get_project_issues (project_name : string) =
                     Str.global_replace cursor_exp "null" query_template
                 | Some crs ->
                     (* Get subsequent batches *)
-                    (* TODO Figure out how to do the string interpolation. *)
-                    Str.global_replace cursor_exp "\\\"{crs}\\\"" query_template
+                    (* TODO Figure out how to do string interpolation nicely. *)
+                    Str.global_replace cursor_exp ("\\\"" ^ crs ^ "\\\"") query_template
             in
 
             (* TODO Figure out how to do the string interpolation. *)
-            Str.global_replace (Str.regexp "PROJECTNAME") "\\\"{project_name}\\\"" cursor_query |> format_query in
+            Str.global_replace (Str.regexp "PROJECTNAME") ("\\\"" ^ project_name ^"\\\"") cursor_query |> format_query in
 
-        let result = run_github_query github_token query in
+        (* TODO We should probably check the response to see that it was successful. *)
+        let _, body = run_github_query github_token query |> Lwt_main.run in
+        let issues = body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Safe.from_string |> project_root_of_yojson in
 
-        (* TODO: Continue translating from F# here on down *)
-        let issues: project_root =
-            match result |> Decode.from_string project_root_decoder with
-            | Ok issues -> issues
-            | Error _ -> failwith "Failed to decode"
-        in
-
-        let issue_data: (issue * string) list =
-            issues.projects.Head.columns
-            |> list.collect (fun column -> column.cards) 
-        in
+        (* TODO Why only the head? What about the other projects? *)
+        let issue_data = issues.projects |> List.hd |> (fun x -> x.columns)
+            |> List.map (fun column -> column.cards) |> List.concat in
 
         (* Cursor points to the last item returned, used for paging of the requests *)
         let next_cursor =
-            if issue_data.Length = 0 then
+            if List.length issue_data = 0 then
                 None
             else
                 issue_data 
-                |> list.last 
+                |> List.last
                 |> (fun (_, c) -> Some c)
             in
+        let new_acc = acc @ issue_data in
 
         match next_cursor with
         | Some _ -> 
-            return! (get_project_issues_page project_name next_cursor (list.append acc issue_data))
+            (get_project_issues_page project_name next_cursor new_acc)
         | None -> 
-            return (list.append acc issue_data)
+            new_acc
         in
 
-    let! all_issues = get_project_issues_page project_name None [] in
-    all_issues |> list.map fst
+    let all_issues = get_project_issues_page project_name None [] in
+    all_issues |> List.map fst
