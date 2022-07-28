@@ -6,27 +6,64 @@ open Yojson
 (* ---------------------------------------------------------------------- *)
 
 type issue = { number : int; title : string; body : string; state : string }
-[@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
+[@@deriving show]
 
 type column = { name : string; cards : (issue * string) list }
 (* string is cursor, would be nice to have a type alias for cursor *)
-[@@deriving show, of_yojson]
-[@@yojson.allow_extra_fields]
+[@@deriving show]
 
 type project = { number : int; name : string; columns : column list }
-[@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
+[@@deriving show]
 
-type project_root = { projects : project list }
-[@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
+type project_root = { projects : project list } [@@deriving show]
+
+(* ---------------------------------------------------------------------- *)
+
+let member = Basic.Util.member
+
+let issue_of_json json =
+  json |> member "node" |> member "content" |> fun x ->
+  {
+    number = member "number" x |> Basic.Util.to_int;
+    title = member "title" x |> Basic.Util.to_string;
+    body = member "body" x |> Basic.Util.to_string;
+    state = member "state" x |> Basic.Util.to_string;
+  }
+
+let column_of_json json =
+  json |> member "node" |> fun x ->
+  {
+    name = member "name" x |> Basic.Util.to_string;
+    cards =
+      member "cards" x |> member "edges"
+      |> Basic.Util.convert_each (fun y ->
+             (issue_of_json y, member "cursor" y |> Basic.Util.to_string));
+  }
+
+let project_of_json json =
+  json |> member "node" |> fun x ->
+  {
+    number = member "number" x |> Basic.Util.to_int;
+    name = member "name" x |> Basic.Util.to_string;
+    columns =
+      member "columns" x |> member "edges"
+      |> Basic.Util.convert_each column_of_json;
+  }
+
+let project_root_of_json json =
+  {
+    projects =
+      json |> member "data" |> member "repository" |> member "projects"
+      |> member "edges"
+      |> Basic.Util.convert_each project_of_json;
+  }
 
 (* ---------------------------------------------------------------------- *)
 
 let github_graph_ql_endpoint = "https://api.github.com/graphql"
-let project_board = "Project Tracker"
 
-(* TODO: async?
+(*
    Query Github GraphQL endpoint
-   body is json with GraphQL query element
    https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#communicating-with-graphql
 *)
 let run_github_query (git_hub_token : string) body =
@@ -35,7 +72,7 @@ let run_github_query (git_hub_token : string) body =
   let header =
     Header.prepend_user_agent
       (Header.add_authorization (Header.init ())
-         (Auth.credential_of_string git_hub_token))
+         (Auth.credential_of_string ("Bearer " ^ git_hub_token)))
       "NowWhat"
   in
   let body_obj = Cohttp_lwt.Body.of_string body in
@@ -76,7 +113,7 @@ let get_project_issues (project_name : string) =
             Str.global_replace cursor_exp ("\\\"" ^ crs ^ "\\\"") query_template
       in
 
-      (* TODO Figure out how to do the string interpolation. *)
+      (* TODO Figure out how to do string interpolation nicely. *)
       Str.global_replace (Str.regexp "PROJECTNAME")
         ("\\\"" ^ project_name ^ "\\\"")
         cursor_query
@@ -86,11 +123,11 @@ let get_project_issues (project_name : string) =
     (* TODO We should probably check the response to see that it was successful. *)
     let _, body = run_github_query github_token query |> Lwt_main.run in
     let issues =
-      body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Safe.from_string
-      |> project_root_of_yojson
+      body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
+      |> project_root_of_json
     in
 
-    (* TODO Why only the head? What about the other projects? *)
+    (* TODO Why only the head? Might there be more projects? *)
     let issue_data =
       issues.projects |> List.hd
       |> (fun x -> x.columns)
