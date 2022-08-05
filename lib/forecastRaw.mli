@@ -3,6 +3,8 @@
 
 open CalendarLib
 
+module IdMap : module type of Map.Make (Int)
+
 type client = { id : int; name : string; archived : bool }
 
 type project = {
@@ -64,4 +66,4 @@ val getAssignments : Date.t -> Date.t -> assignment list
 
 val show_assignment : assignment -> string
 
-val getTheSchedule : Date.t -> Date.t -> client list * person list * placeholder list * project list * assignment list
+val getTheSchedule : Date.t -> Date.t -> client IdMap.t * person IdMap.t * placeholder IdMap.t * project IdMap.t * assignment list
