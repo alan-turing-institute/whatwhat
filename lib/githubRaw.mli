@@ -1,4 +1,14 @@
-type issue = { number : int; title : string; body : string; state : string }
+type person = { login : string; name : string option; email : string option }
+
+type issue = {
+  number : int;
+  title : string;
+  body : string;
+  state : string;
+  assignees : person list;
+  reactions : (string * person) list;
+}
+
 type column = { name : string; cards : (issue * string) list }
 type project = { number : int; name : string; columns : column list }
 type project_root = { projects : project list }

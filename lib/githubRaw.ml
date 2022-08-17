@@ -8,7 +8,17 @@ open Yojson
 
 exception HttpError of string
 
-type issue = { number : int; title : string; body : string; state : string }
+type person = { login : string; name : string option; email : string option }
+[@@deriving show]
+
+type issue = {
+  number : int;
+  title : string;
+  body : string;
+  state : string;
+  assignees : person list;
+  reactions : (string * person) list;
+}
 [@@deriving show]
 
 type column = {
@@ -28,6 +38,13 @@ type project_root = { projects : project list } [@@deriving show]
 
 let member = Basic.Util.member
 
+let person_of_json json =
+  {
+    login = json |> member "login" |> Basic.Util.to_string;
+    name = Some (json |> member "name" |> Basic.Util.to_string);
+    email = Some (json |> member "email" |> Basic.Util.to_string);
+  }
+
 let issue_of_json json =
   json |> member "node" |> member "content" |> fun x ->
   {
@@ -35,6 +52,14 @@ let issue_of_json json =
     title = x |> member "title" |> Basic.Util.to_string;
     body = x |> member "body" |> Basic.Util.to_string;
     state = x |> member "state" |> Basic.Util.to_string;
+    assignees =
+      x |> member "assignees" |> member "edges"
+      |> Basic.Util.convert_each (fun y -> y |> member "node" |> person_of_json);
+    reactions =
+      x |> member "reactions" |> member "edges"
+      |> Basic.Util.convert_each (fun y ->
+             ( y |> member "node" |> member "content" |> Basic.Util.to_string,
+               y |> member "node" |> member "user" |> person_of_json ));
   }
 
 let column_of_json json =
@@ -89,7 +114,7 @@ let remove_line_breaks (q : string) = Str.global_replace (Str.regexp "\n") "" q
 
 (* ---------------------------------------------------------------------- *)
 
-let query_template_path = "./queries/issues-by-project-graphql.json"
+let query_template_path = "./queries/issues-by-project-graphql.graphql"
 
 let read_file_as_string filepath =
   let channel = filepath |> open_in in
