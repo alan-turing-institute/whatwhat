@@ -66,9 +66,9 @@ let getTheSchedule (startDate : Date.t) (endDate : Date.t) =
                       projs in
   { projects = valid_projs }
 
-let getTheCurrentSchedule () =
+let getTheCurrentSchedule days =
   let startDate = Date.today () in 
-  let endDate = Date.add startDate (Date.Period.day 180) in
+  let endDate = Date.add startDate (Date.Period.day days) in
  getTheSchedule startDate endDate
 
     (* Validate projects:
