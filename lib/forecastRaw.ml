@@ -104,7 +104,7 @@ type assignment = {
                     [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
 let getAssignments (startDate : Date.t) (endDate : Date.t) =
-  assert (Date.Period.nb_days (Date.sub endDate startDate) < 180);
+  assert (Date.Period.nb_days (Date.sub endDate startDate) >= 0);
 
   let st = Printer.DatePrinter.to_string startDate
   and ed = Printer.DatePrinter.to_string endDate in
