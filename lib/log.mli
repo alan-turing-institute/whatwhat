@@ -12,7 +12,12 @@
 
 *)
 
-type what = Panic | Error | Warn | Info
+type what =
+  | Panic
+  | Error
+  | Warn
+  | Info
+
 type destination = Console
 
 val log : destination -> what -> string -> unit
