@@ -25,6 +25,27 @@
                             url
                             body
                             state
+                            assignees(first: 100) {
+                                edges {
+                                    node {
+                                        login
+                                        name
+                                        email
+                                    }
+                                }
+                            }
+                            reactions(first: 100) {
+                                edges {
+                                    node {
+                                        content
+                                        user {
+                                            login
+                                            name
+                                            email
+                                        }
+                                    }
+                                }
+                            }
                           }
                         }
                       }
