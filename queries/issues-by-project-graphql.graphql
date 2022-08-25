@@ -26,25 +26,34 @@
                             body
                             state
                             assignees(first: 100) {
-                                edges {
-                                    node {
-                                        login
-                                        name
-                                        email
-                                    }
+                              edges {
+                                node {
+                                  login
+                                  name
+                                  email
                                 }
+                              }
                             }
                             reactions(first: 100) {
-                                edges {
-                                    node {
-                                        content
-                                        user {
-                                            login
-                                            name
-                                            email
-                                        }
+                              edges {
+                                node {
+                                  content
+                                    user {
+                                      login
+                                      name
+                                      email
                                     }
                                 }
+                              }
+                            }
+                            projectCards(first: 100) {
+                              edges {
+                                node {
+                                  column {
+                                    name
+                                  }
+                                }
+                              }
                             }
                           }
                         }

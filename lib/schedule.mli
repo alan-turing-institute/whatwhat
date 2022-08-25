@@ -6,23 +6,14 @@ type person =
   ; github_login : string
   }
 
-type _project_column =
-  | Suggested
-  | Proposal
-  | ExtraInfoNeeded
-  | ProjectAppraisal
-  | AwaitingGoNoGo
-  | FindingPeople
-  | AwaitingStart
-  | Active
-  | CompletionReview
-  | Done
-  | Cancelled
-  | Rejected
-
-type _project =
+type project =
   { forecast_id : int
   ; github_id : int
+  ; name : string
+  ; assignees : string list
+  ; column : string
+      (* TODO column could be an enum type?*)
+      (*
   ; earliest_start_date : Date.t
   ; latest_start_date : Date.t
   ; latest_end_date : Date.t
@@ -30,10 +21,9 @@ type _project =
   ; nominal_fte_percent : float
   ; max_fte_percent : float
   ; min_fte_percent : float
-  ; name : string
   ; start_date : Date.t option
   ; end_date : Date.t option
-  ; column : _project_column
+  *)
   }
 
 type allocation =
@@ -44,5 +34,6 @@ type allocation =
   ; rate : float
   }
 
-val make_schedule : unit -> person list
+val make_schedule : unit -> person list * project list
 val show_person : person -> string
+val show_project : project -> string

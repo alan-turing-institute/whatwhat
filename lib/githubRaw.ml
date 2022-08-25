@@ -23,6 +23,7 @@ type issue =
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
+  ; column : string option
   }
 [@@deriving show]
 
@@ -63,6 +64,17 @@ let issue_of_json json =
   ; title = x |> member "title" |> Basic.Util.to_string
   ; body = x |> member "body" |> Basic.Util.to_string
   ; state = x |> member "state" |> Basic.Util.to_string
+  ; column =
+      x
+      |> member "projectCards"
+      |> member "edges"
+      |> Basic.Util.convert_each (fun y ->
+           y
+           |> member "node"
+           |> member "column"
+           |> member "name"
+           |> Basic.Util.to_string_option)
+      |> List.first
   ; assignees =
       x
       |> member "assignees"
