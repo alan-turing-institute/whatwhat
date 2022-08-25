@@ -46,44 +46,28 @@ type schedule =
 (* Like "short-circuit and".  See "let-punning",
    https://v2.ocaml.org/manual/bindingops.html *)
 let ( let+ ) o f = Option.map f o
+let person_name p = (p.first_name ^ " ") ^ p.last_name
 
 (* ------------------------------------------------------------ *)
 (* Logging for errors and warnings *)
 
-(* TODO: Change this to add the notifications to a stack *)
-
-type logType =
-  | LogError
-  | LogWarning
-
-let log_raw_project (what : logType) (p : Raw.project) msg =
-  match what with
-  | LogWarning ->
-    print_endline @@ "Warning: " ^ msg ^ " for project id=" ^ string_of_int p.id
-  | LogError -> print_endline @@ "Error: " ^ msg ^ " for project id=" ^ string_of_int p.id
+let log_raw_project (lvl : Log.log_type) (p : Raw.project) msg =
+  Log.log lvl @@ msg ^ " for project id=" ^ string_of_int p.id
 ;;
 
-let log_project (what : logType) (p : project) msg =
+let log_project (lvl : Log.log_type) (p : project) msg =
   let make_hut23_code n = " [hut23-" ^ string_of_int n ^ "]" in
-  match what with
-  | LogWarning ->
-    print_endline @@ "Warning: " ^ msg ^ " for project " ^ make_hut23_code p.number
-  | LogError ->
-    print_endline @@ "Error: " ^ msg ^ " for project " ^ make_hut23_code p.number
+  Log.log lvl @@ msg ^ " for project " ^ make_hut23_code p.number
 ;;
 
-let log_raw_person (what : logType) (p : Raw.person) msg =
+let log_raw_person (lvl : Log.log_type) (p : Raw.person) msg =
   let name = p.first_name ^ " " ^ p.last_name in
-  match what with
-  | LogWarning -> print_endline @@ "Warning: " ^ msg ^ " for " ^ name
-  | LogError -> print_endline @@ "Error: " ^ msg ^ " for " ^ name
+  Log.log lvl @@ msg ^ " for " ^ name
 ;;
 
-let log_assignment (what : logType) (a : Raw.assignment) msg =
+let log_assignment (lvl : Log.log_type) (a : Raw.assignment) msg =
   let aid (a : Raw.assignment) = "(" ^ string_of_int a.id ^ ")" in
-  match what with
-  | LogWarning -> print_endline @@ "Warning: " ^ msg ^ aid a
-  | LogError -> print_endline @@ "Error: " ^ msg ^ aid a
+  Log.log lvl @@ msg ^ aid a
 ;;
 
 (* ------------------------------------------------------------ *)
@@ -102,12 +86,12 @@ let timeoff_project_id = 1684536
 let extract_finance_code _ (project : Raw.project) =
   match project.tags with
   | [] ->
-    log_raw_project LogWarning project "Missing Finance Code";
+    log_raw_project Log.Warning project "Missing Finance Code";
     None
   | fc :: [] -> Some fc
   | fc :: _ ->
     log_raw_project
-      LogWarning
+      Log.Warning
       project
       "More than one potential Finance code (using the first tag)";
     Some fc
@@ -123,10 +107,10 @@ let extract_project_number (project : Raw.project) =
       |> int_of_string)
   with
   | Invalid_argument _ ->
-    log_raw_project LogError project "Missing project code";
+    log_raw_project Log.Error project "Missing project code";
     None
   | Not_found ->
-    log_raw_project LogError project "Malformed project code";
+    log_raw_project Log.Error project "Malformed project code";
     None
 ;;
 
@@ -148,14 +132,17 @@ let validate_person _ (p : Raw.person) =
   else (
     match p.email with
     | None ->
-      log_raw_person LogError p "Missing email";
+      log_raw_person Log.Error p "Missing email";
+      None
+    | Some "" ->
+      log_raw_person Log.Error p "Email is the empty string";
       None
     | Some email -> Some { email; first_name = p.first_name; last_name = p.last_name })
 ;;
 
 (* if StringMap.mem email m then *)
 (*     begin *)
-(*       log_raw_person LogError p "Another person has the same email as this"; *)
+(*       log_raw_person Log.Error p "Another person has the same email as this"; *)
 (*       m *)
 (*     end *)
 (*   else *)
@@ -172,12 +159,12 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
     (match IntMap.find_opt person_id people with
      (* We may have deleted the corresponding person or project already because they were invalid *)
      | None ->
-       log_assignment LogError a "Deleting an assignment because of missing person";
+       log_assignment Log.Error a "Deleting an assignment because of missing person";
        None
      | Some person ->
        (match IntMap.find_opt a.project_id projects with
         | None ->
-          log_assignment LogError a "Deleting as assignment because of a missing project";
+          log_assignment Log.Error a "Deleting as assignment because of a missing project";
           None
         | Some project ->
           Some
@@ -204,9 +191,12 @@ let make_project_map projects_id =
       if p.name <> existing_p.name
       then
         log_project
-          LogWarning
+          Log.Warning
           p
           "A project with the same number as this has a different name";
+      (* TODO Might we want to have an else-clause that would also warn if
+        there are two copies the same project, with the same number and name?
+        *)
       m
   in
   Seq.fold_left add_project IntMap.empty (IntMap.to_seq projects_id)
