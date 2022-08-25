@@ -4,10 +4,22 @@ type person =
   ; email : string option
   }
 
+  type metadata = 
+  { turing_project_code : string option
+  ; earliest_start_date : string (* unbound value of Date.pp means Date doesn't like @@derviing*)
+  ; latest_start_date : string (*Date.t*)
+  ; latest_end_date : string (*Date.t*)
+  ; fte_months : float
+  ; nominal_fte_percent : float
+  ; max_fte_percent : float option
+  ; min_fte_percent : float option
+  }
+
 type issue =
   { number : int
   ; title : string
-  ; body : string
+  ; metadata : metadata option
+  ; body : string option
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
