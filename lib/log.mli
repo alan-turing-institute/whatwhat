@@ -1,4 +1,4 @@
-(** Notify is used to tell certain people about certain problems
+(** Logging and notification: tell certain people about certain problems
 
     The following individuals may receive messages:
 
@@ -12,26 +12,12 @@
 
 *)
 
-type what = Panic | Error | Warn | Info
+type what =
+  | Panic
+  | Error
+  | Warn
+  | Info
 
-(* TODO: While we get going, just print to stdout. *)
 type destination = Console
 
-let string_of_what = function
-  | Panic -> "Panic"
-  | Error -> "Error"
-  | Warn  -> "Warn"
-  | Info  -> "Info"
-
-let defaultNotifier _ lvl msg =
-  Printf.printf "Whatwhat: %5s: %s" (string_of_what lvl) msg
-
-let theNotifier = ref defaultNotifier
-
-let notify (dst : destination) (lvl : what) (msg : string) : unit =
-  !theNotifier dst lvl msg
-
-
-            
-            
-  
+val log : destination -> what -> string -> unit

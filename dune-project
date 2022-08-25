@@ -7,7 +7,7 @@
 (source
  (github alan-turing-institute/whatwhat))
 
-(authors "James Geddes")
+(authors "Hut 23")
 
 (license MIT)
 
@@ -16,7 +16,7 @@
 (package
  (name whatwhat)
  (synopsis "A reimagining of nowwhat")
- (description "Project scheduling ")
+ (description "Project scheduling")
  (depends ocaml dune)
  (tags
   (topics "REG")))
