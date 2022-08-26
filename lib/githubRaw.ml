@@ -16,10 +16,25 @@ type person =
   }
 [@@deriving show]
 
+
+type metadata =  
+{ turing_project_code : string option
+  ; earliest_start_date : string (* unbound value of Date.pp means Date doesn't like @@derviing*)
+  ; latest_start_date : string (*Date.t*)
+  ; latest_end_date : string (*Date.t*)
+  ; fte_months : float
+  ; nominal_fte_percent : float
+  ; max_fte_percent : float option
+  ; min_fte_percent : float option
+  }
+[@@deriving show]
+
+
 type issue =
   { number : int
   ; title : string
-  ; body : string
+  ; metadata : metadata option
+  ; body : string option
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
@@ -46,7 +61,51 @@ type project_root = { projects : project list } [@@deriving show]
 (* ---------------------------------------------------------------------- *)
 (* PARSERS *)
 
+(*let make_date (str: string) = 
+  let year :: month :: day :: _ = Str.split (Str.regexp {|-|}) str in
+  Date.make year month day *)
+
+
 let member = Basic.Util.member
+let member_to_string (str: string) json = json |> member str |> Basic.Util.to_string
+
+let member_to_int (str: string) json = member str json |> Basic.Util.to_int
+
+let maybe_null ~(f: string -> 'a) (x: string) =
+  match x with 
+  | "null" -> print_string "-matchednull-";None
+  | _ -> print_string "-matchedother-"; Some (f x)
+
+let maybe_null_string s = maybe_null ~f:(fun x -> x) s
+let maybe_null_float s = maybe_null ~f:float_of_string s
+
+
+let list_to_pair x =
+  match x with
+  | [y;z] -> (y, z)
+  | y -> List.iter (fun z -> print_endline @@ "error in parsing: " ^ z) y; invalid_arg ("unable to parse yaml key")
+
+let metadata_of_yaml y = 
+  let y = Str.global_replace (Str.regexp " ") "" y in
+  let lines = Str.split (Str.regexp "\r\n") y in
+  let e = List.map (fun x -> Str.split (Str.regexp {|:|}) x |> list_to_pair) lines in
+  { turing_project_code = e |> List.assoc "turing-project-code" |> maybe_null_string
+    ; earliest_start_date = e |> List.assoc "earliest-start-date"
+    ; latest_start_date = e |> List.assoc "latest-start-date"
+    ; latest_end_date = e |> List.assoc "latest-end-date" 
+    ; fte_months = e |> List.assoc "FTE-months" |> float_of_string
+    ; nominal_fte_percent = e |> List.assoc "nominal-FTE-percent" |> float_of_string
+    ; max_fte_percent = e |> List.assoc "max-FTE-percent" |> maybe_null_float
+    ; min_fte_percent = e |> List.assoc "min-FTE-percent" |> maybe_null_float
+  } 
+  
+
+let parse_metadata (body: string) =
+  let x = Str.split (Str.regexp {|+++|}) body in
+  match x with
+  | top :: rest :: [] -> let mdata = top |> metadata_of_yaml in (Some mdata, Some rest) 
+  | _ -> (None, None) 
+
 
 let person_of_json json =
   { login = json |> member "login" |> Basic.Util.to_string
@@ -55,14 +114,20 @@ let person_of_json json =
   }
 ;;
 
+let parse_warning json =
+  print_endline @@ "Error: Unable to parse metadata for issue number: " ^ (string_of_int (member_to_int "number" json)) ^", title: " ^(member_to_string "title" json)
+
 let issue_of_json json =
   json
   |> member "node"
   |> member "content"
   |> fun x ->
+    let (m, r) = x |> member "body" |> Basic.Util.to_string |> parse_metadata in
+    if m = None then parse_warning x;
   { number = x |> member "number" |> Basic.Util.to_int
   ; title = x |> member "title" |> Basic.Util.to_string
-  ; body = x |> member "body" |> Basic.Util.to_string
+  ; metadata = m
+  ; body = r
   ; state = x |> member "state" |> Basic.Util.to_string
   ; column =
       x
@@ -108,7 +173,7 @@ let project_of_json json =
   json
   |> member "node"
   |> fun x ->
-  { number = x |> member "number" |> Basic.Util.to_int
+  { number = x |> member_to_int "number"
   ; name = x |> member "name" |> Basic.Util.to_string
   ; columns =
       x |> member "columns" |> member "edges" |> Basic.Util.convert_each column_of_json

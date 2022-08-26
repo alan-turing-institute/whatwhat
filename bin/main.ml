@@ -4,7 +4,7 @@ open Whatwhat
 
 let () =
   print_endline "Downloading schedule from Forecast...";
-  let theSchedule = Forecast.getTheCurrentSchedule () in
+  let theSchedule = Forecast.getTheCurrentSchedule 180 in
   print_endline "Obtained:";
   Printf.printf
     "%d projects; %d people; and %d assingments\n"
