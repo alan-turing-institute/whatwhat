@@ -11,6 +11,7 @@ type project =
   ; github_id : int
   ; name : string
   ; assignees : string list
+  ; reactions : (string * string) list
   ; column : string
       (* TODO column could be an enum type?*)
       (*

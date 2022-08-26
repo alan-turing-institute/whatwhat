@@ -12,6 +12,7 @@ type project =
   ; github_id : int
   ; name : string
   ; assignees : string list
+  ; reactions : (string * string) list
   ; column : string
       (*
   ; earliest_start_date : Date.t
@@ -28,10 +29,6 @@ type project =
   }
 [@@deriving show]
 
-(* TODO Our sketch said that maybe we should have a unique id field for
-   allocation too, but thinking of this again now, maybe if that's needed it
-   can be implemented as a function, that just concatenates some of the other
-   fields into a string. *)
 type allocation =
   { person_id : int
   ; project_id : int
@@ -68,6 +65,7 @@ let get_matching_gh_person (gh_people : GithubRaw.person list) (fc_p : Forecast.
     None
 ;;
 
+(* Make a map of Turing email addresses to people. *)
 let get_people_map fc_people (gh_people : GithubRaw.person list) =
   let add_person email (fc_p : Forecast.person) m =
     let gh_p_opt = get_matching_gh_person gh_people fc_p in
@@ -85,6 +83,7 @@ let get_people_map fc_people (gh_people : GithubRaw.person list) =
   StringMap.fold add_person fc_people StringMap.empty
 ;;
 
+(* Find the Forecast project associated with a given Github issue. *)
 let get_matching_fc_project
   (fc_projects : Forecast.project IntMap.t)
   (issue : GithubRaw.issue)
@@ -100,6 +99,7 @@ let get_matching_fc_project
     None
 ;;
 
+(* Find, from the email->person map, the person matching the given Github user. *)
 let person_of_gh_person (people : person StringMap.t) (gh_person : GithubRaw.person) =
   let login = gh_person.login in
   let _, found_person =
@@ -111,6 +111,7 @@ let person_of_gh_person (people : person StringMap.t) (gh_person : GithubRaw.per
   found_person
 ;;
 
+(* Make a map of Github issue ID to project. *)
 let get_project_map
   (fc_projects : Forecast.project IntMap.t)
   (gh_issues : GithubRaw.issue list)
@@ -120,13 +121,21 @@ let get_project_map
     let fc_p_opt = get_matching_fc_project fc_projects issue in
     match fc_p_opt with
     | Some fc_p ->
+      let assignees =
+        List.map (person_of_gh_person people) issue.assignees
+        |> List.map (fun person -> person.email)
+      in
+      let reactions =
+        List.map
+          (fun (emoji, gh_person) -> emoji, (person_of_gh_person people gh_person).email)
+          issue.reactions
+      in
       let new_project =
         { forecast_id = fc_p.number
         ; github_id = issue.number
         ; name = issue.title
-        ; assignees =
-            List.map (person_of_gh_person people) issue.assignees
-            |> List.map (fun person -> person.email)
+        ; assignees
+        ; reactions
         ; column =
             Option.get issue.column
             (* TODO Implement these too
@@ -139,7 +148,6 @@ let get_project_map
               ; min_fte_percent = issue.min_fte_percent
               ; start_date = issue.start_date
               ; end_date = issue.end_date
-              ; column = issue.project_column
               *)
         }
       in
@@ -150,7 +158,7 @@ let get_project_map
 ;;
 
 let make_schedule () =
-  let fc_schedule = Forecast.getTheCurrentSchedule () in
+  let fc_schedule = Forecast.getTheCurrentSchedule 180 in
   let fc_projects, fc_people, _fc_assignments =
     fc_schedule.projects, fc_schedule.people, fc_schedule.assignments
   in
