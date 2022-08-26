@@ -23,6 +23,7 @@ type issue =
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
+  ; column : string option
   }
 
 type column =
@@ -38,8 +39,10 @@ type project =
 
 type project_root = { projects : project list }
 
+val show_person : person -> string
 val show_issue : issue -> string
 val show_column : column -> string
 val show_project : project -> string
 val show_project_root : project_root -> string
 val get_project_issues : string -> issue list
+val get_users : unit -> person list

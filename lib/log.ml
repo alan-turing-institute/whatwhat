@@ -1,22 +1,19 @@
-type what =
-  | Panic
+(* TODO: Change this to add the notifications to a stack *)
+
+type log_type =
   | Error
-  | Warn
-  | Info
+  | Warning
 
-(* TODO: While we get going, just print to stdout. *)
-type destination = Console
-
-let string_of_what = function
-  | Panic -> "Panic"
+let show_log_type = function
   | Error -> "Error"
-  | Warn -> "Warn"
-  | Info -> "Info"
+  | Warning -> "Warning"
 ;;
 
-let defaultLogger _ lvl msg = Printf.printf "Whatwhat: %5s: %s" (string_of_what lvl) msg
-let theLogger = ref defaultLogger
+(* TODO: While we get going, just print to stdout. *)
+let lvl_prefix lvl = show_log_type lvl ^ ":"
+let default_logger lvl msg = Printf.printf "%-8s %s\n" (lvl_prefix lvl) msg
+let the_logger = ref default_logger
 
 (* "Every problem in computer science can be solved through another layer of
    indirection" *)
-let log (dst : destination) (lvl : what) (msg : string) : unit = !theLogger dst lvl msg
+let log (lvl : log_type) (msg : string) : unit = !the_logger lvl msg

@@ -12,12 +12,9 @@
 
 *)
 
-type what =
-  | Panic
+type log_type =
   | Error
-  | Warn
-  | Info
+  | Warning
 
-type destination = Console
-
-val log : destination -> what -> string -> unit
+val log : log_type -> string -> unit
+val show_log_type : log_type -> string

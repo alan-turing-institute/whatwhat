@@ -8,6 +8,7 @@ open CalendarLib
 (* TYPES *)
 
 exception HttpError of string
+exception QueryError of string
 
 type person =
   { login : string
@@ -41,6 +42,7 @@ type issue =
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
+  ; column : string option
   }
 [@@deriving show]
 
@@ -162,8 +164,8 @@ let member_to_int (str: string) json = member str json |> Basic.Util.to_int
 
 let person_of_json json =
   { login = json |> member_to_string "login"
-  ; name = Some (json |> member_to_string "name")
-  ; email = Some (json |> member_to_string "email")
+  ; name = json |> member "name" |> Basic.Util.to_string_option
+  ; email = json |> member "email" |> Basic.Util.to_string_option
   }
 ;;
 
@@ -179,6 +181,17 @@ let issue_of_json json =
   ; metadata
   ; body
   ; state = x |> member_to_string "state"
+  ; column =
+      x
+      |> member "projectCards"
+      |> member "edges"
+      |> Basic.Util.convert_each (fun y ->
+           y
+           |> member "node"
+           |> member "column"
+           |> member "name"
+           |> Basic.Util.to_string_option)
+      |> List.first
   ; assignees =
       x
       |> member "assignees"
@@ -241,6 +254,13 @@ let project_root_of_json json =
 
 let github_graph_ql_endpoint = "https://api.github.com/graphql"
 
+let check_http_response response =
+  if Response.status response |> Code.code_of_status |> Code.is_success |> not
+  then (
+    let code_string = Response.status response |> Code.string_of_status in
+    raise @@ HttpError code_string)
+;;
+
 let run_github_query (git_hub_token : string) body =
   let auth_cred = Auth.credential_of_string ("Bearer " ^ git_hub_token) in
   let header =
@@ -251,7 +271,15 @@ let run_github_query (git_hub_token : string) body =
   in
   let body_obj = Cohttp_lwt.Body.of_string body in
   let uri = Uri.of_string github_graph_ql_endpoint in
-  Client.post ~headers:header ~body:body_obj uri
+  let response, body = Client.post ~headers:header ~body:body_obj uri |> Lwt_main.run in
+  let () = check_http_response response in
+  let body_json =
+    body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
+  in
+  let errors = Basic.Util.member "errors" body_json in
+  match errors with
+  | `Null -> body_json
+  | _ -> raise @@ QueryError (Basic.to_string errors)
 ;;
 
 (* For formatting the JSON query to enable correct parsing on Github's side *)
@@ -259,7 +287,8 @@ let remove_line_breaks (q : string) = Str.global_replace (Str.regexp "\n") "" q
 
 (* ---------------------------------------------------------------------- *)
 
-let query_template_path = "./queries/issues-by-project-graphql.graphql"
+let issue_query_template_path = "./queries/issues-by-project-graphql.graphql"
+let user_query_template_path = "./queries/users.graphql"
 
 let read_file_as_string filepath =
   let channel = filepath |> open_in in
@@ -270,8 +299,8 @@ let read_file_as_string filepath =
 
 (* The Github API query's JSON body is built by taking a template and replacing
    some placeholders with the project board name and cursor for paging. *)
-let build_query project_name cursor =
-  let query_template = read_file_as_string query_template_path in
+let build_issue_query project_name cursor =
+  let query_template = read_file_as_string issue_query_template_path in
   let cursor_query =
     let cursor_exp = Str.regexp "CURSOR" in
     let replace_with =
@@ -287,10 +316,25 @@ let build_query project_name cursor =
   Str.global_replace to_replace replace_with cursor_query |> remove_line_breaks
 ;;
 
-(* This is the main function of this module, that would be called externally.
+(* These are the main functions of this module, that would be called
+   externally. *)
 
-   It is only wrapping up the recursive call that deals with paging of the
-   responses. *)
+let get_users () =
+  let github_token = Config.settings.githubToken in
+  let user_query = read_file_as_string user_query_template_path in
+  let body_json = run_github_query github_token user_query in
+  let users =
+    body_json
+    |> Basic.Util.member "data"
+    |> Basic.Util.member "repository"
+    |> Basic.Util.member "assignableUsers"
+    |> Basic.Util.member "edges"
+    |> Basic.Util.convert_each (fun json ->
+         json |> Basic.Util.member "node" |> person_of_json)
+  in
+  users
+;;
+
 let get_project_issues (project_name : string) =
   let github_token = Config.settings.githubToken in
 
@@ -299,24 +343,11 @@ let get_project_issues (project_name : string) =
     cursor
     (acc : (issue * string) list)
     =
-    let query = build_query project_name cursor in
-    let response, body = run_github_query github_token query |> Lwt_main.run in
-    let () =
-      if not @@ Code.is_success @@ Code.code_of_status @@ Response.status response
-      then (
-        let code_string = Code.string_of_status @@ Response.status response in
-        let error_msg = "Github query failed with HTTP error " ^ code_string in
-        raise @@ HttpError error_msg)
-    in
+    let issue_query = build_issue_query project_name cursor in
+    let body_json = run_github_query github_token issue_query in
 
     (* Parse the response into a list of issues. *)
-    let issues =
-      body
-      |> Cohttp_lwt.Body.to_string
-      |> Lwt_main.run
-      |> Basic.from_string
-      |> project_root_of_json
-    in
+    let issues = body_json |> project_root_of_json in
 
     (* TODO Why only the head? Might there be more projects? *)
     let issue_data =
