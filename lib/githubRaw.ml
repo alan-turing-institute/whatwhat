@@ -16,16 +16,16 @@ type person =
   }
 [@@deriving show]
 
-let date_opt_printer (_fmt: Format.formatter) (dt: Date.t option) =
-  match dt with
-  | Some x -> Printer.Date.dprint x
-  | None -> print_string "None"
+let date_opt_to_string (dt: Date.t option) =
+    match dt with
+    | Some x -> Printer.Date.to_string x
+    | None -> "None"
 
 type metadata =  
 { turing_project_code : string option
-  ; earliest_start_date : Date.t option [@printer date_opt_printer]
-  ; latest_start_date : Date.t option [@printer date_opt_printer] 
-  ; latest_end_date : Date.t option [@printer date_opt_printer]
+  ; earliest_start_date : Date.t option [@printer fun fmt dt -> Format.pp_print_string fmt (date_opt_to_string dt)]
+  ; latest_start_date : Date.t option [@printer fun fmt dt -> Format.pp_print_string fmt (date_opt_to_string dt)]
+  ; latest_end_date : Date.t option [@printer fun fmt dt -> Format.pp_print_string fmt (date_opt_to_string dt)]
   ; fte_months : float option
   ; nominal_fte_percent : float option
   ; max_fte_percent : float option
@@ -174,7 +174,6 @@ let issue_of_json json =
   |> fun x ->
     let number = x |> member_to_int "number" in
     let (metadata, body) = x |> member_to_string "body" |> parse_metadata number in
-    
   { number
   ; title = x |> member_to_string "title"
   ; metadata
