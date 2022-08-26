@@ -6,11 +6,11 @@ type person =
 
   type metadata = 
   { turing_project_code : string option
-  ; earliest_start_date : string (* unbound value of Date.pp means Date doesn't like @@derviing*)
-  ; latest_start_date : string (*Date.t*)
-  ; latest_end_date : string (*Date.t*)
-  ; fte_months : float
-  ; nominal_fte_percent : float
+  ; earliest_start_date : CalendarLib.Date.t option
+  ; latest_start_date : CalendarLib.Date.t option
+  ; latest_end_date : CalendarLib.Date.t option
+  ; fte_months : float option
+  ; nominal_fte_percent : float option
   ; max_fte_percent : float option
   ; min_fte_percent : float option
   }
