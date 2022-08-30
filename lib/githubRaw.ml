@@ -95,12 +95,17 @@ let maybe_null ~(f: string -> 'a) (x: string option) =
 let maybe_null_string s = maybe_null ~f:(fun x -> x) s
 let maybe_null_float s = maybe_null ~f:float_of_string s 
 
+let catch_date_exn year month day n =
+  try Some (Date.make (int_of_string year) (int_of_string month) (int_of_string day)) with
+    Date.Out_of_bounds -> log_warning FieldError n "date out of bounds"; None
+
+
 let make_date (n: int) (str: string option) = 
   match str with
   | None -> log_warning  FieldError n "key does not exist"; None
   | Some x -> let datelist = Str.split (Str.regexp {|-|}) x in
     match datelist with
-    | year :: month :: day :: [] -> Some (Date.make (int_of_string year) (int_of_string month) (int_of_string day))
+    | year :: month :: day :: [] -> catch_date_exn year month day n   
     | _ -> log_warning  FieldError n x; None
   
 
@@ -271,6 +276,7 @@ let run_github_query (git_hub_token : string) body =
   in
   let body_obj = Cohttp_lwt.Body.of_string body in
   let uri = Uri.of_string github_graph_ql_endpoint in
+  print_endline @@ body;
   let response, body = Client.post ~headers:header ~body:body_obj uri |> Lwt_main.run in
   let () = check_http_response response in
   let body_json =
