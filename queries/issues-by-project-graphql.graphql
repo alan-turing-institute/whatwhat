@@ -10,7 +10,7 @@
               edges {
                 node {
                   name
-                  cards(first: 100, after: CURSOR) {
+                  cards(first: 20, after: CURSOR) {
                     edges {
                       cursor
                       node {
