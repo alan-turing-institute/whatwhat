@@ -7,11 +7,11 @@ let () =
   let theSchedule = Forecast.getTheCurrentSchedule 180 in
   print_endline "Obtained:";
   Printf.printf
-    "%d projects; %d people; and %d assingments\n"
+    "%d projects; %d people; and %d assignments\n"
     (Forecast.IntMap.cardinal theSchedule.projects)
     (Forecast.StringMap.cardinal theSchedule.people)
     (List.length theSchedule.assignments);
-  let issues = GithubRaw.get_project_issues "NowWhat Test Project" in
-  print_endline "Obtained issues:";
-  List.iter (fun c -> print_endline @@ GithubRaw.show_issue c) issues
+  print_endline "Obtaining issues from  Github:";
+  let issues = Github.get_project_issues "Project Tracker" in
+  Printf.printf "Obtained %d issues" (List.length issues);
 ;;

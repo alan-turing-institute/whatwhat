@@ -1,8 +1,9 @@
+(* Queries Github API and traverses the GraphQL results. Validation is done in github.ml *)
+
 open Batteries
 open Cohttp
 open Cohttp_lwt_unix
 open Yojson
-open CalendarLib
 
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
@@ -17,28 +18,10 @@ type person =
   }
 [@@deriving show]
 
-let date_opt_to_string (dt: Date.t option) =
-    match dt with
-    | Some x -> Printer.Date.to_string x
-    | None -> "None"
-
-type metadata =  
-{ turing_project_code : string option
-  ; earliest_start_date : Date.t option [@printer fun fmt dt -> Format.pp_print_string fmt (date_opt_to_string dt)]
-  ; latest_start_date : Date.t option [@printer fun fmt dt -> Format.pp_print_string fmt (date_opt_to_string dt)]
-  ; latest_end_date : Date.t option [@printer fun fmt dt -> Format.pp_print_string fmt (date_opt_to_string dt)]
-  ; fte_months : float option
-  ; nominal_fte_percent : float option
-  ; max_fte_percent : float option
-  ; min_fte_percent : float option
-  }
-[@@deriving show]
-
 type issue =
   { number : int
   ; title : string
-  ; metadata : metadata option
-  ; body : string option
+  ; body : string
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
@@ -61,98 +44,14 @@ type project =
 [@@deriving show]
 
 type project_root = { projects : project list } [@@deriving show]
-
-
-(* ---------------------------------------------------------------------- *)
-(* METADATA LOGGING *)
-type parseerror =
-| FieldError
-| FieldWarning
-| LengthError
-| LineError
-
-let log_warning (what: parseerror) (number: int) msg =
-  match what with
-  | LengthError -> print_endline @@ "Metadata Parse Error (num: " ^ (string_of_int number) ^ "): Expected 8 metadata keys, got " ^ msg 
-  | LineError -> print_endline @@ "Metadata Parse Error (num: " ^ (string_of_int number) ^ "): Unable to break line into (key, value) - " ^ msg
-  | FieldError -> print_endline @@ "Metadata Parse Error (num: " ^ (string_of_int number) ^ "): Unable to parse key " ^ msg
-  | FieldWarning -> print_endline @@ "Metadata Parse Warning (num: " ^ (string_of_int number) ^ "): key " ^ msg
   
 
 
-(* ---------------------------------------------------------------------- *)
-(* METADATA PARSING *)
-
-
-let maybe_null ~(f: string -> 'a) (x: string option) =
-  match x with
-  | None -> None
-  | Some y -> match y with 
-              | "" -> None
-              | "null" -> None
-              | _ -> Some (f y)
-
-let maybe_null_string s = maybe_null ~f:(fun x -> x) s
-let maybe_null_float s = maybe_null ~f:float_of_string s 
-
-let catch_date_exn year month day n =
-  try Some (Date.make (int_of_string year) (int_of_string month) (int_of_string day)) with
-    Date.Out_of_bounds -> log_warning FieldError n "date out of bounds"; None
-
-
-let make_date (n: int) (str: string option) = 
-  match str with
-  | None -> log_warning  FieldError n "key does not exist"; None
-  | Some x -> let datelist = Str.split (Str.regexp {|-|}) x in
-    match datelist with
-    | year :: month :: day :: [] -> catch_date_exn year month day n   
-    | _ -> log_warning  FieldError n x; None
   
 
-(* the value should be of the form " <val>". Any other spaces then content indicates a violation*)
-let check_value (n: int) (k: string) (v: string) =
-  let x = Str.split (Str.regexp " ") v in
-  match x with
-  | [] -> log_warning  FieldWarning n (k ^ ", empty value"); ""
-  | "null"::[] -> log_warning  FieldWarning n (k ^ ", null value"); ""
-  | y::[] -> y
-  | y::z -> log_warning FieldWarning n (k ^ ", additional info - " ^ (String.concat "" z)); y
-
-let list_to_pair (n: int) (x: string list) =
-  match x with
-  | [k;v] -> (k, (check_value n k v))
-  | y -> log_warning LineError n (String.concat ";"  y); ("", "")
-  
-
-let parse_fields (n: int) (lines: string list) =
-  
-  let fields = List.map (fun x -> Str.split (Str.regexp {|:|}) x |> list_to_pair n) lines in
-  Some { turing_project_code = fields |> List.assoc_opt "turing-project-code" |> maybe_null_string
-    ; earliest_start_date = fields |> List.assoc_opt "earliest-start-date" |> make_date n
-    ; latest_start_date = fields |> List.assoc_opt "latest-start-date" |> make_date n
-    ; latest_end_date = fields |> List.assoc_opt "latest-end-date" |> make_date n
-    ; fte_months = fields |> List.assoc_opt "FTE-months" |> maybe_null_float
-    ; nominal_fte_percent = fields |> List.assoc_opt "nominal-FTE-percent" |> maybe_null_float
-    ; max_fte_percent = fields |> List.assoc_opt "max-FTE-percent" |> maybe_null_float
-    ; min_fte_percent = fields |> List.assoc_opt "min-FTE-percent" |> maybe_null_float
-  } 
 
 
-let parse_lines (n: int) (lines: string list) =
-  let len = List.length lines in 
-  match len with 
-  | 8 -> parse_fields n lines 
-  | _ -> log_warning LengthError n (string_of_int len); None
 
-let metadata_of_yaml (n: int) (y: string) = 
-  let lines = Str.split (Str.regexp "\r\n") y in
-  parse_lines n lines
-
-  let parse_metadata (number: int) (body: string) =
-    let x = Str.split (Str.regexp {|+++|}) body in
-    match x with
-    | top :: rest :: [] -> let mdata = top |> metadata_of_yaml number in (mdata, Some rest) 
-    | _ -> (None, None) 
 
     
 (* ---------------------------------------------------------------------- *)
@@ -179,12 +78,9 @@ let issue_of_json json =
   |> member "node"
   |> member "content"
   |> fun x ->
-    let number = x |> member_to_int "number" in
-    let (metadata, body) = x |> member_to_string "body" |> parse_metadata number in
-  { number
+  { number = x |> member_to_int "number"
   ; title = x |> member_to_string "title"
-  ; metadata
-  ; body
+  ; body = x |> member_to_string "body"
   ; state = x |> member_to_string "state"
   ; column =
       x
@@ -276,12 +172,10 @@ let run_github_query (git_hub_token : string) body =
   in
   let body_obj = Cohttp_lwt.Body.of_string body in
   let uri = Uri.of_string github_graph_ql_endpoint in
-  print_endline @@ body;
   let response, body = Client.post ~headers:header ~body:body_obj uri |> Lwt_main.run in
   let () = check_http_response response in
   let body_json =
-    body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
-  in
+    body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string in
   let errors = Basic.Util.member "errors" body_json in
   match errors with
   | `Null -> body_json

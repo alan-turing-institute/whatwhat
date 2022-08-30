@@ -4,22 +4,10 @@ type person =
   ; email : string option
   }
 
-  type metadata = 
-  { turing_project_code : string option
-  ; earliest_start_date : CalendarLib.Date.t option
-  ; latest_start_date : CalendarLib.Date.t option
-  ; latest_end_date : CalendarLib.Date.t option
-  ; fte_months : float option
-  ; nominal_fte_percent : float option
-  ; max_fte_percent : float option
-  ; min_fte_percent : float option
-  }
-
 type issue =
   { number : int
   ; title : string
-  ; metadata : metadata option
-  ; body : string option
+  ; body : string
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
