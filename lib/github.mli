@@ -20,16 +20,23 @@ type metadata = {
     min_fte_percent : float option;
   }
 
+type person = Raw.person = 
+  { login : string
+  ; name : string option
+  ; email : string option
+  }
+
 type project = {
     number : int;
     title : string;
     body : string;
     state : string;
-    assignees : Raw.person list;
-    reactions : (string * Raw.person) list;
+    assignees : person list;
+    reactions : (string * person) list;
     column : string option;
     metadata : metadata;
   }
+
 
 val log_parseerror : parseerror -> int -> string -> unit
 val dateprinter: Format.formatter -> Date.t -> unit
@@ -42,8 +49,10 @@ val make_date: int -> string option -> Date.t option
 val check_value: int -> string -> string -> string
 val list_to_pair: int -> string list -> string * string
 val parse_fields: int -> string list -> metadata option
-val parse_lines:  int -> string list -> metadata option
 val metadata_of_yaml: int -> string -> metadata option
 val parse_metadata: int -> string -> metadata option * string option
 val validate_issue: Raw.issue -> project option
 val get_project_issues: string -> project list
+
+val show_project : project -> string
+val show_metadata : metadata -> string
