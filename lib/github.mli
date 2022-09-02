@@ -1,10 +1,10 @@
 (* High-level interface to the Github API
 
-Performs validation for Github issues. A valid project issue has: 
+Performs validation for Github issues. A valid project issue has:
   - Metadata, with at least the entries:
     - earliest_start_date
     - latest_start_date
-    - fte_months  
+    - fte_months
     - nominal_fte_percent
 
 Errors are logged to the console when these are missing, or when metadata is malformed,
@@ -19,7 +19,7 @@ Errors currently occur when:
 
 Warnings are given for other inconsisties (e.g. no one is assigned.) Warnings are given
 due to:
-  - There being additional information in the value entry. 
+  - There being additional information in the value entry.
   - A non-crucial entry is missing or null. *)
 module Raw = GithubRaw
 
@@ -31,8 +31,8 @@ type parseerror =
 
 type metadata =
   { turing_project_code : string option
-  ; earliest_start_date : CalendarLib.Date.t option
-  ; latest_start_date : CalendarLib.Date.t option
+  ; earliest_start_date : CalendarLib.Date.t
+  ; latest_start_date : CalendarLib.Date.t
   ; latest_end_date : CalendarLib.Date.t option
   ; fte_months : float option
   ; nominal_fte_percent : float option
