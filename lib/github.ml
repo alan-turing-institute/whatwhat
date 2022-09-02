@@ -1,29 +1,3 @@
-(* High-level interface to the Github API
-
-  Performs validation for Github issues. A valid project issue has: 
-   - Metadata, with at least the entries:
-        - earliest_start_date
-        - latest_start_date
-        - fte_months  
-        - nominal_fte_percent
-   
-  Errors are logged to the console when these are missing, or when metadata is malformed, and the issue is removed.
-
-  Errors currently occur when:
-  - Metadata does not have 8 keys.
-  - Cannot break a metadata line into a (key,value) pair, which means it is incorrect yaml.
-  - A crucial key cannot be parsed (missing, or there is an error when dealing with the value)
-
-  
-  Warnings are given for other inconsisties (e.g. no one is assigned.)
-  
-  Warnings are given due to:
-  - There being additional information in the value entry. 
-  - A non-crucial entry is missing or null.
-
- *)
-
-open CalendarLib
 module Raw = GithubRaw
 
 (* ---------------------------------------------------------------------- *)
@@ -34,6 +8,8 @@ type parseerror =
   | LengthError
   | LineError
 
+(** Given a [parseerror] and a Github issue number, generate a string that can be e.g.
+    printed in the error logs.*)
 let log_parseerror (what : parseerror) (number : int) msg =
   match what with
   | LengthError ->
@@ -67,11 +43,11 @@ let log_parseerror (what : parseerror) (number : int) msg =
 
 type metadata =
   { turing_project_code : string option
-  ; earliest_start_date : Date.t option
+  ; earliest_start_date : CalendarLib.Date.t option
        [@printer fun fmt x -> Format.pp_print_string fmt (Dateprinter.dateprint_opt x)]
-  ; latest_start_date : Date.t option
+  ; latest_start_date : CalendarLib.Date.t option
        [@printer fun fmt x -> Format.pp_print_string fmt (Dateprinter.dateprint_opt x)]
-  ; latest_end_date : Date.t option
+  ; latest_end_date : CalendarLib.Date.t option
        [@printer fun fmt x -> Format.pp_print_string fmt (Dateprinter.dateprint_opt x)]
   ; fte_months : float option
   ; nominal_fte_percent : float option
@@ -120,8 +96,8 @@ let maybe_null_string s = maybe_null ~f:(fun x -> x) s
 let maybe_null_float s = maybe_null ~f:float_of_string s
 
 let catch_date_exn year month day n =
-  try Some (Date.make year month day) with
-  | Date.Out_of_bounds ->
+  try Some (CalendarLib.Date.make year month day) with
+  | CalendarLib.Date.Out_of_bounds ->
     log_parseerror FieldError n "date out of bounds";
     None
 ;;

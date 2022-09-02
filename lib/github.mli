@@ -1,4 +1,26 @@
-open CalendarLib
+(* High-level interface to the Github API
+
+Performs validation for Github issues. A valid project issue has: 
+  - Metadata, with at least the entries:
+    - earliest_start_date
+    - latest_start_date
+    - fte_months  
+    - nominal_fte_percent
+
+Errors are logged to the console when these are missing, or when metadata is malformed,
+and the issue is dropped from the list of all issues.
+
+Errors currently occur when:
+  - Metadata does not have 8 keys.
+  - Cannot break a metadata line into a (key,value) pair, which means it is incorrect
+  yaml.
+  - A crucial key cannot be parsed (missing, or there is an error when dealing with the
+  value)
+
+Warnings are given for other inconsisties (e.g. no one is assigned.) Warnings are given
+due to:
+  - There being additional information in the value entry. 
+  - A non-crucial entry is missing or null. *)
 module Raw = GithubRaw
 
 type parseerror =
@@ -18,12 +40,15 @@ type metadata =
   ; min_fte_percent : float option
   }
 
+(** We reexport the Raw.person type so that no other module ever has a need to import
+   anything from GithubRaw.*)
 type person = Raw.person =
   { login : string
   ; name : string option
   ; email : string option
   }
 
+(** Project are 1-to-1 related with Github issues.*)
 type project =
   { number : int
   ; title : string
@@ -35,20 +60,13 @@ type project =
   ; metadata : metadata
   }
 
-val log_parseerror : parseerror -> int -> string -> unit
-val maybe_null : f:(string -> 'a) -> string option -> 'a option
-val maybe_null_string : string option -> string option
-val maybe_null_float : string option -> float option
-val catch_date_exn : int -> int -> int -> int -> Date.t option
-val make_date : int -> string option -> Date.t option
-val check_value : int -> string -> string -> string
-val list_to_pair : int -> string list -> string * string
-val parse_fields : int -> string list -> metadata option
-val metadata_of_yaml : int -> string -> metadata option
-val parse_metadata : int -> string -> metadata option * string option
-val validate_issue : Raw.issue -> project option
+(** Given a project board name, return a list of projects, one for each issue on the
+    board. *)
 val get_project_issues : string -> project list
+
+(** Return all the users in the Alan Turing Institute Github organisation.*)
 val get_users : unit -> person list
+
 val show_project : project -> string
 val show_metadata : metadata -> string
 val show_person : person -> string
