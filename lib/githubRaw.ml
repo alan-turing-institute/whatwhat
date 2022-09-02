@@ -44,27 +44,13 @@ type project =
 [@@deriving show]
 
 type project_root = { projects : project list } [@@deriving show]
-  
 
-
-  
-
-
-
-
-
-    
 (* ---------------------------------------------------------------------- *)
 (* PARSERS *)
 
-
-
 let member = Basic.Util.member
-let member_to_string (str: string) json = json |> member str |> Basic.Util.to_string
-
-let member_to_int (str: string) json = member str json |> Basic.Util.to_int
-
-  
+let member_to_string (str : string) json = json |> member str |> Basic.Util.to_string
+let member_to_int (str : string) json = member str json |> Basic.Util.to_int
 
 let person_of_json json =
   { login = json |> member_to_string "login"
@@ -144,9 +130,6 @@ let project_root_of_json json =
   }
 ;;
 
-
-
-
 (* ---------------------------------------------------------------------- *)
 (* QUERYING GITHUB *)
 (* See
@@ -175,7 +158,8 @@ let run_github_query (git_hub_token : string) body =
   let response, body = Client.post ~headers:header ~body:body_obj uri |> Lwt_main.run in
   let () = check_http_response response in
   let body_json =
-    body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string in
+    body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
+  in
   let errors = Basic.Util.member "errors" body_json in
   match errors with
   | `Null -> body_json

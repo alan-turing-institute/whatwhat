@@ -12,19 +12,15 @@ type project =
   ; name : string
   ; assignees : string list
   ; reactions : (string * string) list
-  ; column : string
-      (* TODO column could be an enum type?*)
-      (*
-  ; earliest_start_date : Date.t
-  ; latest_start_date : Date.t
-  ; latest_end_date : Date.t
-  ; fte_months : float
-  ; nominal_fte_percent : float
-  ; max_fte_percent : float
-  ; min_fte_percent : float
-  ; start_date : Date.t option
-  ; end_date : Date.t option
-  *)
+  ; column : string (* TODO column could be an enum type?*)
+  ; turing_project_code : string option
+  ; earliest_start_date : Date.t option
+  ; latest_start_date : Date.t option
+  ; latest_end_date : Date.t option
+  ; fte_months : float option
+  ; nominal_fte_percent : float option
+  ; max_fte_percent : float option
+  ; min_fte_percent : float option
   }
 
 type allocation =
