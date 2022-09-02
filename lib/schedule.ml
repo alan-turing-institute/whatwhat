@@ -1,5 +1,3 @@
-open CalendarLib
-
 type person =
   { email : string
   ; name : string
@@ -16,11 +14,11 @@ type project =
   ; reactions : (string * string) list
   ; column : string
   ; turing_project_code : string option
-  ; earliest_start_date : Date.t option
+  ; earliest_start_date : CalendarLib.Date.t option
        [@printer fun fmt x -> Format.pp_print_string fmt (Dateprinter.dateprint_opt x)]
-  ; latest_start_date : Date.t option
+  ; latest_start_date : CalendarLib.Date.t option
        [@printer fun fmt x -> Format.pp_print_string fmt (Dateprinter.dateprint_opt x)]
-  ; latest_end_date : Date.t option
+  ; latest_end_date : CalendarLib.Date.t option
        [@printer fun fmt x -> Format.pp_print_string fmt (Dateprinter.dateprint_opt x)]
   ; fte_months : float option
   ; nominal_fte_percent : float option
@@ -32,8 +30,8 @@ type project =
 type allocation =
   { person_id : int
   ; project_id : int
-  ; start_date : Date.t
-  ; end_date : Date.t
+  ; start_date : CalendarLib.Date.t
+  ; end_date : CalendarLib.Date.t
   ; rate : float (* Hours per day. *)
   }
 
@@ -100,15 +98,19 @@ let get_matching_fc_project
 ;;
 
 (* Find, from the email->person map, the person matching the given Github user. *)
-let person_of_gh_person (people : person StringMap.t) (gh_person : Github.person) =
+let person_opt_of_gh_person (people : person StringMap.t) (gh_person : Github.person) =
   let login = gh_person.login in
-  let _, found_person =
+  match
     people
     |> StringMap.to_seq
     |> List.of_seq
-    |> List.find (fun (_, person) -> person.github_login = login)
-  in
-  found_person
+    |> List.find_opt (fun (_, person) -> person.github_login = login)
+  with
+  | Some (_, found_person) -> Some found_person
+  | None ->
+    let error_msg = "People map doesn't have an entry for Github login " ^ login in
+    let () = Log.log Log.Error error_msg in
+    None
 ;;
 
 (* Make a map of Github issue ID to project. *)
@@ -119,15 +121,20 @@ let get_project_map
   =
   let add_project (gh_project : Github.project) m =
     let fc_p_opt = get_matching_fc_project fc_projects gh_project in
+    let get_person_opt = person_opt_of_gh_person people in
     match fc_p_opt with
     | Some fc_p ->
       let assignees =
-        List.map (person_of_gh_person people) gh_project.assignees
+        List.filter_map get_person_opt gh_project.assignees
         |> List.map (fun person -> person.email)
       in
       let reactions =
-        List.map
-          (fun (emoji, gh_person) -> emoji, (person_of_gh_person people gh_person).email)
+        List.filter_map
+          (fun (emoji, gh_person) ->
+            let person_opt = person_opt_of_gh_person people gh_person in
+            match person_opt with
+            | Some person -> Some (emoji, person.email)
+            | None -> None)
           gh_project.reactions
       in
       let new_project =
@@ -136,6 +143,8 @@ let get_project_map
         ; name = gh_project.title
         ; assignees
         ; reactions
+          (* TODO The Option.get is dangerous, handle failures more gracefully.
+         *)
         ; column = Option.get gh_project.column
         ; turing_project_code = gh_project.metadata.turing_project_code
         ; earliest_start_date = gh_project.metadata.earliest_start_date
@@ -158,7 +167,7 @@ let make_schedule () =
   let fc_projects, fc_people, _fc_assignments =
     fc_schedule.projects, fc_schedule.people, fc_schedule.assignments
   in
-  let gh_issues = Github.get_project_issues "NowWhat Test Project" in
+  let gh_issues = Github.get_project_issues "Project Tracker" in
   let gh_people = Github.get_users () in
   let people = get_people_map fc_people gh_people in
   let projects = get_project_map fc_projects gh_issues people in
