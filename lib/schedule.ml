@@ -37,36 +37,39 @@ type allocation =
   }
 
 (* ---------------------------------------------------------------------- *)
+(* MERGE PEOPLE FROM FORECAST AND GITHUB *)
 
-let compare_string_opts (a : string option) (b : string option) =
+let compare_opts a b =
   match a, b with
   | Some x, Some y -> x = y
   | _ -> false
 ;;
 
-(* Find the matching Github user for Forecast user fc_p. Log an error and return None if
-  not found.*)
-let get_matching_gh_person (gh_people : Github.person list) (fc_p : Forecast.person) =
-  let comp (gh_p : Github.person) =
-    let emails_match = compare_string_opts gh_p.email (Some fc_p.email) in
-    let names_match = compare_string_opts gh_p.name (Some (Forecast.person_name fc_p)) in
+(** Find the matching Github user for Forecast user fc_p.*)
+let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : Forecast.person) =
+  let person_matches (gh_p : Github.person) =
+    let emails_match = compare_opts gh_p.email (Some fc_p.email) in
+    let names_match = compare_opts gh_p.name (Some (Forecast.person_name fc_p)) in
     emails_match || names_match
   in
-  let result_opt = gh_people |> List.find_opt comp in
-  match result_opt with
-  | Some result -> Some result
-  | None ->
-    let error_msg =
-      "No matching Github user: " ^ Forecast.person_name fc_p ^ " <" ^ fc_p.email ^ ">"
-    in
-    let () = Log.log Log.Error error_msg in
-    None
+  let gh_person = List.find_opt person_matches gh_people in
+  let () =
+    if gh_person = None
+    then (
+      let error_msg =
+        "No matching Github user: " ^ Forecast.person_name fc_p ^ " <" ^ fc_p.email ^ ">"
+      in
+      Log.log Log.Error error_msg)
+  in
+  gh_person
 ;;
 
-(* Make a map of Turing email addresses to people. *)
-let get_people_list fc_people (gh_people : Github.person list) =
+(** Create a list of all people, merging data from Forecast and Github. *)
+let get_people_list (fc_people : Forecast.person list) (gh_people : Github.person list) =
+  (* We fold over Forecast people, looking for the matching Github person for each,
+   since Forecast is considered authoritative for people.*)
   let add_person (fc_p : Forecast.person) m =
-    let gh_p_opt = get_matching_gh_person gh_people fc_p in
+    let gh_p_opt = get_matching_gh_person_opt gh_people fc_p in
     match gh_p_opt with
     | Some gh_p ->
       let new_person =
@@ -81,41 +84,50 @@ let get_people_list fc_people (gh_people : Github.person list) =
   List.fold_right add_person fc_people []
 ;;
 
-(* Find the Forecast project associated with a given Github issue. *)
+(* ---------------------------------------------------------------------- *)
+(* MERGE PROJECTS FROM FORECAST AND GITHUB *)
+
+(** Find the Forecast project associated with a given Github issue. *)
 let get_matching_fc_project
   (fc_projects : Forecast.project list)
   (gh_project : Github.project)
   =
   let project_matches (x : Forecast.project) = x.number = gh_project.number in
   let fc_p_opt = List.find_opt project_matches fc_projects in
-  match fc_p_opt with
-  | Some found_fc_project -> Some found_fc_project
-  | None ->
-    let error_msg =
-      "No Forecast project for Github issue " ^ Int.to_string gh_project.number
-    in
-    let () = Log.log Log.Error error_msg in
-    None
+  let () =
+    if fc_p_opt = None
+    then (
+      let error_msg =
+        "No Forecast project for Github issue " ^ Int.to_string gh_project.number
+      in
+      Log.log Log.Error error_msg)
+  in
+  fc_p_opt
 ;;
 
-(* Find, from the email->person map, the person matching the given Github user. *)
+(** Find the [person] matching the given Github user. *)
 let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
-  let login = gh_person.login in
-  let login_matches person = person.github_login = login in
-  match List.find_opt login_matches people with
-  | Some found_person -> Some found_person
-  | None ->
-    let error_msg = "People map doesn't have an entry for Github login " ^ login in
-    let () = Log.log Log.Error error_msg in
-    None
+  let login_matches person = person.github_login = gh_person.login in
+  let person_opt = List.find_opt login_matches people in
+  let () =
+    if person_opt = None
+    then (
+      let error_msg =
+        "People list doesn't have an entry for Github login " ^ gh_person.login
+      in
+      Log.log Log.Error error_msg)
+  in
+  person_opt
 ;;
 
-(* Make a map of Github issue ID to project. *)
+(** Create a list of all projects, merging data from Forecast and Github. *)
 let get_project_list
   (fc_projects : Forecast.project list)
   (gh_issues : Github.project list)
   (people : person list)
   =
+  (* We fold over Github projects, looking for the matching Forecast project for each,
+   since Github is considered authoritative for people.*)
   let add_project (gh_project : Github.project) m =
     let fc_p_opt = get_matching_fc_project fc_projects gh_project in
     let get_person_opt = person_opt_of_gh_person people in
@@ -140,8 +152,7 @@ let get_project_list
         ; name = gh_project.title
         ; assignees
         ; reactions
-          (* TODO The Option.get is dangerous, handle failures more gracefully.
-         *)
+          (* TODO The Option.get is dangerous, handle failures more gracefully. *)
         ; column = Option.get gh_project.column
         ; turing_project_code = gh_project.metadata.turing_project_code
         ; earliest_start_date = gh_project.metadata.earliest_start_date
@@ -159,6 +170,7 @@ let get_project_list
   List.fold_right add_project gh_issues []
 ;;
 
+(* TODO Finish this, by getting allocations as well.*)
 let make_schedule () =
   let fc_schedule = Forecast.getTheCurrentSchedule 180 in
   (* Convert maps to lists. *)
