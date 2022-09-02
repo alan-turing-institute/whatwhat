@@ -170,6 +170,9 @@ let get_project_list
   List.fold_right add_project gh_issues []
 ;;
 
+(* ---------------------------------------------------------------------- *)
+(* BUILD SCHEDULE *)
+
 (* TODO Finish this, by getting allocations as well.*)
 let make_schedule () =
   let fc_schedule = Forecast.getTheCurrentSchedule 180 in

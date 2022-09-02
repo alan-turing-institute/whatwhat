@@ -70,12 +70,13 @@ type field =
   ; optional : bool
       (* if False, the issue will not become a NowWhat project if this field does not exist *)
   }
+[@@deriving show]
 
 (* This is useful for knowing what is a key field.  *)
 let metadata_fields =
   [ { name = "turing-project-code"; optional = true }
-  ; { name = "earliest-start-date"; optional = true }
-  ; { name = "latest-start-date"; optional = true }
+  ; { name = "earliest-start-date"; optional = false }
+  ; { name = "latest-start-date"; optional = false }
   ; { name = "latest-end-date"; optional = true }
   ; { name = "FTE-months"; optional = true }
   ; { name = "nominal-FTE-percent"; optional = true }
@@ -113,12 +114,8 @@ let date_from_string_opt (n : int) (str : string option) =
 
 let float_opt_of_string_opt (x : string option) =
   match x with
-  | Some "null" ->
-    None
-    (* not sure why there are still nulls at this stage...should be converted to empty strings in check_value? *)
-  | Some "" -> None
+  | Some y -> float_of_string_opt y
   | None -> None
-  | Some y -> Some (float_of_string y)
 ;;
 
 (* the value should be of the form " <val>". Any other spaces then content indicates a violation*)
@@ -156,7 +153,7 @@ let list_to_pair (n : int) (x : string list) =
 (* ---  *)
 
 let key_exists yaml_fields mfield =
-  if mfield.optional then true else List.mem_assoc mfield.name yaml_fields
+  mfield.optional || List.mem_assoc mfield.name yaml_fields
 ;;
 
 let parse_fields (n : int) (lines : string list) =
@@ -168,26 +165,31 @@ let parse_fields (n : int) (lines : string list) =
   (* we now know if the essential keys exist *)
   let contains_key_fields = List.for_all (key_exists fields) metadata_fields in
   if contains_key_fields
-  then
+  then (
     (* parse data *)
-    Some
-      { turing_project_code = fields |> List.assoc_opt "turing-project-code"
-      ; earliest_start_date =
-          fields |> List.assoc "earliest-start-date" |> date_from_string n |> Option.get
-      ; latest_start_date =
-          fields |> List.assoc "latest-start-date" |> date_from_string n |> Option.get
-      ; latest_end_date =
-          fields |> List.assoc_opt "latest-end-date" |> date_from_string_opt n
-      ; fte_months = fields |> List.assoc_opt "FTE-months" |> float_opt_of_string_opt
-      ; nominal_fte_percent =
-          fields |> List.assoc_opt "nominal-FTE-percent" |> float_opt_of_string_opt
-      ; max_fte_percent =
-          fields |> List.assoc_opt "max-FTE-percent" |> float_opt_of_string_opt
-      ; min_fte_percent =
-          fields |> List.assoc_opt "min-FTE-percent" |> float_opt_of_string_opt
-      }
+    let esd_opt = List.assoc "earliest-start-date" fields |> date_from_string n in
+    let lsd_opt = List.assoc "latest-start-date" fields |> date_from_string n in
+    match esd_opt, lsd_opt with
+    | Some earliest_start_date, Some latest_start_date ->
+      Some
+        { turing_project_code = fields |> List.assoc_opt "turing-project-code"
+        ; earliest_start_date
+        ; latest_start_date
+        ; latest_end_date =
+            fields |> List.assoc_opt "latest-end-date" |> date_from_string_opt n
+        ; fte_months = fields |> List.assoc_opt "FTE-months" |> float_opt_of_string_opt
+        ; nominal_fte_percent =
+            fields |> List.assoc_opt "nominal-FTE-percent" |> float_opt_of_string_opt
+        ; max_fte_percent =
+            fields |> List.assoc_opt "max-FTE-percent" |> float_opt_of_string_opt
+        ; min_fte_percent =
+            fields |> List.assoc_opt "min-FTE-percent" |> float_opt_of_string_opt
+        }
+    | _ ->
+      let () = log_parseerror FieldError n "Essential date fields malformed" in
+      None)
   else (
-    log_parseerror FieldError n "Essential fields missing";
+    let () = log_parseerror FieldError n "Essential fields missing" in
     None)
 ;;
 
@@ -211,9 +213,9 @@ let parse_metadata (n : int) (body : string) =
   let x = Str.split (Str.regexp {|\+\+\+|}) body in
   match x with
   | [ top; rest ] ->
-    let mdata = top |> metadata_of_yaml n in
-    mdata, Some rest
-  | _ -> None, None
+    let mdata = metadata_of_yaml n top in
+    mdata, rest
+  | _ -> None, body
 ;;
 
 let validate_issue (issue : Raw.issue) =
@@ -224,7 +226,7 @@ let validate_issue (issue : Raw.issue) =
     Some
       { number = issue.number
       ; title = issue.title
-      ; body = Option.get body
+      ; body
       ; state = issue.state
       ; assignees = issue.assignees
       ; reactions = issue.reactions
