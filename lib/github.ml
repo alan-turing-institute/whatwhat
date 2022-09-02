@@ -1,7 +1,10 @@
 module Raw = GithubRaw
 
+(* Re-exporting for convenience of modules that import this one. *)
+let get_users = Raw.get_users
+
 (* ---------------------------------------------------------------------- *)
-(* METADATA LOGGING *)
+(* METADATA PARSING ERROR LOGGING *)
 type parseerror =
   | FieldError
   | FieldWarning
@@ -65,10 +68,8 @@ type project =
 type field =
   { name : string
   ; optional : bool
-      (* if False, the issue will not become a NowWhat project is this field does not exist *)
+      (* if False, the issue will not become a NowWhat project if this field does not exist *)
   }
-
-let get_users = Raw.get_users
 
 (* This is useful for knowing what is a key field.  *)
 let metadata_fields =
