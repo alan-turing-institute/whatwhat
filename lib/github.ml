@@ -8,34 +8,24 @@ type parseerror =
   | LengthError
   | LineError
 
-(** Given a [parseerror] and a Github issue number, generate a string that can be e.g.
-    printed in the error logs.*)
+(** Log an error given the error type, Github issue number, and explanatory message.*)
 let log_parseerror (what : parseerror) (number : int) msg =
-  match what with
-  | LengthError ->
-    print_endline
-    @@ "Error: Metadata Parsing (num: "
-    ^ string_of_int number
-    ^ "): Expected 8 metadata keys, got "
-    ^ msg
-  | LineError ->
-    print_endline
-    @@ "Error: Metadata Parsing (num: "
-    ^ string_of_int number
-    ^ "): Unable to break line into (key, value) - "
-    ^ msg
-  | FieldError ->
-    print_endline
-    @@ "Error: Metadata Parsing (num: "
-    ^ string_of_int number
-    ^ "): Unable to parse key "
-    ^ msg
-  | FieldWarning ->
-    print_endline
-    @@ "Warning: Metadata Parsing (num: "
-    ^ string_of_int number
-    ^ "): key "
-    ^ msg
+  let prefix = "Metadata Parsing (num: " ^ string_of_int number ^ "): " in
+  let log_lvl =
+    match what with
+    | LengthError -> Log.Error
+    | LineError -> Log.Error
+    | FieldError -> Log.Error
+    | FieldWarning -> Log.Warning
+  in
+  let error_description =
+    match what with
+    | LengthError -> "Expected 8 metadata keys, got "
+    | LineError -> "Unable to break line into (key, value) - "
+    | FieldError -> "Unable to parse key "
+    | FieldWarning -> "key "
+  in
+  Log.log log_lvl @@ prefix ^ error_description ^ msg
 ;;
 
 (* ---------------------------------------------------------------------- *)
