@@ -58,7 +58,7 @@ val show_person : person -> string
 val getPlaceholders : unit -> placeholder list
 val show_placeholder : placeholder -> string
 
-(** Return all assignments wich overlap a given date range. The range is from
+(** Return all assignments which overlap a given date range. The range is from
     [startDate] to [endDate], inclusive, and all overlapping assignments are 
     returned in full. (In particular, any given returned [assignment] 
     may start earlier than [startDate] and end later than [endDate].)
