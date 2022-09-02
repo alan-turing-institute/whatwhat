@@ -13,5 +13,5 @@ let () =
     (List.length theSchedule.assignments);
   print_endline "Obtaining issues from  Github:";
   let issues = Github.get_project_issues "Project Tracker" in
-  Printf.printf "Obtained %d issues" (List.length issues);
+  Printf.printf "Obtained %d issues" (List.length issues)
 ;;
