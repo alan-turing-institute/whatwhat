@@ -1,7 +1,11 @@
+(* ---------------------------------------------------------------------- *)
+(* TYPES *)
+
+(* TODO Add fields for list of assignments and list of allocations *)
 type person =
   { email : string
   ; name : string
-  ; github_login : string (* TODO Add list of assignments and allocations *)
+  ; github_login : string
   }
 [@@deriving show]
 
@@ -30,24 +34,23 @@ type allocation =
   ; project_id : int
   ; start_date : CalendarLib.Date.t
   ; end_date : CalendarLib.Date.t
-  ; rate : float (* Hours per day. *)
+  ; rate : float
   }
 
-module StringMap = Map.Make (String)
-module IntMap = Map.Make (Int)
+(* ---------------------------------------------------------------------- *)
 
-let string_eq_opt (a : string option) (b : string option) =
+let compare_string_opts (a : string option) (b : string option) =
   match a, b with
   | Some x, Some y -> x = y
   | _ -> false
 ;;
 
-(* Find the matching Github user for Forecast user fc_p. Raise an error if not
-   found. *)
+(* Find the matching Github user for Forecast user fc_p. Log an error and return None if
+  not found.*)
 let get_matching_gh_person (gh_people : Github.person list) (fc_p : Forecast.person) =
   let comp (gh_p : Github.person) =
-    let emails_match = string_eq_opt gh_p.email (Some fc_p.email) in
-    let names_match = string_eq_opt gh_p.name (Some (Forecast.person_name fc_p)) in
+    let emails_match = compare_string_opts gh_p.email (Some fc_p.email) in
+    let names_match = compare_string_opts gh_p.name (Some (Forecast.person_name fc_p)) in
     emails_match || names_match
   in
   let result_opt = gh_people |> List.find_opt comp in
@@ -62,8 +65,8 @@ let get_matching_gh_person (gh_people : Github.person list) (fc_p : Forecast.per
 ;;
 
 (* Make a map of Turing email addresses to people. *)
-let get_people_map fc_people (gh_people : Github.person list) =
-  let add_person email (fc_p : Forecast.person) m =
+let get_people_list fc_people (gh_people : Github.person list) =
+  let add_person (fc_p : Forecast.person) m =
     let gh_p_opt = get_matching_gh_person gh_people fc_p in
     match gh_p_opt with
     | Some gh_p ->
@@ -73,20 +76,21 @@ let get_people_map fc_people (gh_people : Github.person list) =
         ; github_login = gh_p.login
         }
       in
-      StringMap.add email new_person m
+      m @ [ new_person ]
     | None -> m
   in
-  StringMap.fold add_person fc_people StringMap.empty
+  List.fold_right add_person fc_people []
 ;;
 
 (* Find the Forecast project associated with a given Github issue. *)
 let get_matching_fc_project
-  (fc_projects : Forecast.project IntMap.t)
+  (fc_projects : Forecast.project list)
   (gh_project : Github.project)
   =
-  let fc_p_opt = fc_projects |> IntMap.find_opt gh_project.number in
+  let project_matches (x : Forecast.project) = x.number = gh_project.number in
+  let fc_p_opt = List.find_opt project_matches fc_projects in
   match fc_p_opt with
-  | Some result -> Some result
+  | Some found_fc_project -> Some found_fc_project
   | None ->
     let error_msg =
       "No Forecast project for Github issue " ^ Int.to_string gh_project.number
@@ -96,15 +100,11 @@ let get_matching_fc_project
 ;;
 
 (* Find, from the email->person map, the person matching the given Github user. *)
-let person_opt_of_gh_person (people : person StringMap.t) (gh_person : Github.person) =
+let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
   let login = gh_person.login in
-  match
-    people
-    |> StringMap.to_seq
-    |> List.of_seq
-    |> List.find_opt (fun (_, person) -> person.github_login = login)
-  with
-  | Some (_, found_person) -> Some found_person
+  let login_matches person = person.github_login = login in
+  match List.find_opt login_matches people with
+  | Some found_person -> Some found_person
   | None ->
     let error_msg = "People map doesn't have an entry for Github login " ^ login in
     let () = Log.log Log.Error error_msg in
@@ -112,10 +112,10 @@ let person_opt_of_gh_person (people : person StringMap.t) (gh_person : Github.pe
 ;;
 
 (* Make a map of Github issue ID to project. *)
-let get_project_map
-  (fc_projects : Forecast.project IntMap.t)
+let get_project_list
+  (fc_projects : Forecast.project list)
   (gh_issues : Github.project list)
-  (people : person StringMap.t)
+  (people : person list)
   =
   let add_project (gh_project : Github.project) m =
     let fc_p_opt = get_matching_fc_project fc_projects gh_project in
@@ -154,21 +154,20 @@ let get_project_map
         ; min_fte_percent = gh_project.metadata.min_fte_percent
         }
       in
-      IntMap.add gh_project.number new_project m
+      m @ [ new_project ]
     | None -> m
   in
-  List.fold_right add_project gh_issues IntMap.empty
+  List.fold_right add_project gh_issues []
 ;;
 
 let make_schedule () =
   let fc_schedule = Forecast.getTheCurrentSchedule 180 in
-  let fc_projects, fc_people, _fc_assignments =
-    fc_schedule.projects, fc_schedule.people, fc_schedule.assignments
-  in
+  (* Convert maps to lists. *)
+  let fc_people = fc_schedule.people |> Forecast.StringMap.bindings |> List.map snd in
+  let fc_projects = fc_schedule.projects |> Forecast.IntMap.bindings |> List.map snd in
   let gh_issues = Github.get_project_issues "Project Tracker" in
   let gh_people = Github.get_users () in
-  let people = get_people_map fc_people gh_people in
-  let projects = get_project_map fc_projects gh_issues people in
-  ( people |> StringMap.to_seq |> List.of_seq |> List.map snd
-  , projects |> IntMap.to_seq |> List.of_seq |> List.map snd )
+  let people = get_people_list fc_people gh_people in
+  let projects = get_project_list fc_projects gh_issues people in
+  people, projects
 ;;
