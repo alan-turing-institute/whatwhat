@@ -40,8 +40,10 @@ val show_issue : issue -> string
 val show_column : column -> string
 val show_project : project -> string
 val show_project_root : project_root -> string
+
 (** Return the list of issues in a project board, given the name of the board.
     *)
 val get_project_issues : string -> issue list
+
 (** Return all the users in the Alan Turing Institute Github organisation. *)
 val get_users : unit -> person list
