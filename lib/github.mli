@@ -5,13 +5,13 @@ module Raw = GithubRaw
 type parseerror =
 | FieldError
 | FieldWarning
-| LengthError
+| LengthWarning
 | LineError
 
 type metadata = {
     turing_project_code : string option;
-    earliest_start_date : CalendarLib.Date.t ;
-    latest_start_date : CalendarLib.Date.t ;
+    earliest_start_date : CalendarLib.Date.t option;
+    latest_start_date : CalendarLib.Date.t option;
     latest_end_date : CalendarLib.Date.t option;
     fte_months : float option;
     nominal_fte_percent : float option;

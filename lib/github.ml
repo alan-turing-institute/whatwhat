@@ -33,22 +33,22 @@ module Raw = GithubRaw
 type parseerror =
 | FieldError
 | FieldWarning
-| LengthError
+| LengthWarning
 | LineError
 
 let log_parseerror (what: parseerror) (number: int) msg =
   match what with
-  | LengthError -> print_endline @@ "Error: Metadata Parsing (num: " ^ (string_of_int number) ^ "):"
+  | LengthWarning -> print_endline @@ "Warning: Metadata Parsing (num: " ^ (string_of_int number) ^ "):" ^ msg
   | LineError -> print_endline @@ "Error: Metadata Parsing (num: " ^ (string_of_int number) ^ "): Unable to break line into (key, value) - " ^ msg
   | FieldError -> print_endline @@ "Error: Metadata Parsing (num: " ^ (string_of_int number) ^ "): Unable to parse key " ^ msg
-  | FieldWarning -> print_endline @@ "Warning: Metadata Parsing (num: " ^ (string_of_int number) ^ "): key " ^ msg
+  | FieldWarning -> print_endline @@ "Warning: Metadata Parsing (num: " ^ (string_of_int number) ^ "): " ^ msg
 
 
 
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
-let dateprinter fmt (dt: Date.t) = Format.pp_print_string fmt (Printer.Date.to_string dt)
+(* let dateprinter fmt (dt: Date.t) = Format.pp_print_string fmt (Printer.Date.to_string dt) *)
 let dateprint_opt (dt: Date.t option) = 
   match dt with
   | Some x -> Printer.Date.to_string x
@@ -57,8 +57,8 @@ let dateprint_opt (dt: Date.t option) =
 
 type metadata = 
   { turing_project_code : string option
-  ; earliest_start_date : Date.t [@printer dateprinter]
-  ; latest_start_date : Date.t [@printer  dateprinter]
+  ; earliest_start_date : Date.t option [@printer fun fmt x -> Format.pp_print_string fmt (dateprint_opt x)]
+  ; latest_start_date : Date.t option [@printer  fun fmt x -> Format.pp_print_string fmt (dateprint_opt x)]
   ; latest_end_date : Date.t option [@printer fun fmt x -> Format.pp_print_string fmt (dateprint_opt x)]
   ; fte_months : float option
   ; nominal_fte_percent : float option
@@ -120,7 +120,7 @@ let date_from_string (n: int) (str: string) =
   let datelist = Str.split (Str.regexp {|-|}) str in
     match datelist with
     | year :: month :: day :: [] -> catch_date_exn (int_of_string year) (int_of_string month) (int_of_string day) n   
-    | _ -> log_parseerror  FieldError n str; None
+    | _ -> log_parseerror  FieldError n ("unable to make date from " ^ str); None
  
 
 let date_from_string_opt (n: int) (str: string option) =
@@ -133,17 +133,17 @@ let float_opt_of_string_opt (x: string option) =
   | Some "null" -> None  (* not sure why there are still nulls at this stage...should be converted to empty strings in check_value? *)
   | Some "" -> None
   | None -> None
-  | Some y -> Some (float_of_string y)
+  | Some y -> print_endline y; Some (float_of_string y)
 
 (* the value should be of the form " <val>". Any other spaces then content indicates a violation*)
 (* at this stage an empty string to indicate no value*)
 let check_value (n: int) (key: string) (value: string) =
-  let x = Str.split (Str.regexp " ") value in
+  let x = Str.bounded_split (Str.regexp " +") value 2 in
   match x with
   | [] -> log_parseerror  FieldWarning n (key ^ ", empty value"); ""
   | "null"::[] -> log_parseerror  FieldWarning n (key ^ ", null value"); ""
   | y::[] -> y
-  | y::z -> let info = Str.global_replace (Str.regexp " *") "" (String.concat "" z) in 
+  | y::z -> let info = Str.replace_first (Str.regexp " +") "\\1" (String.concat "" z) in 
               match info with 
               | "" -> y
               | _  -> log_parseerror FieldWarning n (key ^ ", additional info - " ^ (String.concat "" z)); y
@@ -157,8 +157,13 @@ let list_to_pair (n: int) (x: string list) =
 
 (* ---  *)
 
-let key_exists yaml_fields mfield =
-    if mfield.optional then true else List.mem_assoc mfield.name yaml_fields
+
+let key_exists n yaml_fields mfield =
+    if mfield.optional then true else 
+      match List.assoc_opt mfield.name yaml_fields with
+      | None -> log_parseerror FieldWarning n ("missing key " ^ mfield.name); false (* either it doesn't exist or the value is "" *)
+      | Some "" -> false
+      | Some _ -> true
 
 let parse_fields (n: int) (lines: string list) =
   
@@ -166,12 +171,12 @@ let parse_fields (n: int) (lines: string list) =
   let fields = List.filter_map (fun x -> Str.split (Str.regexp {|:|}) x |> list_to_pair n) lines in
 
   (* we now know if the essential keys exist *)
-  let contains_key_fields = List.for_all (key_exists fields) metadata_fields in
+  let contains_key_fields = List.for_all (key_exists n fields) metadata_fields in
   if contains_key_fields then
     (* parse data *)
     Some { turing_project_code = fields |> List.assoc_opt "turing-project-code"
-      ; earliest_start_date = fields |> List.assoc "earliest-start-date" |> date_from_string n |> Option.get
-      ; latest_start_date = fields |> List.assoc "latest-start-date" |> date_from_string n |> Option.get
+      ; earliest_start_date = fields |> List.assoc_opt "earliest-start-date" |> date_from_string_opt n
+      ; latest_start_date = fields |> List.assoc_opt "latest-start-date" |> date_from_string_opt n
       ; latest_end_date = fields |> List.assoc_opt "latest-end-date" |> date_from_string_opt n
       ; fte_months = fields |> List.assoc_opt "FTE-months" |> float_opt_of_string_opt
       ; nominal_fte_percent = fields |> List.assoc_opt "nominal-FTE-percent" |> float_opt_of_string_opt
@@ -187,7 +192,7 @@ let metadata_of_yaml (n: int) (y: string) =
   let lines = Str.split (Str.regexp "\r\n") y in
   let lenlines = List.length lines in 
   let lenfields = List.length metadata_fields in
-  if lenlines != lenfields then log_parseerror LengthError n ("length of yaml is" ^ (string_of_int lenlines) ^ " but length of expected metadata fields is " ^ (string_of_int lenfields));
+  if lenlines != lenfields then log_parseerror LengthWarning n ("length of yaml is " ^ (string_of_int lenlines) ^ " but length of expected metadata fields is " ^ (string_of_int lenfields));
   parse_fields n lines
 
 
