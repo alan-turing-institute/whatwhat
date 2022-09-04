@@ -222,7 +222,9 @@ let getTheSchedule (startDate : Date.t) (endDate : Date.t) =
 
   { projects; people; assignments }
 ;;
+
 let getTheCurrentSchedule days =
-  let startDate = Date.today () in 
+  let startDate = Date.today () in
   let endDate = Date.add startDate (Date.Period.day days) in
- getTheSchedule startDate endDate
+  getTheSchedule startDate endDate
+;;
