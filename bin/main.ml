@@ -9,6 +9,6 @@ let () =
   let () = print_endline "Number of projects:" in
   let () = print_endline @@ Int.to_string @@ List.length projects in
   let () = print_endline "Projects:" in
-  let () = List.iter (fun (c: Schedule.project) -> print_endline @@ c.name) projects in
+  let () = List.iter (fun (c : Schedule.project) -> print_endline @@ c.name) projects in
   ()
 ;;

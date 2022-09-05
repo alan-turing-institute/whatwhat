@@ -6,10 +6,10 @@ let get_users = Raw.get_users
 (* ---------------------------------------------------------------------- *)
 (* METADATA PARSING ERROR LOGGING *)
 type parseerror =
-| FieldError
-| FieldWarning
-| LengthWarning
-| LineError
+  | FieldError
+  | FieldWarning
+  | LengthWarning
+  | LineError
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log_parseerror (what : parseerror) (number : int) msg =
@@ -36,7 +36,8 @@ let log_parseerror (what : parseerror) (number : int) msg =
 
 type metadata =
   { turing_project_code : string option
-  ; earliest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
+  ; earliest_start_date : CalendarLib.Date.t option
+       [@printer DatePrinter.pp_print_date_opt]
   ; latest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
   ; latest_end_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
   ; fte_months : float option
@@ -113,23 +114,31 @@ let date_from_string_opt (n : int) (str : string option) =
 
 let float_opt_of_string_opt (x : string option) =
   match x with
-  | Some "null" -> None  (* not sure why there are still nulls at this stage...should be converted to empty strings in check_value? *)
+  | Some "null" ->
+    None
+    (* not sure why there are still nulls at this stage...should be converted to empty strings in check_value? *)
   | Some "" -> None
   | None -> None
   | Some y -> float_of_string_opt y
+;;
 
 (* the value should be of the form " <val>". Any other spaces then content indicates a violation*)
 (* at this stage an empty string to indicate no value*)
-let check_value (n: int) (key: string) (value: string) =
+let check_value (n : int) (key : string) (value : string) =
   let x = Str.bounded_split (Str.regexp " +") value 2 in
   match x with
-  | [] -> log_parseerror  FieldWarning n (key ^ ", empty value"); ""
-  | "null"::[] -> log_parseerror  FieldWarning n (key ^ ", null value"); ""
-  | y::[] -> y
-  | y::z -> let info = String.concat "" z in
-            let () = log_parseerror FieldWarning n (key ^ ", additional info - " ^ info) in
-            y
-
+  | [] ->
+    log_parseerror FieldWarning n (key ^ ", empty value");
+    ""
+  | "null" :: [] ->
+    log_parseerror FieldWarning n (key ^ ", null value");
+    ""
+  | y :: [] -> y
+  | y :: z ->
+    let info = String.concat "" z in
+    let () = log_parseerror FieldWarning n (key ^ ", additional info - " ^ info) in
+    y
+;;
 
 let list_to_pair (n : int) (x : string list) =
   match x with
@@ -144,16 +153,19 @@ let list_to_pair (n : int) (x : string list) =
 
 (* ---  *)
 
-
 let key_exists n yaml_fields mfield =
-    if mfield.optional then true else 
-      match List.assoc_opt mfield.name yaml_fields with
-      | None -> log_parseerror FieldWarning n ("missing key " ^ mfield.name); false (* either it doesn't exist or the value is "" *)
-      | Some "" -> false
-      | Some _ -> true
+  if mfield.optional
+  then true
+  else (
+    match List.assoc_opt mfield.name yaml_fields with
+    | None ->
+      log_parseerror FieldWarning n ("missing key " ^ mfield.name);
+      false (* either it doesn't exist or the value is "" *)
+    | Some "" -> false
+    | Some _ -> true)
+;;
 
-let parse_fields (n: int) (lines: string list) =
-  
+let parse_fields (n : int) (lines : string list) =
   (* we now know if the value exists *)
   let fields =
     List.filter_map (fun x -> Str.split (Str.regexp {|:|}) x |> list_to_pair n) lines
@@ -161,23 +173,31 @@ let parse_fields (n: int) (lines: string list) =
 
   (* we now know if the essential keys exist *)
   let contains_key_fields = List.for_all (key_exists n fields) metadata_fields in
-  if contains_key_fields then
+  if contains_key_fields
+  then
     (* parse data *)
-    Some { turing_project_code = fields |> List.assoc_opt "turing-project-code"
-      ; earliest_start_date = fields |> List.assoc_opt "earliest-start-date" |> date_from_string_opt n
-      ; latest_start_date = fields |> List.assoc_opt "latest-start-date" |> date_from_string_opt n
-      ; latest_end_date = fields |> List.assoc_opt "latest-end-date" |> date_from_string_opt n
+    Some
+      { turing_project_code = fields |> List.assoc_opt "turing-project-code"
+      ; earliest_start_date =
+          fields |> List.assoc_opt "earliest-start-date" |> date_from_string_opt n
+      ; latest_start_date =
+          fields |> List.assoc_opt "latest-start-date" |> date_from_string_opt n
+      ; latest_end_date =
+          fields |> List.assoc_opt "latest-end-date" |> date_from_string_opt n
       ; fte_months = fields |> List.assoc_opt "FTE-months" |> float_opt_of_string_opt
-      ; nominal_fte_percent = fields |> List.assoc_opt "nominal-FTE-percent" |> float_opt_of_string_opt
-      ; max_fte_percent = fields |> List.assoc_opt "max-FTE-percent" |> float_opt_of_string_opt
-      ; min_fte_percent = fields |> List.assoc_opt "min-FTE-percent" |> float_opt_of_string_opt
-    } 
-  else
+      ; nominal_fte_percent =
+          fields |> List.assoc_opt "nominal-FTE-percent" |> float_opt_of_string_opt
+      ; max_fte_percent =
+          fields |> List.assoc_opt "max-FTE-percent" |> float_opt_of_string_opt
+      ; min_fte_percent =
+          fields |> List.assoc_opt "min-FTE-percent" |> float_opt_of_string_opt
+      }
+  else (
     let () = log_parseerror FieldError n "Essential fields missing" in
-    None
+    None)
+;;
 
-  
-let metadata_of_yaml (n: int) (y: string) = 
+let metadata_of_yaml (n : int) (y : string) =
   let lines = Str.split (Str.regexp "\r\n") y in
   let lenlines = List.length lines in
   let lenfields = List.length metadata_fields in

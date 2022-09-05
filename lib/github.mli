@@ -24,20 +24,20 @@ due to:
 module Raw = GithubRaw
 
 type parseerror =
-| FieldError
-| FieldWarning
-| LengthWarning
-| LineError
+  | FieldError
+  | FieldWarning
+  | LengthWarning
+  | LineError
 
-type metadata = {
-    turing_project_code : string option;
-    earliest_start_date : CalendarLib.Date.t option;
-    latest_start_date : CalendarLib.Date.t option;
-    latest_end_date : CalendarLib.Date.t option;
-    fte_months : float option;
-    nominal_fte_percent : float option;
-    max_fte_percent : float option;
-    min_fte_percent : float option;
+type metadata =
+  { turing_project_code : string option
+  ; earliest_start_date : CalendarLib.Date.t option
+  ; latest_start_date : CalendarLib.Date.t option
+  ; latest_end_date : CalendarLib.Date.t option
+  ; fte_months : float option
+  ; nominal_fte_percent : float option
+  ; max_fte_percent : float option
+  ; min_fte_percent : float option
   }
 
 (** We reexport the Raw.person type so that no other module ever has a need to import
