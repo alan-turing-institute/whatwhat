@@ -30,5 +30,5 @@ type schedule =
   }
 
 val person_name : person -> string
-val getTheSchedule : Date.t -> Date.t -> schedule
-val getTheCurrentSchedule : int -> schedule
+val get_the_schedule : Date.t -> Date.t -> schedule
+val get_the_current_schedule : int -> schedule

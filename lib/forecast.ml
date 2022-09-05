@@ -205,8 +205,8 @@ let make_project_map projects_id =
 (* ------------------------------------------------------------ *)
 (* Interface *)
 
-let getTheSchedule (startDate : Date.t) (endDate : Date.t) =
-  let clnts, peopl, _, projs, asnts = Raw.getTheSchedule startDate endDate in
+let get_the_schedule (start_date : Date.t) (end_date : Date.t) =
+  let clnts, peopl, _, projs, asnts = Raw.get_the_schedule start_date end_date in
 
   (* A things_id is a map from forecast ids to the thing *)
   let fcs_id = Raw.IdMap.filter_map extract_finance_code projs in
@@ -223,8 +223,8 @@ let getTheSchedule (startDate : Date.t) (endDate : Date.t) =
   { projects; people; assignments }
 ;;
 
-let getTheCurrentSchedule days =
-  let startDate = Date.today () in
-  let endDate = Date.add startDate (Date.Period.day days) in
-  getTheSchedule startDate endDate
+let get_the_current_schedule days =
+  let start_date = Date.today () in
+  let end_date = Date.add start_date (Date.Period.day days) in
+  get_the_schedule start_date end_date
 ;;

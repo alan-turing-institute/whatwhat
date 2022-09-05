@@ -70,7 +70,6 @@ type field =
   ; optional : bool
       (* if False, the issue will not become a NowWhat project if this field does not exist *)
   }
-[@@deriving show]
 
 (* This is useful for knowing what is a key field.  *)
 let metadata_fields =
