@@ -70,13 +70,12 @@ type field =
   ; optional : bool
       (* if False, the issue will not become a NowWhat project if this field does not exist *)
   }
-[@@deriving show]
 
 (* This is useful for knowing what is a key field.  *)
 let metadata_fields =
   [ { name = "turing-project-code"; optional = true }
-  ; { name = "earliest-start-date"; optional = false }
-  ; { name = "latest-start-date"; optional = false }
+  ; { name = "earliest-start-date"; optional = true }
+  ; { name = "latest-start-date"; optional = true }
   ; { name = "latest-end-date"; optional = true }
   ; { name = "FTE-months"; optional = true }
   ; { name = "nominal-FTE-percent"; optional = true }
@@ -127,10 +126,9 @@ let check_value (n: int) (key: string) (value: string) =
   | [] -> log_parseerror  FieldWarning n (key ^ ", empty value"); ""
   | "null"::[] -> log_parseerror  FieldWarning n (key ^ ", null value"); ""
   | y::[] -> y
-  | y::z -> let info = Str.replace_first (Str.regexp " +") "\\1" (String.concat "" z) in 
-              match info with 
-              | "" -> y
-              | _  -> log_parseerror FieldWarning n (key ^ ", additional info - " ^ (String.concat "" z)); y
+  | y::z -> let info = String.concat "" z in
+            let () = log_parseerror FieldWarning n (key ^ ", additional info - " ^ info) in
+            y
 
 
 let list_to_pair (n : int) (x : string list) =
@@ -175,8 +173,8 @@ let parse_fields (n: int) (lines: string list) =
       ; min_fte_percent = fields |> List.assoc_opt "min-FTE-percent" |> float_opt_of_string_opt
     } 
   else
-    (log_parseerror FieldError n "Essential fields missing";
-    None)
+    let () = log_parseerror FieldError n "Essential fields missing" in
+    None
 
   
 let metadata_of_yaml (n: int) (y: string) = 
@@ -188,7 +186,7 @@ let metadata_of_yaml (n: int) (y: string) =
     log_parseerror
       LengthWarning
       n
-      ("length of yaml is"
+      ("length of yaml is "
       ^ string_of_int lenlines
       ^ " but length of expected metadata fields is "
       ^ string_of_int lenfields);
