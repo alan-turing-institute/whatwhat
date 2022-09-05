@@ -18,8 +18,8 @@ type project =
   ; reactions : (string * string) list
   ; column : string
   ; turing_project_code : string option
-  ; earliest_start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; latest_start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
+  ; earliest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
+  ; latest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
   ; latest_end_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
   ; fte_months : float option
   ; nominal_fte_percent : float option
