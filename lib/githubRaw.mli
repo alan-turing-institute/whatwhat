@@ -26,7 +26,7 @@ type column =
   }
 
 (** Project is what Github calls Kanban boards. It is _not_ what the rest of
-    Whatwhat calls project, which is more like an issues.*)
+    Whatwhat calls project, which is more like an issues. *)
 type project =
   { number : int
   ; name : string
