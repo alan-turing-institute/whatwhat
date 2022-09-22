@@ -3,9 +3,9 @@
     Looks first in the XDG config location*)
 
 type t =
-  { githubToken : string
-  ; forecastId : string
-  ; forecastToken : string
+  { github_token : string
+  ; forecast_id : string
+  ; forecast_token : string
   }
 
 let loadConfig () : t =
@@ -15,10 +15,10 @@ let loadConfig () : t =
 
   match json with
   | `Assoc
-      [ ("githubToken", `String githubToken)
-      ; ("forecastId", `String forecastId)
-      ; ("forecastToken", `String forecastToken)
-      ] -> { githubToken; forecastId; forecastToken }
+      [ ("githubToken", `String github_token)
+      ; ("forecastId", `String forecast_id)
+      ; ("forecastToken", `String forecast_token)
+      ] -> { github_token; forecast_id; forecast_token }
   | _ -> failwith @@ "Could not decode config file\n" ^ Yojson.Basic.to_string json
 ;;
 

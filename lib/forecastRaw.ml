@@ -8,12 +8,12 @@ open CalendarLib
 (* An IdMap is a map from Forecast ids *)
 module IdMap = Map.Make (Int)
 
-let forecastRequest ?(query = []) endpoint =
+let forecast_request ?(query = []) endpoint =
   let _, body =
     let headers =
       Header.of_list
-        [ "Forecast-Account-ID", Config.settings.forecastId
-        ; "Authorization", "Bearer " ^ Config.settings.forecastToken
+        [ "Forecast-Account-ID", Config.settings.forecast_id
+        ; "Authorization", "Bearer " ^ Config.settings.forecast_token
         ]
     and uri =
       Uri.with_query' (Uri.of_string ("https://api.forecastapp.com/" ^ endpoint)) query
@@ -38,8 +38,8 @@ type project =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
-let getProjects () =
-  forecastRequest "projects"
+let get_projects () =
+  forecast_request "projects"
   |> to_list
   |> List.map (fun x -> project_of_yojson (x : Basic.t :> Safe.t))
 ;;
@@ -53,8 +53,8 @@ type client =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
-let getClients () =
-  forecastRequest "clients"
+let get_clients () =
+  forecast_request "clients"
   |> to_list
   |> List.map (fun x -> client_of_yojson (x : Basic.t :> Safe.t))
 ;;
@@ -72,8 +72,8 @@ type person =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
-let getPeople () =
-  forecastRequest "people"
+let get_people () =
+  forecast_request "people"
   |> to_list
   |> List.map (fun x -> person_of_yojson (x : Basic.t :> Safe.t))
 ;;
@@ -88,8 +88,8 @@ type placeholder =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
-let getPlaceholders () =
-  forecastRequest "placeholders"
+let get_placeholders () =
+  forecast_request "placeholders"
   |> to_list
   |> List.map (fun x -> placeholder_of_yojson (x : Basic.t :> Safe.t))
 ;;
@@ -108,12 +108,12 @@ type assignment =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
-let getAssignments (startDate : Date.t) (endDate : Date.t) =
-  assert (Date.Period.nb_days (Date.sub endDate startDate) >= 0);
+let get_assignments (start_date : Date.t) (end_date : Date.t) =
+  assert (Date.Period.nb_days (Date.sub end_date start_date) >= 0);
 
-  let st = Printer.DatePrinter.to_string startDate
-  and ed = Printer.DatePrinter.to_string endDate in
-  forecastRequest "assignments" ~query:[ "start_date", st; "end_date", ed ]
+  let st = Printer.DatePrinter.to_string start_date
+  and ed = Printer.DatePrinter.to_string end_date in
+  forecast_request "assignments" ~query:[ "start_date", st; "end_date", ed ]
   |> to_list
   |> List.map (fun x -> assignment_of_yojson (x : Basic.t :> Safe.t))
 ;;
@@ -121,11 +121,11 @@ let getAssignments (startDate : Date.t) (endDate : Date.t) =
 (* ---------------------------------------------------------------------- *)
 
 (* TODO: Have these run concurrently *)
-let getTheSchedule (startDate : Date.t) (endDate : Date.t) =
+let get_the_schedule (start_date : Date.t) (end_date : Date.t) =
   let make_map identify xs = List.map identify xs |> List.to_seq |> IdMap.of_seq in
-  ( getClients () |> make_map (function ({ id; _ } as c : client) -> id, c)
-  , getPeople () |> make_map (function ({ id; _ } as p : person) -> id, p)
-  , getPlaceholders () |> make_map (function ({ id; _ } as p : placeholder) -> id, p)
-  , getProjects () |> make_map (function ({ id; _ } as p : project) -> id, p)
-  , getAssignments startDate endDate )
+  ( get_clients () |> make_map (function ({ id; _ } as c : client) -> id, c)
+  , get_people () |> make_map (function ({ id; _ } as p : person) -> id, p)
+  , get_placeholders () |> make_map (function ({ id; _ } as p : placeholder) -> id, p)
+  , get_projects () |> make_map (function ({ id; _ } as p : project) -> id, p)
+  , get_assignments start_date end_date )
 ;;
