@@ -164,7 +164,7 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
      | Some person ->
        (match IntMap.find_opt a.project_id projects with
         | None ->
-          log_assignment Log.Error a "Deleting as assignment because of a missing project";
+          log_assignment Log.Error a "Deleting an assignment because of a missing project";
           None
         | Some project ->
           Some
