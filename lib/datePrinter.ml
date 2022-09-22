@@ -1,4 +1,4 @@
-(** A module for pretty-printing [CalendarLib.Date] instances.*)
+(** A module for pretty-printing [CalendarLib.Date] instances. *)
 open CalendarLib
 
 let string_of_date = Printer.Date.to_string
