@@ -1,5 +1,7 @@
 (** Logging and notification: tell certain people about certain problems
 
+    For a design brief see {{!page-reporting}Logging and Notification}.
+
     The following individuals may receive messages:
 
     - Fallback (email): A hard-coded person if the Scheduler cannot be found

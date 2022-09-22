@@ -199,7 +199,7 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
        in
        let () =
          if project_opt == None
-         then log_func "Deleting as assignment because of a missing project"
+         then log_func "Deleting an assignment because of a missing project"
        in
        let () =
          if start_date_opt == None

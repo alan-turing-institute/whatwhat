@@ -47,7 +47,7 @@ type metadata =
   }
 [@@deriving show]
 
-type person = Raw.person =
+type person = GithubRaw.person =
   { login : string
   ; name : string option
   ; email : string option
