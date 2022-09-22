@@ -14,7 +14,7 @@ type project =
   { forecast_id : int
   ; github_id : int
   ; name : string
-  ; assignees : string list
+  ; github_assignees : string list
   ; reactions : (string * string) list
   ; column : string
   ; turing_project_code : string option
@@ -30,11 +30,15 @@ type project =
 [@@deriving show]
 
 type allocation =
-  { person_id : int
-  ; project_id : int
-  ; start_date : CalendarLib.Date.t
+  { start_date : CalendarLib.Date.t
   ; end_date : CalendarLib.Date.t
   ; rate : float
+  }
+
+type assignment =
+  { person : string
+  ; project_id : int
+  ; allocations : allocation list
   }
 
 (* ---------------------------------------------------------------------- *)
@@ -134,7 +138,7 @@ let get_project_list
     let get_person_opt = person_opt_of_gh_person people in
     match fc_p_opt with
     | Some fc_p ->
-      let assignees =
+      let github_assignees =
         List.filter_map get_person_opt gh_project.assignees
         |> List.map (fun person -> person.email)
       in
@@ -151,7 +155,7 @@ let get_project_list
         { forecast_id = fc_p.number
         ; github_id = gh_project.number
         ; name = gh_project.title
-        ; assignees
+        ; github_assignees
         ; reactions
           (* TODO The Option.get is dangerous, handle failures more gracefully. *)
         ; column = Option.get gh_project.column

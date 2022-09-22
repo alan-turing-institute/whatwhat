@@ -11,7 +11,6 @@
 
  *)
 
-open CalendarLib
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
 module StringMap = Map.Make (String) (* email => person *)
@@ -28,10 +27,17 @@ type person =
   ; last_name : string
   }
 
+type allocation =
+  { start_date : CalendarLib.Date.t
+  ; end_date : CalendarLib.Date.t
+  ; rate : int
+  }
+
 type assignment =
   { project : int (* The project code *)
   ; person : string (* An email *)
-  ; finance_code : string option (* TODO: And an allocation ... *)
+  ; finance_code : string option
+  ; allocations : allocation list
   }
 
 type schedule =
@@ -151,27 +157,49 @@ let validate_person _ (p : Raw.person) =
 (* Raw.IdMap.to_seq people *)
 (* |> Seq.fold_left add_person StringMap.empty  *)
 
+(* Parse Raw.assignments into Forecast.assignments.
+
+   At this stage we ignore the fact that many assignments may actually concern the same
+   person, project, finance code combination, and just create a single assignment for each
+   Raw.assignment, each with a single allocation. We will later merge these, collating the
+   allocations.
+   *)
 let validate_assignment fcs people projects (a : Raw.assignment) =
   match a.person_id with
   (* If there is no person_id, this assignment is to a Placeholder and we ignore it *)
   | None -> None
   | Some person_id ->
-    (match IntMap.find_opt person_id people with
-     (* We may have deleted the corresponding person or project already because they were invalid *)
-     | None ->
-       log_assignment Log.Error a "Deleting an assignment because of missing person";
-       None
-     | Some person ->
-       (match IntMap.find_opt a.project_id projects with
-        | None ->
-          log_assignment Log.Error a "Deleting as assignment because of a missing project";
-          None
-        | Some project ->
-          Some
-            { project = project.number
-            ; person = person.email
-            ; finance_code = Raw.IdMap.find_opt a.project_id fcs
-            }))
+    let person_opt = IntMap.find_opt person_id people in
+    let project_opt = IntMap.find_opt a.project_id projects in
+    let start_date_opt = Utils.date_opt_of_string a.start_date in
+    let end_date_opt = Utils.date_opt_of_string a.end_date in
+    (match person_opt, project_opt, start_date_opt, end_date_opt with
+     | Some person, Some project, Some start_date, Some end_date ->
+       Some
+         { project = project.number
+         ; person = person.email
+         ; finance_code = Raw.IdMap.find_opt a.project_id fcs
+         ; allocations = [ { start_date; end_date; rate = a.allocation } ]
+         }
+     | _ ->
+       let log_func = log_assignment Log.Error a in
+       let () =
+         if person_opt == None
+         then log_func "Deleting an assignment because of missing person"
+       in
+       let () =
+         if project_opt == None
+         then log_func "Deleting as assignment because of a missing project"
+       in
+       let () =
+         if start_date_opt == None
+         then log_func ("Unable to parse assignment start_date " ^ a.start_date)
+       in
+       let () =
+         if end_date_opt == None
+         then log_func ("Unable to parse assignment end_date " ^ a.end_date)
+       in
+       None)
 ;;
 
 (* ------------------------------------------------------------ *)
@@ -205,7 +233,7 @@ let make_project_map projects_id =
 (* ------------------------------------------------------------ *)
 (* Interface *)
 
-let get_the_schedule (start_date : Date.t) (end_date : Date.t) =
+let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.Date.t) =
   let clnts, peopl, _, projs, asnts = Raw.get_the_schedule start_date end_date in
 
   (* A things_id is a map from forecast ids to the thing *)
@@ -224,7 +252,7 @@ let get_the_schedule (start_date : Date.t) (end_date : Date.t) =
 ;;
 
 let get_the_current_schedule days =
-  let start_date = Date.today () in
-  let end_date = Date.add start_date (Date.Period.day days) in
+  let start_date = CalendarLib.Date.today () in
+  let end_date = CalendarLib.Date.add start_date (CalendarLib.Date.Period.day days) in
   get_the_schedule start_date end_date
 ;;

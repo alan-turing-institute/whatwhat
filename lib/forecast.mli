@@ -17,10 +17,17 @@ type person =
   ; last_name : string
   }
 
+type allocation =
+  { start_date : CalendarLib.Date.t
+  ; end_date : CalendarLib.Date.t
+  ; rate : int
+  }
+
 type assignment =
   { project : int
   ; person : string
   ; finance_code : string option
+  ; allocations : allocation list
   }
 
 type schedule =

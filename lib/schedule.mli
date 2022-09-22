@@ -20,7 +20,7 @@ type project =
   { forecast_id : int
   ; github_id : int
   ; name : string
-  ; assignees : string list
+  ; github_assignees : string list
   ; reactions : (string * string) list
   ; column : string (* TODO column could be an enum type?*)
   ; turing_project_code : string option
@@ -33,14 +33,21 @@ type project =
   ; min_fte_percent : float option
   }
 
-(** An allocation of a person to a project for a time period. [rate] is the number of
-    hours per day this allocation covers. *)
+(** A working period with a start and end date, and [rate], i.e. a number of
+    hours per day this work covers. Instances of [allocation] are attached to
+    [assignment]s. *)
 type allocation =
-  { person_id : int
-  ; project_id : int
-  ; start_date : CalendarLib.Date.t
+  { start_date : CalendarLib.Date.t
   ; end_date : CalendarLib.Date.t
   ; rate : float
+  }
+
+(** An assignment of a person to a project, together with a list of allocations, i.e. time
+    periods and rates during which said person works on the project. *)
+type assignment =
+  { person : string
+  ; project_id : int
+  ; allocations : allocation list
   }
 
 (** Return a list of people and projects for which we succesfully merged Forecast and

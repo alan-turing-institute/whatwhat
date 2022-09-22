@@ -88,28 +88,18 @@ let metadata_fields =
 (* ---------------------------------------------------------------------- *)
 (* METADATA PARSING & VALIDATION *)
 
-(* --- field parsing functions ---- *)
-
-let date_from_string (n : int) (str : string) =
-  let catch_date_exn year month day n =
-    try Some (CalendarLib.Date.make year month day) with
+let parse_date_field_opt (n : int) (str_opt : string option) =
+  let date_opt =
+    try Utils.date_opt_of_string_opt str_opt with
     | CalendarLib.Date.Out_of_bounds ->
       log_parseerror FieldError n "date out of bounds";
       None
   in
-  let datelist = Str.split (Str.regexp {|-|}) str in
-  match datelist with
-  | [ year; month; day ] ->
-    catch_date_exn (int_of_string year) (int_of_string month) (int_of_string day) n
-  | _ ->
-    log_parseerror FieldError n ("unable to make date from " ^ str);
-    None
-;;
-
-let date_from_string_opt (n : int) (str : string option) =
-  match str with
-  | None -> None
-  | Some x -> date_from_string n x
+  let () =
+    if date_opt == None && str_opt <> None
+    then log_parseerror FieldError n ("unable to make date from " ^ Option.get str_opt)
+  in
+  date_opt
 ;;
 
 let float_opt_of_string_opt (x : string option) =
@@ -179,11 +169,11 @@ let parse_fields (n : int) (lines : string list) =
     Some
       { turing_project_code = fields |> List.assoc_opt "turing-project-code"
       ; earliest_start_date =
-          fields |> List.assoc_opt "earliest-start-date" |> date_from_string_opt n
+          fields |> List.assoc_opt "earliest-start-date" |> parse_date_field_opt n
       ; latest_start_date =
-          fields |> List.assoc_opt "latest-start-date" |> date_from_string_opt n
+          fields |> List.assoc_opt "latest-start-date" |> parse_date_field_opt n
       ; latest_end_date =
-          fields |> List.assoc_opt "latest-end-date" |> date_from_string_opt n
+          fields |> List.assoc_opt "latest-end-date" |> parse_date_field_opt n
       ; fte_months = fields |> List.assoc_opt "FTE-months" |> float_opt_of_string_opt
       ; nominal_fte_percent =
           fields |> List.assoc_opt "nominal-FTE-percent" |> float_opt_of_string_opt
