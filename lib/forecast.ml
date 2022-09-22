@@ -202,6 +202,50 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
        None)
 ;;
 
+(* A Map module that can have as keys tuples of project.id, person.email, finance_code
+   option, or PPF for short. *)
+module PPF = struct
+  type t = int * string * string option
+
+  let compare (x0, y0, z0) (x1, y1, z1) =
+    match Stdlib.compare x0 x1 with
+    | 0 ->
+      (match Stdlib.compare y0 y1 with
+       | 0 -> Stdlib.compare z0 z1
+       | c -> c)
+    | c -> c
+  ;;
+end
+
+module AssignmentMap = Map.Make (PPF)
+
+(* Collect all the assignments related to a set of project, person, and finance code
+   together, and join their allocations. *)
+let collate_allocations assignments =
+  let f (m : assignment AssignmentMap.t) (a : assignment) =
+    let ppf = a.project, a.person, a.finance_code in
+    let existing_assignment_opt = AssignmentMap.find_opt ppf m in
+    let assignment_to_add =
+      match existing_assignment_opt with
+      (* If there is already an assignment in the map m with this ppf value, add a new
+       allocation to it. *)
+      | Some existing_assignment ->
+        { project = a.project
+        ; person = a.person
+        ; finance_code = a.finance_code
+        ; allocations = existing_assignment.allocations @ a.allocations
+        }
+      (* Otherwise add a new assignment to the map. *)
+      | None -> a
+    in
+    AssignmentMap.add ppf assignment_to_add m
+  in
+  List.fold_left f AssignmentMap.empty assignments
+  |> AssignmentMap.to_seq
+  |> Seq.map snd
+  |> List.of_seq
+;;
+
 (* ------------------------------------------------------------ *)
 
 (* Make map email => person *)
@@ -243,6 +287,7 @@ let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.D
   let people_id = IntMap.filter_map validate_person peopl in
   let assignments =
     List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
+    |> collate_allocations
   in
 
   let projects = make_project_map projects_id in
