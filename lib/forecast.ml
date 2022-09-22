@@ -20,18 +20,21 @@ type project =
   ; name : string
   ; programme : string
   }
+[@@deriving show]
 
 type person =
   { email : string
   ; first_name : string
   ; last_name : string
   }
+[@@deriving show]
 
 type allocation =
-  { start_date : CalendarLib.Date.t
-  ; end_date : CalendarLib.Date.t
-  ; rate : int
+  { start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
+  ; end_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
+  ; rate : float
   }
+[@@deriving show]
 
 type assignment =
   { project : int (* The project code *)
@@ -39,6 +42,7 @@ type assignment =
   ; finance_code : string option
   ; allocations : allocation list
   }
+[@@deriving show]
 
 type schedule =
   { projects : project IntMap.t
@@ -157,6 +161,10 @@ let validate_person _ (p : Raw.person) =
 (* Raw.IdMap.to_seq people *)
 (* |> Seq.fold_left add_person StringMap.empty  *)
 
+(** Forecast reports rates as seconds in a day. We divide by the number of seconds in 8h
+    to get the FTE percentage.*)
+let forecast_rate_to_fte_percent n = float_of_int n /. float_of_int (60 * 60 * 8)
+
 (* Parse Raw.assignments into Forecast.assignments.
 
    At this stage we ignore the fact that many assignments may actually concern the same
@@ -179,7 +187,9 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
          { project = project.number
          ; person = person.email
          ; finance_code = Raw.IdMap.find_opt a.project_id fcs
-         ; allocations = [ { start_date; end_date; rate = a.allocation } ]
+         ; allocations =
+             [ { start_date; end_date; rate = forecast_rate_to_fte_percent a.allocation }
+             ]
          }
      | _ ->
        let log_func = log_assignment Log.Error a in

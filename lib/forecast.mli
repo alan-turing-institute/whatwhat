@@ -20,7 +20,7 @@ type person =
 type allocation =
   { start_date : CalendarLib.Date.t
   ; end_date : CalendarLib.Date.t
-  ; rate : int
+  ; rate : float
   }
 
 type assignment =
@@ -39,3 +39,7 @@ type schedule =
 val person_name : person -> string
 val get_the_schedule : Date.t -> Date.t -> schedule
 val get_the_current_schedule : int -> schedule
+val show_project : project -> string
+val show_person : person -> string
+val show_allocation : allocation -> string
+val show_assignment : assignment -> string

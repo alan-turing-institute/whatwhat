@@ -36,7 +36,7 @@ type project =
 (** A working period with a start and end date, and [rate], i.e. a number of
     hours per day this work covers. Instances of [allocation] are attached to
     [assignment]s. *)
-type allocation =
+type allocation = Forecast.allocation =
   { start_date : CalendarLib.Date.t
   ; end_date : CalendarLib.Date.t
   ; rate : float
@@ -44,9 +44,10 @@ type allocation =
 
 (** An assignment of a person to a project, together with a list of allocations, i.e. time
     periods and rates during which said person works on the project. *)
-type assignment =
-  { person : string
-  ; project_id : int
+type assignment = Forecast.assignment =
+  { project : int
+  ; person : string
+  ; finance_code : string option
   ; allocations : allocation list
   }
 
@@ -56,7 +57,8 @@ type assignment =
 
     TODO This function remains a work-in-progress. For one, we need to have it return a
     list of allocations as well. *)
-val make_schedule : unit -> person list * project list
+val make_schedule : unit -> person list * project list * assignment list
 
 val show_person : person -> string
 val show_project : project -> string
+val show_assignment : assignment -> string

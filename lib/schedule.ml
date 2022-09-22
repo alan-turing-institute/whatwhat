@@ -1,6 +1,21 @@
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
+type allocation = Forecast.allocation =
+  { start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
+  ; end_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
+  ; rate : float
+  }
+[@@deriving show]
+
+type assignment = Forecast.assignment =
+  { project : int
+  ; person : string
+  ; finance_code : string option
+  ; allocations : allocation list
+  }
+[@@deriving show]
+
 (* TODO Add fields for list of assignments and list of allocations *)
 type person =
   { email : string
@@ -28,18 +43,6 @@ type project =
   ; min_fte_percent : float option
   }
 [@@deriving show]
-
-type allocation =
-  { start_date : CalendarLib.Date.t
-  ; end_date : CalendarLib.Date.t
-  ; rate : float
-  }
-
-type assignment =
-  { person : string
-  ; project_id : int
-  ; allocations : allocation list
-  }
 
 (* ---------------------------------------------------------------------- *)
 (* MERGE PEOPLE FROM FORECAST AND GITHUB *)
@@ -188,5 +191,6 @@ let make_schedule () =
   let gh_people = Github.get_users () in
   let people = get_people_list fc_people gh_people in
   let projects = get_project_list fc_projects gh_issues people in
-  people, projects
+  let assignments = fc_schedule.assignments in
+  people, projects, assignments
 ;;
