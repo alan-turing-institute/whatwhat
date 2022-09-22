@@ -16,7 +16,6 @@ Warnings are given for other inconsisties (e.g. no one is assigned). Warnings ar
 due to:
   - There being additional information in the value entry.
   - A non-crucial entry is missing or null. *)
-module Raw = GithubRaw
 
 (** A type for different types of errors that may be raised when parsing issue metadata. *)
 type parseerror =
@@ -37,11 +36,11 @@ type metadata =
   ; min_fte_percent : float option
   }
 
-(* We reexport the Raw.person type so that no other module ever has a need to import
+(* We reexport the GithubRaw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)
 
 (** A type for Github users. *)
-type person = Raw.person =
+type person = GithubRaw.person =
   { login : string
   ; name : string option
   ; email : string option
