@@ -1,4 +1,4 @@
-(* High-level interface to the Github API
+(** High-level interface to the Github API
 
 Performs validation for Github issues.
 
