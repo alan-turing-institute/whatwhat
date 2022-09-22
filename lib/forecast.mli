@@ -1,39 +1,34 @@
-(** Retrieves and validates all objects from Forecast. Assembles these into a
-    schedule.
-    
-    A {i schedule} is:
-    - A set of {i projects};
-    - A set of {i people};
-    - A set of {i assignments} (of people to projects);
-
-*)
+(** High-level interface to Forecast. Returns only entities that are correctly
+    defined accoring to our domain model. *)
 
 open CalendarLib
+module IntMap : module type of Map.Make (Int)
+module StringMap : module type of Map.Make (String)
 
 type project =
-  { number       : int; (* Ought to be a GitHub issue number *)
-    name         : string;
-    client       : string option;
+  { number : int
+  ; name : string
+  ; programme : string
   }
-(** A [project] represents what is known about a project from Forecast.
 
-    There may be multiple Forecast projects with the same GitHub issue
-    number. These are amalgamated into one [project]. 
-    
-*) 
+type person =
+  { email : string
+  ; first_name : string
+  ; last_name : string
+  }
 
-(* type people *)
-
-(* type assignment *)
+type assignment =
+  { project : int
+  ; person : string
+  ; finance_code : string option
+  }
 
 type schedule =
-  {
-    projects : project list;
-    (* team        : people list; *)
-    (* assignments : assignment list *)
+  { projects : project IntMap.t
+  ; people : person StringMap.t
+  ; assignments : assignment list
   }
 
- 
+val person_name : person -> string
 val getTheSchedule : Date.t -> Date.t -> schedule
-
-val getTheCurrentSchedule : unit -> schedule
+val getTheCurrentSchedule : int -> schedule

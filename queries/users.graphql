@@ -1,0 +1,15 @@
+{
+  "query": "query {
+    repository(owner: \"alan-turing-institute\", name: \"Hut23\") {
+      assignableUsers(first: 100) {
+        edges {
+          node {
+            login
+            name
+            email
+          }
+        }
+      }
+    }
+  }"
+}
