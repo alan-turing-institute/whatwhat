@@ -63,8 +63,7 @@ val show_placeholder : placeholder -> string
     returned in full. (In particular, any given returned [assignment] 
     may start earlier than [start_date] and end later than [end_date].)
 
-    The end date may not be more than 180 days after start date.
- *)
+    The end date may not be more than 180 days after start date. *)
 val get_assignments : Date.t -> Date.t -> assignment list
 
 val show_assignment : assignment -> string
