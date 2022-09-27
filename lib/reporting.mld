@@ -1,0 +1,127 @@
+{0 Logging and Notifications}
+
+{1 Background}
+
+{!Whatwhat} retrieves and integrates data from two sources: GitHub and
+Forecast. These systems have been repurposed by us in order to manage our
+projects and so the "true data model" (representing real-world REG projects) is
+not necessarily faithfully represented by the data models of these
+systems. Thus, errors, omissions, and inconsistencies may occur.
+
+We classify problems into {i errors} and {i warnings}:
+- An {i error} occurs when the data retrieved from the data sources, while valid
+  in the domain model of the data source, is not valid in the domain model of
+  whatwhat and cannot be represented as a type returned by the library. When an
+  error occures the entity causing the error is typically ignored thereafter
+  (which may cause subsequent errors or warnings).
+- A {i warning} occurs when a valid representation is possible but is in some
+  way or other problematic. Warnings should result in nudges for people to fix
+  the problem.
+  
+It is conceivable the JSON returned by the APIs of GitHub or Forecast may not
+parse as expected: that is a fatal error and whatwhat will throw an exception
+and halt.
+
+(We may later include {i notifications}, which are user-requested commentary on
+potential problems.)
+
+Errors and warnings are passed to the logging system whose job is to communicate
+them to the appropriate place. Errors and warnings may arise in two places:
+  + When reading the data from either GitHub or Forecast;
+  + When combining the data from these two sources.
+
+
+{1 Reading data from Forecast}
+
+Forecast is authoritative for people and allocations so the most likely sources of
+errors are projects. 
+
+{2 Errors}
+
+- The project code field (which ought to hold the hut23 issue
+  number) is null.
+- The project code is not of the correct format, e.g., "[hut23-999]".
+- The person email field is null.
+- The assignment person does not match a person (probably because we have
+  deleted it).
+- The assignment project does not match a project (probably because we
+  have deleted it).
+
+{2 Warnings}
+
+- The project tags field (which ought to hold the Finance code) is empty; 
+- The project tags field has more than one entry.
+- Two projects exist with the same project code but a different name (in
+  general, it is okay to have two projects with the same code becuase they refer
+  to the same real-world project).
+
+{1 Reading data from GitHub}
+
+GitHub is authoritative for projects but the YAML metadata block is not part of
+the GitHub data model so leaves a lot of room for trouble. 
+
+For reference, the stages of a project, in order, are presently:
+- [Suggested]
+- [Proposal]
+- [Extra info needed]
+- [Project appraisal]
+- [Awaiting go/no-go]
+- [Finding people]
+- [Awaiting start]
+- [Active]
+- [Completion review]
+- [Done]
+- [Cancelled]
+- [Rejected]
+
+and the YAML data block has the following fields:
+
+- [turing-project-code] (SHOULD BE DEPRECATED!) This is (occasionally) used to hold the
+  Finance code; however, projects may not (yet) have a Finance code or may have
+  more than one Finance code. 
+- [earliest-start-date]: missing or null allowed; means "no earliest start date"
+- [latest-start-date]: missing or null allowed; means "no latest start date"
+- [latest-end-date]: missing or null allowed; means "no latest end date"
+- [max-FTE-percent]: Integer 0–100
+- [min-FTE-percent]: Integer 0–100
+- [nominal-FTE-percent]: Integer 0–100
+- [FTE-months]: Integer, must not be specified together with [FTE-weeks] 
+- [FTE-weeks]: Integer, must not be specified together with [FTE-months] 
+
+{2 Errors}
+
+A malformed YAML block halts parsing of entire block. Possible reasons for error are:
+{ul 
+  {- A non-optional metadata block cannot be found}
+  {- A field cannot be parsed, because: 
+  {ul {- its name is not in the accepted list; or}
+      {- the format of the value is not valid.}}} 
+  {- The same field is specified twice}
+  {- there is no [FTE-months] or [FTE-weeks]} 
+  {- both [FTE-months] and [FTE-weeks] are specified}}
+
+{2 Warnings}
+
+- A field that can be null is missing
+- A field that can be null has a missing value
+
+{1 Combining data}
+
+Even if both the GitHub and the Forecast data appear to satisfy the domain model
+we may still have problems when they are combined. 
+
+{2 Errors}
+
+- A project on Forecast has a Hut23 code that is not present in the list of
+  projects from GitHub.
+- {b TODO}
+
+
+{2 Warnings}
+
+{b TODO}
+
+
+  
+  
+
