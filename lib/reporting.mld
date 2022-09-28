@@ -1,5 +1,10 @@
 {0 Logging and Notifications}
 
+{1 Caveat}
+
+The following is what {i ought} to happen. As of 2022-09-28, it is not what
+actually does happen.
+
 {1 Background}
 
 {!Whatwhat} retrieves and integrates data from two sources: GitHub and
@@ -114,14 +119,48 @@ we may still have problems when they are combined.
 
 - A project on Forecast has a Hut23 code that is not present in the list of
   projects from GitHub.
-- {b TODO}
-
+- A project on Forecast has a Finance Code that is not in the list of Finance
+  Codes from the metadata. (What do we do when the project Finance Code is
+  "UNKNOWN FINANCE CODE"? Do we issue an error or a warning? If a warning, does
+  that mean we need to make "UNKNOWN FINANCE CODE" a possible code for every project?)
 
 {2 Warnings}
 
-{b TODO}
+Warnings occur when the import of the allocations in Forecast doesn't match
+what's implied by the metadata.
+
+- There are allocations to a project beyond its latest start date
+- There are allocations to a project before its earliest start date
+- The total resource allocate exceeds the FTE-weeks
+- The run-rate resource at any time is lower than min-FTE-percent or higher than
+max-FTE-percent.
+- An individual has an allocation that is greater than 100%
+- The project is in "active" but there are no present allocations; or there are
+present allocations but the project is no "active".
+- The project is past its latest start date but is not "active"
 
 
-  
-  
+{1 Notifications}
+
+If whatwhat is run in "notification" mode, it issues a report on likely
+problems. These are of two kinds: problems that exist now, and problems that
+will exist in the future if left uncorrected.
+
+{2 Things that will become problems if left unattended}
+
+- A project is active but the total allocation to the project is less than the
+  FTE-weeks (within some delta)
+
+{2 Informational messages}
+
+- A project is within T + delta of its latest start date but there are no
+  allocations
+- A project is within T + delta of its latest start date but is not "Awaiting
+  start"
+- A project is "Awaiting start" but the total allocation is less than the
+  FTE-weeks (within some delta)
+- A person's allocation will be less than 100% at T + delta
+- A person's allocation to a project will change within in T + delta
+- A project's allocations will change within T + delta
+
 
