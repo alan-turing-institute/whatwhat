@@ -2,8 +2,11 @@
 
 open Whatwhat
 
+
+
+
 let () =
-  let people, projects, assignments = Schedule.make_schedule () in
+  let people, projects, assignments = Schedule.get_the_schedule () in
   let () = print_endline "People:" in
   let () = List.iter (fun c -> print_endline @@ Schedule.show_person c) people in
   let () = print_endline "Number of projects:" in

@@ -131,7 +131,7 @@ what's implied by the metadata.
 
 - There are allocations to a project beyond its latest start date
 - There are allocations to a project before its earliest start date
-- The total resource allocate exceeds the FTE-weeks
+- The total resource allocated exceeds the FTE-weeks
 - The run-rate resource at any time is lower than min-FTE-percent or higher than
 max-FTE-percent.
 - An individual has an allocation that is greater than 100%

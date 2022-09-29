@@ -1,6 +1,6 @@
-(** Schedule collates data from both Github and Forecast, and joins them into single
-    source-agnostic data structure. It deals with people, projects, and allocations.
-    *)
+(** Schedule collates data from both Github and Forecast, and joins them into
+    single, source-agnostic data structure. It deals with people, projects, and
+    allocations. *)
 
 (** A person, combining both a Forecast user and a matching Github user.
 
