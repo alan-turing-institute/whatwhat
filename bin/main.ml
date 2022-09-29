@@ -1,19 +1,42 @@
 (** Placeholder: attempts to download the schedule from Forecast *)
 
+(* Note: to run under dune and pass arguments use
+   dune exec -- whatwhat <args>
+ *)
+
 open Whatwhat
 
+let whatwhat target =
+  ignore target;
+  let people, projects, assignments = Schedule.get_the_schedule () in 
+  begin
+    print_endline "Whatwhat downloaded:";
+    Printf.printf "  %d people; " (List.length people);
+    Printf.printf "%d projects; and " (List.length projects);
+    Printf.printf "%d assignments\n" (List.length assignments);
+  end
 
 
+(* Command-line interface *)
 
-let () =
-  let people, projects, assignments = Schedule.get_the_schedule () in
-  let () = print_endline "People:" in
-  let () = List.iter (fun c -> print_endline @@ Schedule.show_person c) people in
-  let () = print_endline "Number of projects:" in
-  let () = print_endline @@ Int.to_string @@ List.length projects in
-  let () = print_endline "Projects:" in
-  let () = List.iter (fun (c : Schedule.project) -> print_endline @@ c.name) projects in
-  let () = print_endline "Assignments:" in
-  let () = List.iter (fun c -> print_endline @@ Schedule.show_assignment c) assignments in
-  ()
-;;
+open Cmdliner
+
+let targets =
+  let tgs = Arg.enum [
+                "github", Notify.GitHub;
+                "slack", Notify.Slack;
+                "all", Notify.All;
+                "none", Notify.NoTarget] in
+  Arg.(value
+       & opt tgs Notify.NoTarget
+       & info ["t"; "target"]
+           ~docv:"TARGET"
+           ~doc:"Where to send notifications.
+                 $(docv) may be one of: $(b,github), $(b,slack), $(b,all)$, or $(b,none).")
+
+let cmd = Cmd.v (Cmd.info "whatwhat" ~doc:"Report current project status")
+                 Term.(const whatwhat $ targets)
+
+let main () = exit (Cmd.eval cmd)
+
+let () = main ()

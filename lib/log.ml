@@ -17,3 +17,4 @@ let the_logger = ref default_logger
 (* "Every problem in computer science can be solved through another layer of
    indirection" *)
 let log (lvl : log_type) (msg : string) : unit = !the_logger lvl msg
+

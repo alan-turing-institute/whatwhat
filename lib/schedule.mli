@@ -51,13 +51,14 @@ type assignment = Forecast.assignment =
   ; allocations : allocation list
   }
 
-(** Return a list of people and projects for which we succesfully merged Forecast and
-    Github data. In the process of doing the merge, log various warnings and errors when
-    data on Forecast and/or Github is missing or malformed.
+(** Return a list of people and projects for which we succesfully merged
+    Forecast and Github data. In the process of doing the merge, log various
+    warnings and errors when data on Forecast and/or Github is missing or
+    malformed.
 
-    TODO This function remains a work-in-progress. For one, we need to have it return a
-    list of allocations as well. *)
-val make_schedule : unit -> person list * project list * assignment list
+    TODO This function remains a work-in-progress. For one, we need to have it
+    return a list of allocations as well. *)
+val get_the_schedule : unit -> person list * project list * assignment list
 
 val show_person : person -> string
 val show_project : project -> string
