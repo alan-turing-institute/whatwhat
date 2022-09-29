@@ -34,11 +34,16 @@
  *)
 
 type parseerror =
-  | FieldError
-  | FieldWarning
-  | LengthWarning
-  | LineError (** *)
-(** Errors and warnings for logging problems with the issue metadata. *)
+  | DateOutOfBoundsError
+  | DateParsingError
+  | ExtraFieldError
+  | FieldTypeError
+  | MissingCompulsoryFieldError
+  | MissingOptionalFieldError
+  | NoMetadataError
+  | NullCompulsoryFieldError
+  | NullOptionalFieldError
+  | YamlError (** Errors and warnings for logging problems with the issue metadata. *)
 
 type metadata =
   { turing_project_code : string option
@@ -51,8 +56,8 @@ type metadata =
   ; min_fte_percent : float option
   }
 
-val show_metadata : metadata -> string
 (** A type to hold the parsed YAML metadata from an issue header. *)
+val show_metadata : metadata -> string
 
 (* We reexport the Raw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)
@@ -63,9 +68,8 @@ type person = GithubRaw.person =
   ; email : string option
   }
 
-val show_person : person -> string
 (** A type for Github users. *)
-
+val show_person : person -> string
 
 type project =
   { number : int
@@ -78,13 +82,12 @@ type project =
   ; metadata : metadata
   }
 
-val show_project : project -> string
 (** Projects are 1-to-1 related with Github issues. *)
+val show_project : project -> string
 
-
-val get_project_issues : string -> project list
 (** Given a project board name, return a list of projects, one for each issue on the
     board. *)
+val get_project_issues : string -> project list
 
-val get_users : unit -> person list
 (** Return all the users in the Alan Turing Institute Github organisation. *)
+val get_users : unit -> person list

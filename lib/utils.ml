@@ -1,5 +1,5 @@
-type date_parsing_error = DateParsingError
-
+(** Parse a string as a date in the format year-month-day. If the string is not in this
+    format, return [None]. *)
 let date_opt_of_string (str : string) =
   let datelist = Str.split (Str.regexp {|-|}) str in
   match datelist with

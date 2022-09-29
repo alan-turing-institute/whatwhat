@@ -1,7 +1,7 @@
 (library
  (name whatwhat)
  (public_name whatwhat)
- (libraries xdg-basedir yojson lwt cohttp-lwt-unix calendar re tls batteries)
+ (libraries xdg-basedir yojson lwt cohttp-lwt-unix calendar re tls batteries yaml ezjsonm)
  (preprocess
   (pps ppx_deriving.show ppx_yojson_conv)))
 
