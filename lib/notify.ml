@@ -13,7 +13,9 @@
 *)
 
 type target =
+  | NoTarget
   | GitHub
   | Slack
   | All
-  | NoTarget
+
+

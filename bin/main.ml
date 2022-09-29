@@ -27,12 +27,15 @@ let targets =
                 "slack", Notify.Slack;
                 "all", Notify.All;
                 "none", Notify.NoTarget] in
+  let doc = "Where to send notifications.
+             $(docv) may be $(b,github), $(b,slack), $(b,all), \
+             or $(b,none)." in
+
   Arg.(value
        & opt tgs Notify.NoTarget
        & info ["t"; "target"]
            ~docv:"TARGET"
-           ~doc:"Where to send notifications.
-                 $(docv) may be one of: $(b,github), $(b,slack), $(b,all)$, or $(b,none).")
+           ~doc)
 
 let cmd = Cmd.v (Cmd.info "whatwhat" ~doc:"Report current project status")
                  Term.(const whatwhat $ targets)
