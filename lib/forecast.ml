@@ -179,10 +179,10 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
   | Some person_id ->
     let person_opt = IntMap.find_opt person_id people in
     let project_opt = IntMap.find_opt a.project_id projects in
-    let start_date_opt = Utils.date_opt_of_string a.start_date in
-    let end_date_opt = Utils.date_opt_of_string a.end_date in
+    let start_date_opt = Utils.date_of_string a.start_date in
+    let end_date_opt = Utils.date_of_string a.end_date in
     (match person_opt, project_opt, start_date_opt, end_date_opt with
-     | Some person, Some project, Some start_date, Some end_date ->
+     | Some person, Some project, Ok start_date, Ok end_date ->
        Some
          { project = project.number
          ; person = person.email
@@ -194,19 +194,19 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
      | _ ->
        let log_func = log_assignment Log.Error a in
        let () =
-         if person_opt == None
+         if person_opt = None
          then log_func "Deleting an assignment because of missing person"
        in
        let () =
-         if project_opt == None
+         if project_opt = None
          then log_func "Deleting an assignment because of a missing project"
        in
        let () =
-         if start_date_opt == None
+         if start_date_opt = Error ()
          then log_func ("Unable to parse assignment start_date " ^ a.start_date)
        in
        let () =
-         if end_date_opt == None
+         if end_date_opt = Error ()
          then log_func ("Unable to parse assignment end_date " ^ a.end_date)
        in
        None)
