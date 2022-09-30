@@ -10,6 +10,8 @@ type parseerror =
   | DateParsingError
   | ExtraFieldError
   | FieldTypeError
+  | FTETimeUnderSpecifiedError
+  | FTETimeOverSpecifiedError
   | MissingCompulsoryFieldError
   | MissingOptionalFieldError
   | NoMetadataError
@@ -26,6 +28,8 @@ let log_parseerror (what : parseerror) (number : int) msg =
     | DateParsingError -> Log.Error
     | ExtraFieldError -> Log.Error
     | FieldTypeError -> Log.Error
+    | FTETimeUnderSpecifiedError -> Log.Error
+    | FTETimeOverSpecifiedError -> Log.Error
     | MissingCompulsoryFieldError -> Log.Error
     | MissingOptionalFieldError -> Log.Warning
     | NoMetadataError -> Log.Error
@@ -39,6 +43,8 @@ let log_parseerror (what : parseerror) (number : int) msg =
     | DateParsingError -> "Unparseable date field: "
     | ExtraFieldError -> "Unexpected field in metadata: "
     | FieldTypeError -> "Wrong YAML type for field: "
+    | FTETimeUnderSpecifiedError -> "Neither FTE-months nor FTE-weeks specified"
+    | FTETimeOverSpecifiedError -> "Both FTE-months and FTE-weeks specified"
     | MissingCompulsoryFieldError -> "Missing compulsory field: "
     | MissingOptionalFieldError -> "Missing optional field: "
     | NoMetadataError -> "No metadata block found in issue body."
@@ -58,10 +64,11 @@ type metadata =
        [@printer DatePrinter.pp_print_date_opt]
   ; latest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
   ; latest_end_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
-  ; fte_months : float option
-  ; nominal_fte_percent : float option
   ; max_fte_percent : float option
   ; min_fte_percent : float option
+  ; nominal_fte_percent : float option
+  ; fte_months : float option
+  ; fte_weeks : float option
   }
 [@@deriving show]
 
@@ -90,35 +97,23 @@ type field =
   { name : string
   ; optional : bool
       (* if False, the issue will not become a NowWhat project if this field does not exist *)
-  ; checker_function : Yaml.value -> bool
-      (* Function that takes the YAML field and return a boolean for
-      whether it is of the correct YAML type. *)
   }
 
 (* ---------------------------------------------------------------------- *)
 (* METADATA PARSING & VALIDATION *)
 
-let yaml_is_float (yaml : Yaml.value) =
-  match yaml with
-  | `Float _ -> true
-  | _ -> false
-;;
-
-let yaml_is_string (yaml : Yaml.value) =
-  match yaml with
-  | `String _ -> true
-  | _ -> false
-;;
-
+(* This list defines which keys are valid in the metadata block, and whether they are
+   optional or compulsory. *)
 let metadata_fields =
-  [ { name = "turing-project-code"; optional = true; checker_function = yaml_is_string }
-  ; { name = "earliest-start-date"; optional = true; checker_function = yaml_is_string }
-  ; { name = "latest-start-date"; optional = true; checker_function = yaml_is_string }
-  ; { name = "latest-end-date"; optional = true; checker_function = yaml_is_string }
-  ; { name = "FTE-months"; optional = true; checker_function = yaml_is_float }
-  ; { name = "nominal-FTE-percent"; optional = true; checker_function = yaml_is_float }
-  ; { name = "max-FTE-percent"; optional = true; checker_function = yaml_is_float }
-  ; { name = "min-FTE-percent"; optional = true; checker_function = yaml_is_float }
+  [ { name = "turing-project-code"; optional = true }
+  ; { name = "earliest-start-date"; optional = true }
+  ; { name = "latest-start-date"; optional = true }
+  ; { name = "latest-end-date"; optional = true }
+  ; { name = "max-FTE-percent"; optional = false }
+  ; { name = "min-FTE-percent"; optional = false }
+  ; { name = "nominal-FTE-percent"; optional = false }
+  ; { name = "FTE-months"; optional = true }
+  ; { name = "FTE-weeks"; optional = true }
   ]
 ;;
 
@@ -131,167 +126,174 @@ let is_field_optional key =
 
 let valid_keys = List.map (fun x -> x.name) metadata_fields |> StringSet.of_list
 
-let compulsory_keys =
-  List.filter_map (fun x -> if x.optional then None else Some x.name) metadata_fields
-  |> StringSet.of_list
-;;
-
-let checker_function key =
-  let field_data = List.find (fun x -> x.name = key) metadata_fields in
-  field_data.checker_function
-;;
-
 (* -- *)
 
-let parse_date_field_opt (n : int) (str : string) =
-  let date_opt =
-    try Utils.date_opt_of_string str with
-    | CalendarLib.Date.Out_of_bounds ->
-      log_parseerror DateOutOfBoundsError n str;
-      None
+let log_missing_field n key optional =
+  let log_type =
+    if optional then MissingOptionalFieldError else MissingCompulsoryFieldError
   in
-  let () = if date_opt == None then log_parseerror DateParsingError n str in
-  date_opt
+  log_parseerror log_type n key
 ;;
 
-(* Get the value of [key] from [yaml]. Log an error or warning if the field is missing,
-   depending on whether this is a optional field, and return None. *)
-let read_yaml_log_missing n yaml key optional =
+(* Get a [Yaml.value] that is expected to be of type [`Float]. Return [Ok Some float] if
+   it is found, [Ok None] if it is missing/null and the field is optional, or [Error ()]
+   if it is missing/null and the field is compulsory or the value is malformed.
+
+   If the field is not found or is null or malformed, either a warning or an error is
+   logged explaining the issue.
+ 
+   The [yaml] block is assumed to be of dictionary type. *)
+let read_float_field n yaml key =
+  let optional = is_field_optional key in
   let value_opt = Yaml.Util.find_exn key yaml in
-  let () =
-    if value_opt = None
-    then (
-      let log_type =
-        if optional then MissingOptionalFieldError else MissingCompulsoryFieldError
-      in
-      log_parseerror log_type n key)
-  in
-  value_opt
+  match value_opt with
+  | None | Some `Null | Some (`String "") | Some (`String "N/A") ->
+    let () = log_missing_field n key optional in
+    if optional then Ok None else Error ()
+  | Some (`Float value) -> Ok (Some value)
+  | Some value ->
+    let key_value_string = key ^ ", " ^ Yaml.to_string_exn value in
+    let () = log_parseerror FieldTypeError n key_value_string in
+    Error ()
 ;;
 
-(* Get a [Yaml.value] that is known to be of type [`Float]. Log errors or
-   warnings and return [None] if the field is missing.
+(* Get a [Yaml.value] that is expected to be of type [`String]. Return [Ok Some string] if
+   it is found, [Ok None] if it is missing/null/empty and the field is optional, or [Error
+   ()] if it is missing/null/empty and the field is compulsory or the value is malformed.
 
-   This function assumes that we've already checked that the yaml object is of a
-   dictionary type and that _if_ the field in question exists, it is a [`Float]. *)
-let float_opt_of_yaml n yaml key =
+   If the field is not found or is null or malformed, either a warning or an error is
+   logged explaining the issue.
+ 
+   The [yaml] block is assumed to be of dictionary type. *)
+let read_string_field n yaml key =
   let optional = is_field_optional key in
-  let value_opt = read_yaml_log_missing n yaml key optional in
+  let value_opt = Yaml.Util.find_exn key yaml in
   match value_opt with
-  | None -> None
-  | Some value_yaml -> Some (Yaml.Util.to_float_exn value_yaml)
+  | None | Some `Null | Some (`String "") | Some (`String "N/A") ->
+    let () = log_missing_field n key optional in
+    if optional then Ok None else Error ()
+  | Some (`String value) -> Ok (Some value)
+  | Some value ->
+    let key_value_string = key ^ ", " ^ Yaml.to_string_exn value in
+    let () = log_parseerror FieldTypeError n key_value_string in
+    Error ()
 ;;
 
-(* Parse a [Yaml.value] that is known to be of type [`String]. Log errors or
-   warnings and return [None] if the field is missing.
-
-   This function assumes that we've already checked that the yaml object is of a
-   dictionary type and that _if_ the field in question exists, it is a [`String]. *)
-let string_opt_of_yaml n yaml key =
-  let optional = is_field_optional key in
-  let value_opt = read_yaml_log_missing n yaml key optional in
-  match value_opt with
-  | None -> None
-  | Some value_yaml ->
-    let value = Yaml.Util.to_string_exn value_yaml in
-    (match value with
-     | "" | "null" | "N/A" ->
-       let log_type =
-         if optional then NullOptionalFieldError else NullCompulsoryFieldError
-       in
-       let () = log_parseerror log_type n key in
-       None
-     | _ -> Some value)
+(* Get a [Yaml.value] that is expected to be of type [`String] representing a date in the
+   YYYY-MM-DD format. Return value is as with [read_string_field], except the string is
+   parsed into a [CalendarLib.Date] object, or failing this, [Error ()] is returned.
+ 
+   The [yaml] block is assumed to be of dictionary type. *)
+let read_date_field n yaml key =
+  let string_value = read_string_field n yaml key in
+  match string_value with
+  | Ok (Some str) ->
+    let date = Utils.date_of_string str in
+    (match date with
+     | Ok date -> Ok (Some date)
+     | Error _ ->
+       let () = log_parseerror DateParsingError n (key ^ ", " ^ str) in
+       Error ())
+  | Ok None -> Ok None
+  | Error _ -> Error ()
 ;;
 
-(* Parse a [Yaml.value] that is known to be of type [`String] as a date. Log errors or
-   warnings and return [None] if this can't be done.
+(* Check if a given yaml block has any unexpected extra keys. If yes, log errors noting
+   them. Return [true] if extra keys are found, [false] otherwise.)
 
-   This function assumes that we've already checked that the yaml object is of a
-   dictionary type and that _if_ the field in question exists, it is a [`String]. *)
-let date_opt_of_yaml n yaml key =
-  let value_opt = string_opt_of_yaml n yaml key in
-  match value_opt with
-  | None -> None
-  | Some value -> parse_date_field_opt n value
-;;
-
-(* Check if a given yaml block has all the expected keys, and only the expected keys. If
-   not, log errors and return false, otherwise return true. *)
-let check_keys n yaml =
-  (* We can use Yaml.Util.keys_exn because we've previously checked that this block is of
-     dictionary type. *)
+   The [yaml] block is assumed to be of dictionary type. *)
+let check_extra_keys n yaml =
   let yaml_keys = Yaml.Util.keys_exn yaml |> StringSet.of_list in
   let extra_keys = StringSet.diff yaml_keys valid_keys in
-  let missing_keys = StringSet.diff compulsory_keys yaml_keys in
   let () = StringSet.iter (log_parseerror ExtraFieldError n) extra_keys in
-  let () = StringSet.iter (log_parseerror MissingCompulsoryFieldError n) missing_keys in
-  StringSet.is_empty extra_keys && StringSet.is_empty missing_keys
+  not @@ StringSet.is_empty extra_keys
 ;;
 
-let check_value_type n yaml key =
-  let checker = checker_function key in
-  (* We know this key exists, so we can safely just Option.get the value. *)
-  let value = Yaml.Util.find_exn key yaml |> Option.get in
-  let result = checker value in
-  let key_value_string = key ^ ", " ^ Yaml.to_string_exn value in
-  let () = log_parseerror FieldTypeError n key_value_string in
-  result
+(* Given the [yaml] block, parse its fields and construct the metadata object. Return
+   [Error ()] if something goes wrong, and log errors and warnings as needed.
+
+   The [yaml] block is assumed to be of dictionary type. *)
+let metadata_of_yaml (n : int) (yaml : Yaml.value) =
+  let extra_keys = check_extra_keys n yaml in
+  let turing_project_code_res = read_string_field n yaml "turing-project-code" in
+  let earliest_start_date_res = read_date_field n yaml "earliest-start-date" in
+  let latest_start_date_res = read_date_field n yaml "latest-start-date" in
+  let latest_end_date_res = read_date_field n yaml "latest-end-date" in
+  let max_fte_percent_res = read_float_field n yaml "max-FTE-percent" in
+  let min_fte_percent_res = read_float_field n yaml "min-FTE-percent" in
+  let nominal_fte_percent_res = read_float_field n yaml "nominal-FTE-percent" in
+  let fte_months_res = read_float_field n yaml "FTE-months" in
+  let fte_weeks_res = read_float_field n yaml "FTE-weeks" in
+  (* Check if parsing of all fields went okay, and that only the expected fields are
+     present. If yes, construct the metadata object, if not, return [Error ()]. *)
+  match
+    ( extra_keys
+    , turing_project_code_res
+    , earliest_start_date_res
+    , latest_start_date_res
+    , latest_end_date_res
+    , max_fte_percent_res
+    , min_fte_percent_res
+    , nominal_fte_percent_res
+    , fte_months_res
+    , fte_weeks_res )
+  with
+  | ( false
+    , Ok turing_project_code
+    , Ok earliest_start_date
+    , Ok latest_start_date
+    , Ok latest_end_date
+    , Ok max_fte_percent
+    , Ok min_fte_percent
+    , Ok nominal_fte_percent
+    , Ok fte_months
+    , Ok fte_weeks ) ->
+    (match fte_weeks, fte_months with
+     | None, None ->
+       let () = log_parseerror FTETimeUnderSpecifiedError n "" in
+       Error ()
+     | Some _, Some _ ->
+       let () = log_parseerror FTETimeOverSpecifiedError n "" in
+       Error ()
+     | _ ->
+       Ok
+         { turing_project_code
+         ; earliest_start_date
+         ; latest_start_date
+         ; latest_end_date
+         ; max_fte_percent
+         ; min_fte_percent
+         ; nominal_fte_percent
+         ; fte_months
+         ; fte_weeks
+         })
+  | _ -> Error ()
 ;;
 
-(* Check that all the fields in [yaml] are of the expected type. Log errors if they are
-   not, and return a boolean. This function assumes that we've already checked that there
-   are no unwelcome extra keys in [yaml]. *)
-let check_value_types n yaml =
-  Yaml.Util.keys_exn yaml
-  |> List.map (check_value_type n yaml)
-  |> List.fold_left ( && ) true
-;;
-
-let parse_fields (n : int) (yaml : Yaml.value) =
-  let keys_ok = check_keys n yaml in
-  let value_types_ok = check_value_types n yaml in
-
-  if keys_ok && value_types_ok
-  then
-    (* We now know that all compulsory keys are in the data, there are no extra keys, and
-       all keys that are there are of the expected type. We can safely proceed to parse.
-       *)
-    Some
-      { turing_project_code = string_opt_of_yaml n yaml "turing-project-code"
-      ; earliest_start_date = date_opt_of_yaml n yaml "earliest-start-date"
-      ; latest_start_date = date_opt_of_yaml n yaml "latest-start-date"
-      ; latest_end_date = date_opt_of_yaml n yaml "latest-end-date"
-      ; fte_months = float_opt_of_yaml n yaml "FTE-months"
-      ; nominal_fte_percent = float_opt_of_yaml n yaml "nominal-FTE-percent"
-      ; max_fte_percent = float_opt_of_yaml n yaml "max-FTE-percent"
-      ; min_fte_percent = float_opt_of_yaml n yaml "min-FTE-percent"
-      }
-  else None
-;;
-
-let metadata_of_yaml (n : int) (y : string) =
+let metadata_of_yaml_string (n : int) (y : string) =
   let mdata_result = Yaml.of_string y in
   match mdata_result with
   | Ok yaml ->
     (* Check that this yaml block is of the dictionary type, rather than a single value
      or a list. *)
     (match yaml with
-     | `O _ -> parse_fields n yaml
+     | `O _ -> metadata_of_yaml n yaml
      | _ ->
        let () = log_parseerror YamlError n "YAML block is not a dictionary" in
-       None)
+       Error ())
   | Error (`Msg err) ->
     let () = log_parseerror YamlError n err in
-    None
+    Error ()
 ;;
 
 let parse_metadata (n : int) (body : string) =
   let x = Str.split (Str.regexp {|\+\+\+|}) body in
   match x with
   | [ top; rest ] ->
-    let mdata = metadata_of_yaml n top in
-    mdata, rest
+    let mdata_res = metadata_of_yaml_string n top in
+    (match mdata_res with
+     | Ok mdata -> Some mdata, rest
+     | Error () -> None, body)
   | _ ->
     let () = log_parseerror NoMetadataError n "" in
     None, body

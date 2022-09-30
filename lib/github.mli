@@ -33,27 +33,31 @@
 
  *)
 
+(** Errors and warnings for logging problems with the issue metadata. *)
 type parseerror =
   | DateOutOfBoundsError
   | DateParsingError
   | ExtraFieldError
   | FieldTypeError
+  | FTETimeUnderSpecifiedError
+  | FTETimeOverSpecifiedError
   | MissingCompulsoryFieldError
   | MissingOptionalFieldError
   | NoMetadataError
   | NullCompulsoryFieldError
   | NullOptionalFieldError
-  | YamlError (** Errors and warnings for logging problems with the issue metadata. *)
+  | YamlError
 
 type metadata =
   { turing_project_code : string option
   ; earliest_start_date : CalendarLib.Date.t option
   ; latest_start_date : CalendarLib.Date.t option
   ; latest_end_date : CalendarLib.Date.t option
-  ; fte_months : float option
-  ; nominal_fte_percent : float option
   ; max_fte_percent : float option
   ; min_fte_percent : float option
+  ; nominal_fte_percent : float option
+  ; fte_months : float option
+  ; fte_weeks : float option
   }
 
 (** A type to hold the parsed YAML metadata from an issue header. *)
