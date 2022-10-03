@@ -13,6 +13,6 @@ type target =
   | GitHub
   | Slack
   | All       (** *)
-(** Where notifications should be posted. The default is NoTaget. *)
+(** Where notifications should be posted. The default is NoTarget. *)
 
-val dump_log : unit -> unit
+val dump_the_log : unit -> unit
