@@ -36,7 +36,6 @@ type schedule =
   ; assignments : assignment list
   }
 
-val person_name : person -> string
 val get_the_schedule : Date.t -> Date.t -> schedule
 val get_the_current_schedule : int -> schedule
 val show_project : project -> string
