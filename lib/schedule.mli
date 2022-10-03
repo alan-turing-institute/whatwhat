@@ -9,19 +9,22 @@
 type person =
   { email : string
   ; name : string
-  ; github_login : string
+  ; github_login : string option
   }
 
 (** A project, combining both a Github issue and a matching Forecast project.
 
     Github is considered the authoritative source for projects, information from
-    Forecast is attached to the issues found on Github. *)
+    Forecast is attached to the issues found on Github. *
+
+    Assignees and reactions are recorded by the email of the user on Forecast, if a match
+    between the Github and Forecast users is found, or [None] otherwise. *)
 type project =
   { forecast_id : int
   ; github_id : int
   ; name : string
-  ; github_assignees : string list
-  ; reactions : (string * string) list
+  ; github_assignees : string option list
+  ; reactions : (string * string option) list
   ; column : string (* TODO column could be an enum type?*)
   ; turing_project_code : string option
   ; earliest_start_date : CalendarLib.Date.t option
