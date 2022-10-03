@@ -26,10 +26,9 @@ type target =
   | All
 
 let dump_event (e : Log.event) =
-  Printf.printf "%s: Module %s reports [%s]: %s\n"
+  Printf.printf "%s: Module %s reports %s\n"
     (Log.show_level e.level)
     (Log.show_source e.source)
-    (Log.show_origin e.origin)
     e.message
 
 (* Dump all logged events to standard out *)

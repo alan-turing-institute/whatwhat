@@ -50,13 +50,14 @@ type schedule =
   ; assignments : assignment list
   }
 
+
 (* ------------------------------------------------------------ *)
 (* Utilities *)
 
-(* Like "short-circuit and".  See "let-punning",
+(* `let+` is like "short-circuit and".  See "let-punning",
    https://v2.ocaml.org/manual/bindingops.html *)
 let ( let+ ) o f = Option.map f o
-let person_name p = (p.first_name ^ " ") ^ p.last_name
+
 
 (* ------------------------------------------------------------ *)
 (* Logging for errors and warnings *)
@@ -64,8 +65,8 @@ let person_name p = (p.first_name ^ " ") ^ p.last_name
 let log_event lvl ent msg =
   Log.log lvl Log.Forecast ent msg
 
-let log_raw_project (lvl : Log.level) (p : Raw.project) msg =
-  log_event lvl (Log.RawForecastProject p.name) msg 
+let log_raw_project (lvl : Log.level) (rp : Raw.project) msg =
+  log_event lvl (Log.RawForecastProject rp.name) msg 
 ;;
 
 let log_project (lvl : Log.level) (p : project) msg =
@@ -79,7 +80,7 @@ let log_raw_person (lvl : Log.level) (p : Raw.person) msg =
 
 let log_assignment (lvl : Log.level) (a : Raw.assignment) msg =
   let aid (a : Raw.assignment) = "(" ^ string_of_int a.id ^ ")" in
-  log_event lvl (Log. @@ msg ^ aid a
+  log_event lvl Log.RawForecastAssignment (msg ^ aid a)
 ;;
 
 (* ------------------------------------------------------------ 
@@ -127,10 +128,10 @@ let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
 ;;
 
 let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
-  let log_appropriate_project_warning rp msg =
+  let log_appropriate_project_warning (rp : Raw.project) msg =
     match (IntMap.find_opt rp.id projects) with
-      None -> log_raw_project Log.Warning p.name msg
-    | Some p -> log_project Log.Warning p.number msg
+      None   -> log_raw_project Log.Warning rp msg
+    | Some p -> log_project     Log.Warning p  msg
   in
   match rp.tags with
   | [] ->
@@ -159,16 +160,8 @@ let validate_person _ (p : Raw.person) =
     | Some email -> Some { email; first_name = p.first_name; last_name = p.last_name })
 ;;
 
-(* if StringMap.mem email m then *)
-(*     begin *)
-(*       log_raw_person Log.Error p "Another person has the same email as this"; *)
-(*       m *)
-(*     end *)
-(*   else *)
-(*     StringMap.add email {email = email; first_name = p.first_name; last_name = p.last_name} m *)
-(* in *)
-(* Raw.IdMap.to_seq people *)
-(* |> Seq.fold_left add_person StringMap.empty  *)
+
+(* Allocations *)
 
 (** Forecast reports rates as seconds in a day. We divide by the number of seconds in 8h
     to get the FTE percentage.*)

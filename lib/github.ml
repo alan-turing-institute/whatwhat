@@ -13,7 +13,6 @@ type parseerror =
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log_parseerror (what : parseerror) (number : int) msg =
-  let prefix = "Metadata Parsing (num: " ^ string_of_int number ^ "): " in
   let log_lvl =
     match what with
     | LengthWarning -> Log.Error
@@ -28,7 +27,7 @@ let log_parseerror (what : parseerror) (number : int) msg =
     | FieldError -> "Unable to parse key "
     | FieldWarning -> "key "
   in
-  Log.log log_lvl @@ prefix ^ error_description ^ msg
+  Log.log log_lvl Log.GitHubMetadata (Log.Project number) @@ error_description ^ msg
 ;;
 
 (* ---------------------------------------------------------------------- *)

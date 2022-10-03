@@ -17,8 +17,9 @@ type source =
 type entity =
   | RawForecastProject of string 
   | Project of int
-  | Person of string
   | RawForecastPerson of string
+  | Person of string
+  | RawForecastAssignment
   | Assignment of (int * string)
 
 type event = {
@@ -41,8 +42,7 @@ let the_logger = ref default_logger
 
 (* Interface -------------------------------------------------- *)
 
-let log (lvl : level) (src : source) (ent : entity)
-      (msg : string) : unit =
+let log (lvl : level) (src : source) (ent : entity) (msg : string) : unit =
   !the_logger lvl src ent msg
 
 let get_the_log () =
@@ -60,5 +60,4 @@ let show_source = function
   | GitHubMetadata -> "GitHub Metadata"
   | Schedule -> "Schedule"
 
-let show_origin = function
 

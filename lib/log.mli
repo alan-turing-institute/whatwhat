@@ -25,8 +25,11 @@ type source =
 (** Which module where we processing when the problem arose *)
 
 type entity =
+  | RawForecastProject of string    (** Project name *)
   | Project of int                  (** The project code *)
+  | RawForecastPerson of string     (** Person's name *)
   | Person of string                (** email address *)
+  | RawForecastAssignment
   | Assignment of (int * string)    (** Pair of a Project and a person *)
 
 type event = {
