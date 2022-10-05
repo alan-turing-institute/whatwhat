@@ -15,7 +15,7 @@ let whatwhat target =
     Printf.printf "%d projects; and " (List.length projects);
     Printf.printf "%d assignments\n" (List.length assignments);
   end;
-  Notify.dump_the_log () 
+  Notify.dump_metadata_events () 
 
 
 (* Command-line interface *)

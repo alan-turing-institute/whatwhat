@@ -19,11 +19,48 @@
     
  *)
 
+module IntMap = Map.Make(Int)
+
 type target =
   | NoTarget
   | GitHub
   | Slack
   | All
+
+
+(* From the log of events, produce a map Project Number => event for
+   those events that are related to the metadata of a project *)
+let extract_metadata_events (event_log : Log.event Seq.t) =
+  let extract_project_event (ev : Log.event) =
+    match ev.source with
+    | Log.GitHubMetadata ->
+       begin
+         match ev.entity with
+         | Log.Project nmbr -> Some (nmbr, ev)
+         | _ -> None
+       end
+    | _ -> None
+  in
+  (* Cons the event onto a list of events for this project, if this project
+     currently exists *)
+  let add_event_to_map m (nmbr, ev) =
+    let updater = function
+      | Some curr -> Some (ev :: curr)
+      | None -> Some (ev :: [])
+    in
+    IntMap.update nmbr updater m
+  in
+  event_log
+  |> Seq.filter_map extract_project_event
+  |> Seq.fold_left add_event_to_map IntMap.empty
+
+
+
+
+
+(* ------------------------------------------------------------ 
+   Debugging
+ *)
 
 let dump_event (e : Log.event) =
   Printf.printf "%s: Module %s reports: %s\n"
@@ -34,6 +71,16 @@ let dump_event (e : Log.event) =
 (* Dump all logged events to standard out *)
 let dump_the_log () =
   Seq.iter dump_event @@ Log.get_the_log ()
-  
-  
+
+let dump_metadata_events () =
+  extract_metadata_events @@ Log.get_the_log ()
+  |> IntMap.iter (fun nmbr evs ->
+         begin
+           print_endline ("Metadata events for project number " ^ (string_of_int nmbr));
+           List.iter dump_event evs;
+           print_endline ""
+         end
+       )
+                  
+
 

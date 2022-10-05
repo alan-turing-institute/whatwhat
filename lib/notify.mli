@@ -16,3 +16,5 @@ type target =
 (** Where notifications should be posted. The default is NoTarget. *)
 
 val dump_the_log : unit -> unit
+
+val dump_metadata_events : unit -> unit
