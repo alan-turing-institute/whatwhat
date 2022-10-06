@@ -50,38 +50,42 @@ type schedule =
   ; assignments : assignment list
   }
 
+
 (* ------------------------------------------------------------ *)
 (* Utilities *)
 
-(* Like "short-circuit and".  See "let-punning",
+(* `let+` is like "short-circuit and".  See "let-punning",
    https://v2.ocaml.org/manual/bindingops.html *)
 let ( let+ ) o f = Option.map f o
-let person_name p = (p.first_name ^ " ") ^ p.last_name
+
 
 (* ------------------------------------------------------------ *)
 (* Logging for errors and warnings *)
 
-let log_raw_project (lvl : Log.log_type) (p : Raw.project) msg =
-  Log.log lvl @@ msg ^ " for project id=" ^ string_of_int p.id
+let log_event lvl ent msg =
+  Log.log lvl Log.Forecast ent msg
+
+let log_raw_project (lvl : Log.level) (rp : Raw.project) msg =
+  log_event lvl (Log.RawForecastProject rp.name) msg 
 ;;
 
-let log_project (lvl : Log.log_type) (p : project) msg =
-  let make_hut23_code n = " [hut23-" ^ string_of_int n ^ "]" in
-  Log.log lvl @@ msg ^ " for project " ^ make_hut23_code p.number
+let log_project (lvl : Log.level) (p : project) msg =
+  log_event lvl (Log.Project p.number) msg 
 ;;
 
-let log_raw_person (lvl : Log.log_type) (p : Raw.person) msg =
+let log_raw_person (lvl : Log.level) (p : Raw.person) msg =
   let name = p.first_name ^ " " ^ p.last_name in
-  Log.log lvl @@ msg ^ " for " ^ name
+  log_event lvl (Log.RawForecastPerson name) msg
 ;;
 
-let log_assignment (lvl : Log.log_type) (a : Raw.assignment) msg =
+let log_assignment (lvl : Log.level) (a : Raw.assignment) msg =
   let aid (a : Raw.assignment) = "(" ^ string_of_int a.id ^ ")" in
-  Log.log lvl @@ msg ^ aid a
+  log_event lvl Log.RawForecastAssignment (msg ^ aid a)
 ;;
 
-(* ------------------------------------------------------------ *)
-(* domain-specific data *)
+(* ------------------------------------------------------------ 
+   Domain-specific data
+ *)
 
 (* Regex to match the `NNN` in `hut23-NNN` *)
 let hut23_code_re = Re.compile Re.(seq [ start; str "hut23-"; group (rep1 digit); stop ])
@@ -90,22 +94,11 @@ let hut23_code_re = Re.compile Re.(seq [ start; str "hut23-"; group (rep1 digit)
    "Time off", which we do not use *)
 let timeoff_project_id = 1684536
 
-(* ------------------------------------------------------------ *)
-(* Utilities for extracting data from particular fields and entities *)
+(* ------------------------------------------------------------ 
+   Utilities for converting raw entities to nicer ones
+ *)
 
-let extract_finance_code _ (project : Raw.project) =
-  match project.tags with
-  | [] ->
-    log_raw_project Log.Warning project "Missing Finance Code";
-    None
-  | fc :: [] -> Some fc
-  | fc :: _ ->
-    log_raw_project
-      Log.Warning
-      project
-      "More than one potential Finance code (using the first tag)";
-    Some fc
-;;
+(* Projects *)
 
 let extract_project_number (project : Raw.project) =
   let cd = project.code in
@@ -124,8 +117,6 @@ let extract_project_number (project : Raw.project) =
     None
 ;;
 
-(* ------------------------------------------------------------ *)
-
 let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
   if p.archived || id = timeoff_project_id
   then None
@@ -135,6 +126,25 @@ let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
     let+ nmbr = nmbr in
     { number = nmbr; name = p.name; programme = client.name })
 ;;
+
+let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
+  let log_appropriate_project_warning (rp : Raw.project) msg =
+    match (IntMap.find_opt rp.id projects) with
+      None   -> log_raw_project Log.Warning rp msg
+    | Some p -> log_project     Log.Warning p  msg
+  in
+  match rp.tags with
+  | [] ->
+     log_appropriate_project_warning rp "Missing Finance Code";
+     None
+  | fc :: [] -> Some fc
+  | fc :: _ ->
+     log_appropriate_project_warning rp "More than one potential Finance code \
+                                         (using the first tag)";
+     Some fc
+;;
+
+(* People *)
 
 let validate_person _ (p : Raw.person) =
   if p.archived
@@ -150,16 +160,8 @@ let validate_person _ (p : Raw.person) =
     | Some email -> Some { email; first_name = p.first_name; last_name = p.last_name })
 ;;
 
-(* if StringMap.mem email m then *)
-(*     begin *)
-(*       log_raw_person Log.Error p "Another person has the same email as this"; *)
-(*       m *)
-(*     end *)
-(*   else *)
-(*     StringMap.add email {email = email; first_name = p.first_name; last_name = p.last_name} m *)
-(* in *)
-(* Raw.IdMap.to_seq people *)
-(* |> Seq.fold_left add_person StringMap.empty  *)
+
+(* Allocations *)
 
 (** Forecast reports rates as seconds in a day. We divide by the number of seconds in 8h
     to get the FTE percentage.*)
@@ -179,10 +181,10 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
   | Some person_id ->
     let person_opt = IntMap.find_opt person_id people in
     let project_opt = IntMap.find_opt a.project_id projects in
-    let start_date_opt = Utils.date_opt_of_string a.start_date in
-    let end_date_opt = Utils.date_opt_of_string a.end_date in
+    let start_date_opt = Utils.date_of_string a.start_date in
+    let end_date_opt = Utils.date_of_string a.end_date in
     (match person_opt, project_opt, start_date_opt, end_date_opt with
-     | Some person, Some project, Some start_date, Some end_date ->
+     | Some person, Some project, Ok start_date, Ok end_date ->
        Some
          { project = project.number
          ; person = person.email
@@ -194,19 +196,19 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
      | _ ->
        let log_func = log_assignment Log.Error a in
        let () =
-         if person_opt == None
+         if person_opt = None
          then log_func "Deleting an assignment because of missing person"
        in
        let () =
-         if project_opt == None
+         if project_opt = None
          then log_func "Deleting an assignment because of a missing project"
        in
        let () =
-         if start_date_opt == None
+         if start_date_opt = Error ()
          then log_func ("Unable to parse assignment start_date " ^ a.start_date)
        in
        let () =
-         if end_date_opt == None
+         if end_date_opt = Error ()
          then log_func ("Unable to parse assignment end_date " ^ a.end_date)
        in
        None)
@@ -290,20 +292,17 @@ let make_project_map projects_id =
 let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.Date.t) =
   let clnts, peopl, _, projs, asnts = Raw.get_the_schedule start_date end_date in
 
-  (* A things_id is a map from forecast ids to the thing *)
-  let fcs_id = Raw.IdMap.filter_map extract_finance_code projs in
-
+  (* A things_id is a map from raw Forecast ids to the thing *)
   let projects_id = IntMap.filter_map (validate_project clnts) projs in
-  let people_id = IntMap.filter_map validate_person peopl in
-  let assignments =
-    List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
-    |> collate_allocations
+  let fcs_id      = Raw.IdMap.filter_map (extract_finance_code projects_id) projs in
+  let people_id   = IntMap.filter_map validate_person peopl in
+  let assignments = List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
+                    |> collate_allocations
   in
-
-  let projects = make_project_map projects_id in
-  let people = make_people_map people_id in
-
-  { projects; people; assignments }
+  { projects    = make_project_map projects_id;
+    people      = make_people_map people_id;
+    assignments = assignments
+  }
 ;;
 
 let get_the_current_schedule days =

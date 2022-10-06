@@ -2,22 +2,21 @@ open Cohttp
 
 exception HttpError of string
 
-let date_opt_of_string (str : string) =
+(** Parse a string as a date in the format year-month-day. If the string is not in this
+    format, return [Error ()], else [Ok date]. *)
+let date_of_string (str : string) =
   let datelist = Str.split (Str.regexp {|-|}) str in
   match datelist with
   | [ year; month; day ] ->
-    Some
-      (CalendarLib.Date.make
-         (int_of_string year)
-         (int_of_string month)
-         (int_of_string day))
-  | _ -> None
-;;
-
-let date_opt_of_string_opt (str : string option) =
-  match str with
-  | None -> None
-  | Some x -> date_opt_of_string x
+    (try
+       Ok
+         (CalendarLib.Date.make
+            (int_of_string year)
+            (int_of_string month)
+            (int_of_string day))
+     with
+     | _ -> Error ())
+  | _ -> Error ()
 ;;
 
 (** Raise a HttpError if the API request response indicates failure. *)

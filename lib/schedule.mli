@@ -1,6 +1,6 @@
-(** Schedule collates data from both Github and Forecast, and joins them into single
-    source-agnostic data structure. It deals with people, projects, and allocations.
-    *)
+(** Schedule collates data from both Github and Forecast, and joins them into
+    single, source-agnostic data structure. It deals with people, projects, and
+    allocations. *)
 
 (** A person, combining both a Forecast user and a matching Github user.
 
@@ -23,7 +23,7 @@ type project =
   ; github_assignees : string list
   ; reactions : (string * string) list
   ; column : string (* TODO column could be an enum type?*)
-  ; turing_project_code : string option
+  ; turing_project_code : string list option
   ; earliest_start_date : CalendarLib.Date.t option
   ; latest_start_date : CalendarLib.Date.t option
   ; latest_end_date : CalendarLib.Date.t option
@@ -51,13 +51,14 @@ type assignment = Forecast.assignment =
   ; allocations : allocation list
   }
 
-(** Return a list of people and projects for which we succesfully merged Forecast and
-    Github data. In the process of doing the merge, log various warnings and errors when
-    data on Forecast and/or Github is missing or malformed.
+(** Return a list of people and projects for which we succesfully merged
+    Forecast and Github data. In the process of doing the merge, log various
+    warnings and errors when data on Forecast and/or Github is missing or
+    malformed.
 
-    TODO This function remains a work-in-progress. For one, we need to have it return a
-    list of allocations as well. *)
-val make_schedule : unit -> person list * project list * assignment list
+    TODO This function remains a work-in-progress. For one, we need to have it
+    return a list of allocations as well. *)
+val get_the_schedule : unit -> person list * project list * assignment list
 
 val show_person : person -> string
 val show_project : project -> string
