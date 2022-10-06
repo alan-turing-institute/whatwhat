@@ -14,7 +14,7 @@ let whatwhat target =
     Printf.printf "%d projects; and " (List.length projects);
     Printf.printf "%d assignments\n" (List.length assignments);
   end;
-  if (target = Notify.GitHub) || (target = Notify.All) then
+  if (target = Notify.Github) || (target = Notify.All) then
     Log.get_the_log ()
     |> Notify.extract_metadata_events
     |> Notify.IntMap.find 418
@@ -31,7 +31,7 @@ open Cmdliner
 
 let target =
   let tgs = Arg.enum [
-                "github", Notify.GitHub;
+                "github", Notify.Github;
                 "slack", Notify.Slack;
                 "all", Notify.All;
                 "none", Notify.NoTarget] in

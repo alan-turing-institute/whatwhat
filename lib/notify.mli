@@ -13,7 +13,7 @@ module IntMap : module type of Map.Make(Int)
 
 type target =
   | NoTarget
-  | GitHub
+  | Github
   | Slack
   | All       (** *)
 (** Where notifications should be posted. The default is NoTarget. *)

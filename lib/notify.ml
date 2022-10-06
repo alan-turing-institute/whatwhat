@@ -23,7 +23,7 @@ module IntMap = Map.Make(Int)
 
 type target =
   | NoTarget
-  | GitHub
+  | Github
   | Slack
   | All
 
@@ -33,7 +33,7 @@ type target =
 let extract_metadata_events (event_log : Log.event Seq.t) =
   let extract_project_event (ev : Log.event) =
     match ev.source with
-    | Log.GitHubMetadata ->
+    | Log.GithubMetadata ->
        begin
          match ev.entity with
          | Log.Project nmbr -> Some (nmbr, ev)

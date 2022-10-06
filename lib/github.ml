@@ -51,7 +51,7 @@ let log_parseerror (what : parseerror) (number : int) msg =
     | NullOptionalFieldError -> "Null or empty optional field: "
     | YamlError -> "Unable to parse metadata block as YAML: "
   in
-  Log.log log_lvl Log.GitHubMetadata (Log.Project number) @@ error_description ^ msg
+  Log.log log_lvl Log.GithubMetadata (Log.Project number) @@ error_description ^ msg
 ;;
 
 (* ---------------------------------------------------------------------- *)
