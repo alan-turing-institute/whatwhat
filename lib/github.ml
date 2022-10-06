@@ -58,7 +58,7 @@ let log_parseerror (what : parseerror) (number : int) msg =
 (* TYPES *)
 
 type metadata =
-  { turing_project_code : string option
+  { turing_project_code : string list option
   ; earliest_start_date : CalendarLib.Date.t option
        [@printer DatePrinter.pp_print_date_opt]
   ; latest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
@@ -197,6 +197,41 @@ let read_date_field n yaml key =
   | Error _ -> Error ()
 ;;
 
+(* Get a [Yaml.value] that is expected to be of type [`String] or [`A `String list].
+   Return [Ok Some (string list)] if it is found (making a singleton list if only a single
+   [`String] was found), [Ok None] if it is missing/null/empty and the field is optional,
+   or [Error ()] if it is missing/null/empty and the field is compulsory or the value is
+   malformed.
+
+   If the field is not found or is null or malformed, either a warning or an error is
+   logged explaining the issue.
+
+   The [yaml] block is assumed to be of dictionary type. *)
+let read_string_list_field n yaml key =
+  let optional = is_field_optional key in
+  let value_opt = Yaml.Util.find_exn key yaml in
+  match value_opt with
+  | None | Some `Null | Some (`String "") | Some (`String "N/A") ->
+    let () = log_missing_field n key optional in
+    if optional then Ok None else Error ()
+  | Some (`String value) -> Ok (Some [ value ])
+  (* `A is how the Yaml library marks YAML lists. *)
+  | Some (`A yaml_list) ->
+    List.fold_left
+      (fun acc_result x ->
+        match acc_result, x with
+        (* If we have a live accumulator and a new string value in the list, append it. *)
+        | Ok (Some acc), `String value -> Ok (Some (value :: acc))
+        (* In any other case, kill the accumulator, turning it into an Error. *)
+        | _ -> Error ())
+      (Ok (Some []))
+      yaml_list
+  | Some value ->
+    let key_value_string = key ^ ", " ^ Yaml.to_string_exn value in
+    let () = log_parseerror FieldTypeError n key_value_string in
+    Error ()
+;;
+
 (* Check if a given yaml block has any unexpected extra keys. If yes, log errors noting
    them. Return [true] if extra keys are found, [false] otherwise.)
 
@@ -214,7 +249,7 @@ let check_extra_keys n yaml =
    The [yaml] block is assumed to be of dictionary type. *)
 let metadata_of_yaml (n : int) (yaml : Yaml.value) =
   let extra_keys = check_extra_keys n yaml in
-  let turing_project_code_res = read_string_field n yaml "turing-project-code" in
+  let turing_project_code_res = read_string_list_field n yaml "turing-project-code" in
   let earliest_start_date_res = read_date_field n yaml "earliest-start-date" in
   let latest_start_date_res = read_date_field n yaml "latest-start-date" in
   let latest_end_date_res = read_date_field n yaml "latest-end-date" in
