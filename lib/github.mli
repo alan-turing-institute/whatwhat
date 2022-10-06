@@ -44,8 +44,8 @@ type parseerror =
   | MissingCompulsoryFieldError
   | MissingOptionalFieldError
   | NoMetadataError
-  | NullCompulsoryFieldError
-  | NullOptionalFieldError
+  (* | NullCompulsoryFieldError *)
+  (* | NullOptionalFieldError *)
   | YamlError
 
 type metadata =
