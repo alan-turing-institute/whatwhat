@@ -23,7 +23,7 @@ type project =
   ; github_assignees : string list
   ; reactions : (string * string) list
   ; column : string (* TODO column could be an enum type?*)
-  ; turing_project_code : string option
+  ; turing_project_code : string list option
   ; earliest_start_date : CalendarLib.Date.t option
   ; latest_start_date : CalendarLib.Date.t option
   ; latest_end_date : CalendarLib.Date.t option

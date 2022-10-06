@@ -32,7 +32,7 @@ type project =
   ; github_assignees : string list
   ; reactions : (string * string) list
   ; column : string
-  ; turing_project_code : string option
+  ; turing_project_code : string list option
   ; earliest_start_date : CalendarLib.Date.t option
        [@printer DatePrinter.pp_print_date_opt]
   ; latest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
