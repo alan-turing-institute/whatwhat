@@ -129,7 +129,8 @@ we may still have problems when they are combined.
 Warnings occur when the import of the allocations in Forecast doesn't match
 what's implied by the metadata.
 
-- There are allocations to a project beyond its latest start date
+- A project is in "Looking for people" or later, but has no matching Forecast project
+- There are allocations to a project beyond its latest end date
 - There are allocations to a project before its earliest start date
 - The total resource allocated exceeds the FTE-weeks
 - The run-rate resource at any time is lower than min-FTE-percent or higher than

@@ -32,7 +32,7 @@ type project =
   ; github_assignees : string option list
   ; reactions : (string * string option) list
   ; column : string
-  ; turing_project_code : string option
+  ; finance_code : string option
   ; earliest_start_date : CalendarLib.Date.t option
        [@printer DatePrinter.pp_print_date_opt]
   ; latest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
@@ -48,24 +48,40 @@ type project =
 (* LOGGING *)
 
 type schedule_error =
-  | NoMatchingGithubUser
+  | AllocationEndsTooLate
+  | AllocationStartsTooEarly
+  | FinanceCodeNotFound
   | NoMatchingForecastProject
   | NoMatchingForecastUser
+  | NoMatchingGithubIssue
+  | NoMatchingGithubUser
+  | NoProjectColumn
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log (error_type : schedule_error) msg =
   let prefix = "Schedule: " in
   let log_lvl =
     match error_type with
-    | NoMatchingGithubUser -> Log.Warning
+    | AllocationEndsTooLate -> Log.Warning
+    | AllocationStartsTooEarly -> Log.Warning
+    | FinanceCodeNotFound -> Log.Error
     | NoMatchingForecastProject -> Log.Error
     | NoMatchingForecastUser -> Log.Warning
+    | NoMatchingGithubIssue -> Log.Error
+    | NoMatchingGithubUser -> Log.Warning
+    | NoProjectColumn -> Log.Error
   in
   let error_description =
     match error_type with
-    | NoMatchingGithubUser -> "No matching Github user for "
+    | AllocationEndsTooLate -> "Allocation has an end date after project latest end: "
+    | AllocationStartsTooEarly ->
+      "Allocation has a start date before project earliest start: "
+    | FinanceCodeNotFound -> "Assignment has a finance code not found on Github: "
     | NoMatchingForecastProject -> "No Forecast project for Github issue "
     | NoMatchingForecastUser -> "People list doesn't have an entry for Github login "
+    | NoMatchingGithubIssue -> "No matching Github issue for Forecast project "
+    | NoMatchingGithubUser -> "No matching Github user for "
+    | NoProjectColumn -> "Github issue has no project column: "
   in
   Log.log log_lvl @@ prefix ^ error_description ^ msg
 ;;
@@ -90,12 +106,10 @@ let person_matches (fc_p : Forecast.person) (gh_p : Github.person) =
 (** Find the matching Github user for Forecast user fc_p.*)
 let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : Forecast.person) =
   let gh_person = List.find_opt (person_matches fc_p) gh_people in
-  let () =
-    if gh_person = None
-    then (
-      let fc_p_str = Forecast.person_name fc_p ^ " <" ^ fc_p.email ^ ">" in
-      log NoMatchingGithubUser fc_p_str)
-  in
+  if gh_person = None
+  then (
+    let fc_p_str = Forecast.person_name fc_p ^ " <" ^ fc_p.email ^ ">" in
+    log NoMatchingGithubUser fc_p_str);
   gh_person
 ;;
 
@@ -128,10 +142,7 @@ let get_matching_fc_project
   =
   let project_matches (x : Forecast.project) = x.number = gh_project.number in
   let fc_p_opt = List.find_opt project_matches fc_projects in
-  let () =
-    if fc_p_opt = None
-    then log NoMatchingForecastProject @@ Int.to_string gh_project.number
-  in
+  if fc_p_opt = None then log NoMatchingForecastProject @@ Int.to_string gh_project.number;
   fc_p_opt
 ;;
 
@@ -139,8 +150,23 @@ let get_matching_fc_project
 let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
   let login_matches person = person.github_login = Some gh_person.login in
   let person_opt = List.find_opt login_matches people in
-  let () = if person_opt = None then log NoMatchingForecastUser gh_person.login in
+  if person_opt = None then log NoMatchingForecastUser gh_person.login;
   person_opt
+;;
+
+(** Check that there aren't projects on Forecast that don't match any known Github issue.
+
+    This function only logs errors if necessary, and returns [()]. *)
+let check_extra_fc_projects
+  (fc_projects : Forecast.project list)
+  (gh_issues : Github.project list)
+  =
+  let gh_issue_exists (fc_p : Forecast.project) =
+    if List.exists (fun (gh_p : Github.project) -> fc_p.number = gh_p.number) gh_issues
+    then ()
+    else log NoMatchingGithubIssue @@ Int.to_string fc_p.number
+  in
+  List.iter gh_issue_exists fc_projects
 ;;
 
 (** Create a list of all projects, merging data from Forecast and Github. *)
@@ -149,6 +175,7 @@ let get_project_list
   (gh_issues : Github.project list)
   (people : person list)
   =
+  let () = check_extra_fc_projects fc_projects gh_issues in
   (* We fold over Github projects, looking for the matching Forecast project for each,
    since Github is considered authoritative for projects.*)
   let add_project (gh_project : Github.project) m =
@@ -158,8 +185,8 @@ let get_project_list
       | Some person -> Some person.email
       | None -> None
     in
-    match fc_p_opt with
-    | Some fc_p ->
+    match fc_p_opt, gh_project.column with
+    | Some fc_p, Some column ->
       let github_assignees = List.map get_person_email_opt gh_project.assignees in
       let reactions =
         List.map
@@ -172,9 +199,8 @@ let get_project_list
         ; name = gh_project.title
         ; github_assignees
         ; reactions
-          (* TODO The Option.get is dangerous, handle failures more gracefully. *)
-        ; column = Option.get gh_project.column
-        ; turing_project_code = gh_project.metadata.turing_project_code
+        ; column
+        ; finance_code = gh_project.metadata.turing_project_code
         ; earliest_start_date = gh_project.metadata.earliest_start_date
         ; latest_start_date = gh_project.metadata.latest_start_date
         ; latest_end_date = gh_project.metadata.latest_end_date
@@ -185,7 +211,10 @@ let get_project_list
         }
       in
       m @ [ new_project ]
-    | None -> m
+    | _, None ->
+      log NoProjectColumn @@ Int.to_string gh_project.number;
+      m
+    | _ -> m
   in
   List.fold_right add_project gh_issues []
 ;;
@@ -204,4 +233,60 @@ let get_the_schedule () =
   let projects = get_project_list fc_projects gh_issues people in
   let assignments = fc_schedule.assignments in
   people, projects, assignments
+;;
+
+(* ---------------------------------------------------------------------- *)
+(* CHECKS ON SCHEDULE *)
+
+let check_finance_code (prj : project) (asg : assignment) =
+  let codes_match =
+    match asg.finance_code, prj.finance_code with
+    | Some afc, Some pfc -> afc = pfc
+    | None, _ -> true
+    | _ -> false
+  in
+  if not codes_match
+  then
+    (* The Option.get is safe, because the above match guarantees that
+       assignment.finance_code isn't None. *)
+    log FinanceCodeNotFound
+    @@ Option.get asg.finance_code
+    ^ ", issue "
+    ^ Int.to_string prj.github_id
+;;
+
+let check_end_date (prj : project) (asg : assignment) =
+  match prj.latest_end_date with
+  | None -> ()
+  | Some end_date ->
+    List.iter
+      (fun all ->
+        if end_date < all.end_date
+        then log AllocationEndsTooLate @@ CalendarLib.Printer.Date.to_string all.end_date)
+      asg.allocations
+;;
+
+let check_start_date (prj : project) (asg : assignment) =
+  match prj.latest_start_date with
+  | None -> ()
+  | Some start_date ->
+    List.iter
+      (fun all ->
+        if start_date > all.start_date
+        then
+          log AllocationStartsTooEarly
+          @@ CalendarLib.Printer.Date.to_string all.start_date)
+      asg.allocations
+;;
+
+let check_assignment people projects (asg : assignment) =
+  let p = List.find (fun (prj : project) -> prj.github_id = asg.project) projects in
+  let () = check_finance_code prj asg in
+  let () = check_end_date prj asg in
+  let () = check_start_date prj asg in
+  ()
+;;
+
+let check_assignments people projects assignments =
+  List.iter (check_assignment people projects) assignments
 ;;
