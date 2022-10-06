@@ -24,11 +24,11 @@ let post_to_slack msg =
   in
   let request_body_obj =
     Cohttp_lwt.Body.of_string
-    @@ "{'channel': '"
+    @@ "{\"channel\": \""
     ^ slack_channel
-    ^ "', 'text': '"
-    ^ msg
-    ^ "'}"
+    ^ "\", \"text\": \""
+    ^ String.escaped msg
+    ^ "\"}"
   in
   let uri = Uri.of_string slack_post_message_url in
   let response, response_body =
