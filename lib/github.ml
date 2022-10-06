@@ -15,8 +15,8 @@ type parseerror =
   | MissingCompulsoryFieldError
   | MissingOptionalFieldError
   | NoMetadataError
-  | NullCompulsoryFieldError
-  | NullOptionalFieldError
+  (* | NullCompulsoryFieldError *)
+  (* | NullOptionalFieldError *)
   | YamlError
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
@@ -32,8 +32,8 @@ let log_parseerror (what : parseerror) (number : int) msg =
     | MissingCompulsoryFieldError -> Log.Error
     | MissingOptionalFieldError -> Log.Warning
     | NoMetadataError -> Log.Error
-    | NullCompulsoryFieldError -> Log.Error
-    | NullOptionalFieldError -> Log.Warning
+    (* | NullCompulsoryFieldError -> Log.Error *)
+    (* | NullOptionalFieldError -> Log.Warning *)
     | YamlError -> Log.Error
   in
   let error_description =
@@ -44,14 +44,14 @@ let log_parseerror (what : parseerror) (number : int) msg =
     | FieldTypeError -> "Wrong YAML type for field: "
     | FTETimeUnderSpecifiedError -> "Neither FTE-months nor FTE-weeks specified"
     | FTETimeOverSpecifiedError -> "Both FTE-months and FTE-weeks specified"
-    | MissingCompulsoryFieldError -> "Missing compulsory field: "
+    | MissingCompulsoryFieldError -> "Missing field: "
     | MissingOptionalFieldError -> "Missing optional field: "
     | NoMetadataError -> "No metadata block found in issue body."
-    | NullCompulsoryFieldError -> "Null or empty compulsory field: "
-    | NullOptionalFieldError -> "Null or empty optional field: "
+    (* | NullCompulsoryFieldError -> "Null or empty compulsory field: " *)
+    (* | NullOptionalFieldError -> "Null or empty optional field: " *)
     | YamlError -> "Unable to parse metadata block as YAML: "
   in
-  Log.log log_lvl Log.GitHubMetadata (Log.Project number) @@ error_description ^ msg
+  Log.log log_lvl Log.GithubMetadata (Log.Project number) @@ error_description ^ msg
 ;;
 
 (* ---------------------------------------------------------------------- *)

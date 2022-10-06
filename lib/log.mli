@@ -19,8 +19,8 @@ type level =
 
 type source = 
   | Forecast (** When ingesting Forecast data *)
-  | GitHub   (** When ingesting GitHub data *) 
-  | GitHubMetadata 
+  | Github   (** When ingesting GitHub data *) 
+  | GithubMetadata 
   | Schedule (** When merging Forecast and GitHub data *)
 (** Which module where we processing when the problem arose *)
 

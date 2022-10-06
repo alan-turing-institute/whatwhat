@@ -10,8 +10,8 @@ type level =
 
 type source = 
   | Forecast
-  | GitHub
-  | GitHubMetadata 
+  | Github
+  | GithubMetadata 
   | Schedule
 
 type entity =
@@ -56,8 +56,8 @@ let show_level = function
 
 let show_source = function
   | Forecast -> "Forecast"
-  | GitHub -> "GitHub"
-  | GitHubMetadata -> "GitHub Metadata"
+  | Github -> "Github"
+  | GithubMetadata -> "Github Metadata"
   | Schedule -> "Schedule"
 
 

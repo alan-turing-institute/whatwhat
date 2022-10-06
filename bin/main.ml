@@ -7,24 +7,31 @@
 open Whatwhat
 
 let whatwhat target =
-  ignore target;
   let people, projects, assignments = Schedule.get_the_schedule () in 
   begin
     print_endline "Whatwhat downloaded:";
-    Printf.printf "  %d people; " (List.length people);
+    Printf.printf " %d people; " (List.length people);
     Printf.printf "%d projects; and " (List.length projects);
     Printf.printf "%d assignments\n" (List.length assignments);
   end;
-  Notify.dump_the_log () 
+  if (target = Notify.Github) || (target = Notify.All) then
+    Log.get_the_log ()
+    |> Notify.extract_metadata_events
+    |> Notify.IntMap.find 418
+    |> Notify.format_metadata_report
+    |> GithubBot.github_post "Hut23" 418
+    |> ignore
+  else
+    Notify.dump_metadata_events ()
 
 
 (* Command-line interface *)
 
 open Cmdliner
 
-let targets =
+let target =
   let tgs = Arg.enum [
-                "github", Notify.GitHub;
+                "github", Notify.Github;
                 "slack", Notify.Slack;
                 "all", Notify.All;
                 "none", Notify.NoTarget] in
@@ -39,7 +46,7 @@ let targets =
            ~doc)
 
 let cmd = Cmd.v (Cmd.info "whatwhat" ~doc:"Report current project status")
-                 Term.(const whatwhat $ targets)
+                 Term.(const whatwhat $ target)
 
 let main () = exit (Cmd.eval cmd)
 

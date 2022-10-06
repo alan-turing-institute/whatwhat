@@ -5,14 +5,21 @@
     up notifications because sometimes we may be unsure where to send a
     notification until we have both GitHub and Forecast data.
 
+    {{!page-reporting}An explanations of what gets reported is here} 
+    
  *)
 
+module IntMap : module type of Map.Make(Int)
 
 type target =
   | NoTarget
-  | GitHub
+  | Github
   | Slack
   | All       (** *)
 (** Where notifications should be posted. The default is NoTarget. *)
 
 val dump_the_log : unit -> unit
+val dump_metadata_events : unit -> unit
+
+val extract_metadata_events : Log.event Seq.t -> Log.event list IntMap.t
+val format_metadata_report : Log.event list -> string
