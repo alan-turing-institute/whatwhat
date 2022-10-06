@@ -81,6 +81,37 @@ let dump_metadata_events () =
            print_endline ""
          end
        )
-                  
 
+(* ------------------------------------------------------------
+   Reporting
+ *)
 
+(* Produce reports for project with issue number nmbr and a list of events
+   (for that project!)
+ *)
+let format_metadata_report (events : Log.event list) : string =
+  let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
+  let error_msgs = List.map (fun ev -> ev.Log.message) errors in
+  let warning_msgs = List.map (fun ev -> ev.Log.message) warnings in
+  let n_errors = List.length errors in 
+  let n_warnings = List.length warnings in
+  let buf = Buffer.create 128 in
+  begin
+    Buffer.add_string buf "Beep boop! I'm a bot.\n\n";
+    if n_errors > 0 then
+      begin
+        Buffer.add_string buf
+          "I was unable to read the [YAML metadata block]\
+           (https://github.com/alan-turing-institute/Hut23/blob/master/.github/ISSUE_TEMPLATE/project.md) \
+           at the top of this issue because of the following **error(s)**:\n\n- ";
+        Buffer.add_string buf (String.concat "\n- " error_msgs)  
+      end else begin
+        Buffer.add_string buf
+          "I had trouble reading the [YAML metadata block]\
+           (https://github.com/alan-turing-institute/Hut23/blob/master/.github/ISSUE_TEMPLATE/project.md) \
+           at the top of this issue because of the following **problem(s)**:\n\n- ";
+      end;
+    if (n_errors > 0 && n_warnings > 0) then Buffer.add_string buf "\n\nIn addition, I had the following **problem**(s):\n\n- ";
+    if (n_warnings > 0) then Buffer.add_string buf (String.concat "\n- " warning_msgs);
+    Buffer.contents buf
+  end
