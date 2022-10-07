@@ -7,19 +7,18 @@
 open Whatwhat
 
 let whatwhat target =
-  let people, projects, assignments = Schedule.get_the_schedule () in 
-  begin
-    print_endline "Whatwhat downloaded:";
-    Printf.printf " %d people; " (List.length people);
-    Printf.printf "%d projects; and " (List.length projects);
-    Printf.printf "%d assignments\n\n" (List.length assignments);
-  end;
-  
+  let people, projects, assignments = Schedule.get_the_schedule () in
+  print_endline "Whatwhat downloaded:";
+  Printf.printf " %d people; " (List.length people);
+  Printf.printf "%d projects; and " (List.length projects);
+  Printf.printf "%d assignments\n\n" (List.length assignments);
+
   (* Emit errors and warnings *)
-  if (target = Notify.All || target = Notify.Github) then
-    Notify.post_metadata_reports ()
-  else
-    Notify.print_metadata_reports ();
+  if target = Notify.All || target = Notify.Github
+  then Notify.post_metadata_reports ()
+  else Notify.print_metadata_reports ()
+;;
+
 (* if target = Notify.Slack || target = Notify.All *)
 (* ... *)
 (*   |> Slack.post; *)
