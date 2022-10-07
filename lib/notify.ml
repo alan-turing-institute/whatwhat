@@ -27,7 +27,7 @@ type target =
   | Slack
   | All
 
-(* From the log of events, produce a map Project Number => event for
+(* From the log of events, produce a map Project Number => events for
    those events that are related to the metadata of a project *)
 let extract_metadata_events (event_log : Log.event Seq.t) =
   let extract_project_event (ev : Log.event) =
@@ -110,4 +110,34 @@ let format_metadata_report (events : Log.event list) : string =
   then Buffer.add_string buf "\n\nIn addition, I had the following **problem**(s):\n\n- ";
   if n_warnings > 0 then Buffer.add_string buf (String.concat "\n- " warning_msgs);
   Buffer.contents buf
+;;
+
+(* Create a markdown report on the problems found when parsing project metadata from GitHub *)
+let make_metadata_reports log =
+  log |> extract_metadata_events |> IntMap.map format_metadata_report |> IntMap.to_seq
+;;
+
+let print_metadata_reports () =
+  let the_log = Log.get_the_log () in
+  let metadata_reports = make_metadata_reports the_log in
+  print_endline "The following problems occured when parsing project metadata:\n";
+  Seq.iter
+    (fun (nmbr, report) ->
+      Printf.printf "Project hut23-%d\n" nmbr;
+      print_endline report)
+    metadata_reports
+;;
+
+let post_metadata_reports () =
+  let the_log = Log.get_the_log () in
+  let metadata_reports = make_metadata_reports the_log in
+  Printf.printf
+    "Posting metadata reports to the following %d projects:\n"
+    (Seq.length metadata_reports);
+  Seq.iter
+    (fun (nmbr, report) ->
+      Printf.printf "hut23-%d; " nmbr;
+      ignore @@ GithubBot.github_post "Hut23" nmbr report;
+      Unix.sleep 2)
+    metadata_reports
 ;;

@@ -7,28 +7,22 @@
 open Whatwhat
 
 let whatwhat target =
-  let people, projects, assignments = Schedule.get_the_schedule () in
-  print_endline "Whatwhat downloaded:";
-  Printf.printf " %d people; " (List.length people);
-  Printf.printf "%d projects; and " (List.length projects);
-  Printf.printf "%d assignments\n" (List.length assignments);
-  if target = Notify.Github || target = Notify.All
-  then
-    Log.get_the_log ()
-    |> Notify.extract_metadata_events
-    |> Notify.IntMap.find 418
-    |> Notify.format_metadata_report
-    |> GithubBot.github_post "Hut23" 418
-    |> ignore;
-  if target = Notify.Slack || target = Notify.All
-  then
-    Log.get_the_log ()
-    |> Notify.extract_metadata_events
-    |> Notify.IntMap.find 418
-    |> Notify.format_metadata_report
-    |> Slack.post;
-  Notify.dump_metadata_events ()
-;;
+  let people, projects, assignments = Schedule.get_the_schedule () in 
+  begin
+    print_endline "Whatwhat downloaded:";
+    Printf.printf " %d people; " (List.length people);
+    Printf.printf "%d projects; and " (List.length projects);
+    Printf.printf "%d assignments\n\n" (List.length assignments);
+  end;
+  
+  (* Emit errors and warnings *)
+  if (target = Notify.All || target = Notify.Github) then
+    Notify.post_metadata_reports ()
+  else
+    Notify.print_metadata_reports ();
+(* if target = Notify.Slack || target = Notify.All *)
+(* ... *)
+(*   |> Slack.post; *)
 
 (* Command-line interface *)
 
