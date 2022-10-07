@@ -1,5 +1,17 @@
 module Raw = GithubRaw
 
+(* Whatwhat doesn't care about all projects: only those in the folowing stages:
+   - Finding people
+   - Awaiting start
+   - Active
+ *)
+let is_valid_column = function
+  | Some "Finding people" -> true
+  | Some "Awaiting start" -> true
+  | Some "Active" -> true
+  | _ -> false
+;;
+
 (* Re-exporting for convenience of modules that import this one. *)
 let get_users = Raw.get_users
 
@@ -106,10 +118,10 @@ type field =
 let metadata_fields =
   [ { name = "turing-project-code"; optional = true }
   ; { name = "earliest-start-date"; optional = true }
-  ; { name = "latest-start-date"; optional = true }
+  ; { name = "latest-start-date"; optional = false }
   ; { name = "latest-end-date"; optional = true }
-  ; { name = "max-FTE-percent"; optional = false }
-  ; { name = "min-FTE-percent"; optional = false }
+  ; { name = "max-FTE-percent"; optional = true }
+  ; { name = "min-FTE-percent"; optional = true }
   ; { name = "nominal-FTE-percent"; optional = false }
   ; { name = "FTE-months"; optional = true }
   ; { name = "FTE-weeks"; optional = true }
@@ -348,7 +360,10 @@ let validate_issue (issue : Raw.issue) =
 ;;
 
 let get_project_issues (project_name : string) =
-  let issues = Raw.get_project_issues project_name in
+  let issues =
+    Raw.get_project_issues project_name
+    |> List.filter (fun (issue : Raw.issue) -> is_valid_column issue.column)
+  in
   Printf.printf "Obtained %d Github issues\n" (List.length issues);
   List.filter_map validate_issue issues
 ;;
