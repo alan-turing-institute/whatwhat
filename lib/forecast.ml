@@ -50,7 +50,6 @@ type schedule =
   ; assignments : assignment list
   }
 
-
 (* ------------------------------------------------------------ *)
 (* Utilities *)
 
@@ -58,19 +57,17 @@ type schedule =
    https://v2.ocaml.org/manual/bindingops.html *)
 let ( let+ ) o f = Option.map f o
 
-
 (* ------------------------------------------------------------ *)
 (* Logging for errors and warnings *)
 
-let log_event lvl ent msg =
-  Log.log lvl Log.Forecast ent msg
+let log_event lvl ent msg = Log.log lvl Log.Forecast ent msg
 
 let log_raw_project (lvl : Log.level) (rp : Raw.project) msg =
-  log_event lvl (Log.RawForecastProject rp.name) msg 
+  log_event lvl (Log.RawForecastProject rp.name) msg
 ;;
 
 let log_project (lvl : Log.level) (p : project) msg =
-  log_event lvl (Log.Project p.number) msg 
+  log_event lvl (Log.Project p.number) msg
 ;;
 
 let log_raw_person (lvl : Log.level) (p : Raw.person) msg =
@@ -129,19 +126,20 @@ let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
 
 let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
   let log_appropriate_project_warning (rp : Raw.project) msg =
-    match (IntMap.find_opt rp.id projects) with
-      None   -> log_raw_project Log.Warning rp msg
-    | Some p -> log_project     Log.Warning p  msg
+    match IntMap.find_opt rp.id projects with
+    | None -> log_raw_project Log.Warning rp msg
+    | Some p -> log_project Log.Warning p msg
   in
   match rp.tags with
   | [] ->
-     log_appropriate_project_warning rp "Missing Finance Code";
-     None
+    log_appropriate_project_warning rp "Missing Finance Code";
+    None
   | fc :: [] -> Some fc
   | fc :: _ ->
-     log_appropriate_project_warning rp "More than one potential Finance code \
-                                         (using the first tag)";
-     Some fc
+    log_appropriate_project_warning
+      rp
+      "More than one potential Finance code (using the first tag)";
+    Some fc
 ;;
 
 (* People *)
@@ -159,7 +157,6 @@ let validate_person _ (p : Raw.person) =
       None
     | Some email -> Some { email; first_name = p.first_name; last_name = p.last_name })
 ;;
-
 
 (* Allocations *)
 
@@ -294,14 +291,15 @@ let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.D
 
   (* A things_id is a map from raw Forecast ids to the thing *)
   let projects_id = IntMap.filter_map (validate_project clnts) projs in
-  let fcs_id      = Raw.IdMap.filter_map (extract_finance_code projects_id) projs in
-  let people_id   = IntMap.filter_map validate_person peopl in
-  let assignments = List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
-                    |> collate_allocations
+  let fcs_id = Raw.IdMap.filter_map (extract_finance_code projects_id) projs in
+  let people_id = IntMap.filter_map validate_person peopl in
+  let assignments =
+    List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
+    |> collate_allocations
   in
-  { projects    = make_project_map projects_id;
-    people      = make_people_map people_id;
-    assignments = assignments
+  { projects = make_project_map projects_id
+  ; people = make_people_map people_id
+  ; assignments
   }
 ;;
 

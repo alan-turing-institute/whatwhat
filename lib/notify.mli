@@ -9,17 +9,16 @@
     
  *)
 
-module IntMap : module type of Map.Make(Int)
+module IntMap : module type of Map.Make (Int)
 
+(** Where notifications should be posted. The default is NoTarget. *)
 type target =
   | NoTarget
   | Github
   | Slack
-  | All       (** *)
-(** Where notifications should be posted. The default is NoTarget. *)
+  | All (** *)
 
 val dump_the_log : unit -> unit
 val dump_metadata_events : unit -> unit
-
 val extract_metadata_events : Log.event Seq.t -> Log.event list IntMap.t
 val format_metadata_report : Log.event list -> string

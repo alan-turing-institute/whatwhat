@@ -47,7 +47,7 @@ type project =
 (* ---------------------------------------------------------------------- *)
 (* MERGE PEOPLE FROM FORECAST AND GITHUB *)
 
-let person_name (fc_p : Forecast.person) = fc_p.first_name ^ " " ^ fc_p.last_name 
+let person_name (fc_p : Forecast.person) = fc_p.first_name ^ " " ^ fc_p.last_name
 
 let compare_opts a b =
   match a, b with
@@ -65,11 +65,11 @@ let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : Forecast
   let gh_person = List.find_opt person_matches gh_people in
   let () =
     if gh_person = None
-    then 
+    then (
       let error_msg =
         "No matching Github user: " ^ person_name fc_p ^ " <" ^ fc_p.email ^ ">"
       in
-      Log.log Log.Error Log.Schedule (Log.Person (person_name fc_p)) error_msg
+      Log.log Log.Error Log.Schedule (Log.Person (person_name fc_p)) error_msg)
   in
   gh_person
 ;;
@@ -83,10 +83,7 @@ let get_people_list (fc_people : Forecast.person list) (gh_people : Github.perso
     match gh_p_opt with
     | Some gh_p ->
       let new_person =
-        { email = fc_p.email
-        ; name = person_name fc_p
-        ; github_login = gh_p.login
-        }
+        { email = fc_p.email; name = person_name fc_p; github_login = gh_p.login }
       in
       m @ [ new_person ]
     | None -> m
@@ -110,7 +107,7 @@ let get_matching_fc_project
       let error_msg =
         "No Forecast project for Github issue " ^ Int.to_string gh_project.number
       in
-      Log.log Log.Error Log.Schedule (Log.Project gh_project.number)error_msg)
+      Log.log Log.Error Log.Schedule (Log.Project gh_project.number) error_msg)
   in
   fc_p_opt
 ;;
@@ -119,13 +116,12 @@ let get_matching_fc_project
 let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
   let login_matches person = person.github_login = gh_person.login in
   let person_opt = List.find_opt login_matches people in
-  begin
-    if person_opt = None then 
-      let error_msg =
-        "People list doesn't have an entry for Github login " ^ gh_person.login
-      in
-      Log.log Log.Error Log.Schedule (Log.Person gh_person.login) error_msg
-  end;
+  if person_opt = None
+  then (
+    let error_msg =
+      "People list doesn't have an entry for Github login " ^ gh_person.login
+    in
+    Log.log Log.Error Log.Schedule (Log.Person gh_person.login) error_msg);
   person_opt
 ;;
 

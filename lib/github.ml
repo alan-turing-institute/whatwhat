@@ -128,7 +128,7 @@ let valid_keys = List.map (fun x -> x.name) metadata_fields |> StringSet.of_list
 (* -- *)
 
 let log_missing_field n key optional =
-  if (not optional) then log_parseerror MissingCompulsoryFieldError n key
+  if not optional then log_parseerror MissingCompulsoryFieldError n key
 ;;
 
 (* Get a [Yaml.value] that is expected to be of type [`Float]. Return [Ok Some float] if
