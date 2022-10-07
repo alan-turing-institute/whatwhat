@@ -137,6 +137,7 @@ let post_metadata_reports () =
   Seq.iter
     (fun (nmbr, report) ->
       Printf.printf "hut23-%d; " nmbr;
+      flush stdout;
       ignore @@ GithubBot.github_post "Hut23" nmbr report;
       Unix.sleep 2)
     metadata_reports
