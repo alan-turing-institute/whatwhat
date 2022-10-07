@@ -9,7 +9,6 @@ open Yojson
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
-exception HttpError of string
 exception QueryError of string
 
 type person =
@@ -142,14 +141,6 @@ let project_root_of_json json =
 
 let github_graph_ql_endpoint = "https://api.github.com/graphql"
 
-(** Raise a HttpError if the API request response indicates failure. *)
-let check_http_response response =
-  if Response.status response |> Code.code_of_status |> Code.is_success |> not
-  then (
-    let code_string = Response.status response |> Code.string_of_status in
-    raise @@ HttpError code_string)
-;;
-
 (** Query the Github GraphQL API with the given authentication token and request body.
     Return the body of the response as a JSON object, or raise a HttpError or a QueryError
     if something goes wrong. *)
@@ -165,7 +156,7 @@ let run_github_query (git_hub_token : string) request_body =
   let response, response_body =
     Client.post ~headers:header ~body:request_body_obj uri |> Lwt_main.run
   in
-  let () = check_http_response response in
+  let () = Utils.check_http_response response in
   let response_body_json =
     response_body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
   in
