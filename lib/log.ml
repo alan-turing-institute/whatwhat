@@ -5,59 +5,59 @@
 type level =
   | Error
   | Warning
-  | Info   
-  | Debug  
+  | Info
+  | Debug
 
-type source = 
+type source =
   | Forecast
   | Github
-  | GithubMetadata 
+  | GithubMetadata
   | Schedule
 
 type entity =
-  | RawForecastProject of string 
+  | RawForecastProject of string
   | Project of int
   | RawForecastPerson of string
   | Person of string
   | RawForecastAssignment
   | Assignment of (int * string)
 
-type event = {
-    level : level;
-    source : source;
-    entity : entity;
-    message : string
+type event =
+  { level : level
+  ; source : source
+  ; entity : entity
+  ; message : string
   }
 
 (* ------------------------------------------------------------ *)
 
 (* The log is a mutable stack of events *)
-let the_log : event Stack.t = Stack.create()
+let the_log : event Stack.t = Stack.create ()
 
 let default_logger lvl src ent msg =
-  Stack.push {level = lvl; source = src; entity = ent; message = msg} the_log
+  Stack.push { level = lvl; source = src; entity = ent; message = msg } the_log
+;;
 
 let the_logger = ref default_logger
-
 
 (* Interface -------------------------------------------------- *)
 
 let log (lvl : level) (src : source) (ent : entity) (msg : string) : unit =
   !the_logger lvl src ent msg
+;;
 
-let get_the_log () =
-  Stack.to_seq the_log
+let get_the_log () = Stack.to_seq the_log
 
 let show_level = function
   | Error -> "Error"
   | Warning -> "Warning"
   | Info -> "Info"
   | Debug -> "Debug"
+;;
 
 let show_source = function
   | Forecast -> "Forecast"
   | Github -> "Github"
   | GithubMetadata -> "Github Metadata"
   | Schedule -> "Schedule"
-
-
+;;

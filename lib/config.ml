@@ -3,8 +3,7 @@
     Looks first in the XDG config location*)
 
 type t =
-  {
-    github_token : string
+  { github_token : string
   ; githubbot_token : string
   ; forecast_id : string
   ; forecast_token : string
@@ -16,12 +15,11 @@ let loadConfig () : t =
   in
   match json with
   | `Assoc
-    [
-      ("githubToken", `String github_token)
-    ; ("githubBotToken", `String githubbot_token)
-    ; ("forecastId", `String forecast_id)
-    ; ("forecastToken", `String forecast_token)
-    ] -> { github_token; githubbot_token; forecast_id; forecast_token }
+      [ ("githubToken", `String github_token)
+      ; ("githubBotToken", `String githubbot_token)
+      ; ("forecastId", `String forecast_id)
+      ; ("forecastToken", `String forecast_token)
+      ] -> { github_token; githubbot_token; forecast_id; forecast_token }
   | _ -> failwith @@ "Could not decode config file\n" ^ Yojson.Basic.to_string json
 ;;
 
