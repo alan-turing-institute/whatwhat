@@ -45,7 +45,7 @@ let log_parseerror (what : parseerror) (number : int) msg =
     | FTETimeUnderSpecifiedError -> "Neither FTE-months nor FTE-weeks specified"
     | FTETimeOverSpecifiedError -> "Both FTE-months and FTE-weeks specified"
     | MissingCompulsoryFieldError -> "Missing field: "
-    | MissingOptionalFieldError -> "Missing optional field: "
+    | MissingOptionalFieldError -> "Missing optional field (assuming null): "
     | NoMetadataError -> "No metadata block found in issue body."
     (* | NullCompulsoryFieldError -> "Null or empty compulsory field: " *)
     (* | NullOptionalFieldError -> "Null or empty optional field: " *)
@@ -128,10 +128,7 @@ let valid_keys = List.map (fun x -> x.name) metadata_fields |> StringSet.of_list
 (* -- *)
 
 let log_missing_field n key optional =
-  let log_type =
-    if optional then MissingOptionalFieldError else MissingCompulsoryFieldError
-  in
-  log_parseerror log_type n key
+  if (not optional) then log_parseerror MissingCompulsoryFieldError n key
 ;;
 
 (* Get a [Yaml.value] that is expected to be of type [`Float]. Return [Ok Some float] if
