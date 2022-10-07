@@ -20,10 +20,16 @@ let whatwhat target =
     |> Notify.IntMap.find 418
     |> Notify.format_metadata_report
     |> GithubBot.github_post "Hut23" 418
-    |> ignore
-  else
-    Notify.dump_metadata_events ()
-
+    |> ignore;
+  if target = Notify.Slack || target = Notify.All
+  then
+    Log.get_the_log ()
+    |> Notify.extract_metadata_events
+    |> Notify.IntMap.find 418
+    |> Notify.format_metadata_report
+    |> Slack.post;
+  Notify.dump_metadata_events ()
+;;
 
 (* Command-line interface *)
 
