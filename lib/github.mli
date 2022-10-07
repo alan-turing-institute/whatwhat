@@ -45,19 +45,21 @@ type parseerror =
   | MissingOptionalFieldError
   | NoMetadataError
   (* | NullCompulsoryFieldError *)
-  (* | NullOptionalFieldError *)
   | YamlError
+
+type fte_time =
+  | FTEWeeks of float
+  | FTEMonths of float
 
 type metadata =
   { turing_project_code : string list option
   ; earliest_start_date : CalendarLib.Date.t option
-  ; latest_start_date : CalendarLib.Date.t option
+  ; latest_start_date : CalendarLib.Date.t
   ; latest_end_date : CalendarLib.Date.t option
-  ; max_fte_percent : float option
-  ; min_fte_percent : float option
-  ; nominal_fte_percent : float option
-  ; fte_months : float option
-  ; fte_weeks : float option
+  ; max_fte_percent : float
+  ; min_fte_percent : float
+  ; nominal_fte_percent : float
+  ; fte_time : fte_time
   }
 
 (** A type to hold the parsed YAML metadata from an issue header. *)

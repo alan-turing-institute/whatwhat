@@ -1,6 +1,11 @@
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
+type fte_time = Github.fte_time =
+  | FTEWeeks of float
+  | FTEMonths of float
+[@@deriving show]
+
 type allocation = Forecast.allocation =
   { start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
   ; end_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
@@ -35,12 +40,12 @@ type project =
   ; turing_project_code : string list option
   ; earliest_start_date : CalendarLib.Date.t option
        [@printer DatePrinter.pp_print_date_opt]
-  ; latest_start_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
+  ; latest_start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
   ; latest_end_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
-  ; fte_months : float option
-  ; nominal_fte_percent : float option
-  ; max_fte_percent : float option
-  ; min_fte_percent : float option
+  ; fte_time : fte_time
+  ; nominal_fte_percent : float
+  ; max_fte_percent : float
+  ; min_fte_percent : float
   }
 [@@deriving show]
 
@@ -163,7 +168,7 @@ let get_project_list
         ; earliest_start_date = gh_project.metadata.earliest_start_date
         ; latest_start_date = gh_project.metadata.latest_start_date
         ; latest_end_date = gh_project.metadata.latest_end_date
-        ; fte_months = gh_project.metadata.fte_months
+        ; fte_time = gh_project.metadata.fte_time
         ; nominal_fte_percent = gh_project.metadata.nominal_fte_percent
         ; max_fte_percent = gh_project.metadata.max_fte_percent
         ; min_fte_percent = gh_project.metadata.min_fte_percent

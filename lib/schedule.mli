@@ -2,6 +2,10 @@
     single, source-agnostic data structure. It deals with people, projects, and
     allocations. *)
 
+type fte_time = Github.fte_time =
+  | FTEWeeks of float
+  | FTEMonths of float
+
 (** A person, combining both a Forecast user and a matching Github user.
 
     Forecast is considered the authoritative source for people, and Github logins are
@@ -25,12 +29,12 @@ type project =
   ; column : string (* TODO column could be an enum type?*)
   ; turing_project_code : string list option
   ; earliest_start_date : CalendarLib.Date.t option
-  ; latest_start_date : CalendarLib.Date.t option
+  ; latest_start_date : CalendarLib.Date.t
   ; latest_end_date : CalendarLib.Date.t option
-  ; fte_months : float option
-  ; nominal_fte_percent : float option
-  ; max_fte_percent : float option
-  ; min_fte_percent : float option
+  ; fte_time : fte_time
+  ; nominal_fte_percent : float
+  ; max_fte_percent : float
+  ; min_fte_percent : float
   }
 
 (** A working period with a start and end date, and [rate], i.e. a number of
