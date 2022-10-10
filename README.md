@@ -2,18 +2,20 @@
 
 A reimagining of `nowwhat` in OCaml.
 
-Usage (prefix with `dune exec` in a build environment, or `dune exec --` is you are passing
-command-line arguments):
+### Usage
+
+(Prefix with `dune exec` in a build environment, or `dune exec --` if you are passing
+command-line arguments.)
 
 ```sh
 whathat
 ```
-Currently reports errors found when parsing the github metadata
+Currently, report errors found when parsing the github metadata.
 
 ```sh
 whathat --target=github
 ```
-Posts a comment to each GitHub issue in the Project Tracker where a problem was discovered
+Post, a comment to each GitHub issue in the Project Tracker where a problem was discovered.
 
 
 ### Setup for MacOS
