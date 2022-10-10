@@ -1,4 +1,4 @@
 (executable
  (public_name whatwhat)
  (name main)
- (libraries whatwhat))
+ (libraries whatwhat cmdliner))

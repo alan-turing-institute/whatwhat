@@ -1,22 +1,63 @@
-type what =
-  | Panic
+(** Utilities for logging issues during the course of ingesting the data for 
+    later summary and notification 
+ *)
+
+type level =
   | Error
-  | Warn
+  | Warning
   | Info
+  | Debug
 
-(* TODO: While we get going, just print to stdout. *)
-type destination = Console
+type source =
+  | Forecast
+  | Github
+  | GithubMetadata
+  | Schedule
 
-let string_of_what = function
-  | Panic -> "Panic"
-  | Error -> "Error"
-  | Warn -> "Warn"
-  | Info -> "Info"
+type entity =
+  | RawForecastProject of string
+  | Project of int
+  | RawForecastPerson of string
+  | Person of string
+  | RawForecastAssignment
+  | Assignment of (int * string)
+
+type event =
+  { level : level
+  ; source : source
+  ; entity : entity
+  ; message : string
+  }
+
+(* ------------------------------------------------------------ *)
+
+(* The log is a mutable stack of events *)
+let the_log : event Stack.t = Stack.create ()
+
+let default_logger lvl src ent msg =
+  Stack.push { level = lvl; source = src; entity = ent; message = msg } the_log
 ;;
 
-let defaultLogger _ lvl msg = Printf.printf "Whatwhat: %5s: %s" (string_of_what lvl) msg
-let theLogger = ref defaultLogger
+let the_logger = ref default_logger
 
-(* "Every problem in computer science can be solved through another layer of
-   indirection" *)
-let log (dst : destination) (lvl : what) (msg : string) : unit = !theLogger dst lvl msg
+(* Interface -------------------------------------------------- *)
+
+let log (lvl : level) (src : source) (ent : entity) (msg : string) : unit =
+  !the_logger lvl src ent msg
+;;
+
+let get_the_log () = Stack.to_seq the_log
+
+let show_level = function
+  | Error -> "Error"
+  | Warning -> "Warning"
+  | Info -> "Info"
+  | Debug -> "Debug"
+;;
+
+let show_source = function
+  | Forecast -> "Forecast"
+  | Github -> "Github"
+  | GithubMetadata -> "Github Metadata"
+  | Schedule -> "Schedule"
+;;

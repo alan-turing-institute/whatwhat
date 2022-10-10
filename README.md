@@ -26,6 +26,13 @@ new switch. Maybe there's some way to say "this switch builds on this other one?
 
 2. I think ... `opam switch create .` (Then `eval $(opam env)`)
 
+### Building and running
+
+1. To build: `dune build`
+2. To build the docs: `dune build @doc`
+3. To run: `dune exec whatwhat`
+
+
 
 ### Resources
 
@@ -34,8 +41,6 @@ new switch. Maybe there's some way to say "this switch builds on this other one?
 Main website: https://ocaml.org/
 
 [Installation instructions from the official website](https://ocaml.org/docs/up-and-running)
-
-
 
 #### Learning and getting started
 

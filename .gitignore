@@ -1,4 +1,5 @@
 *~
-_build/*
-_opam/*
+_build
+_opam
 whatwhat.opam
+*.swp

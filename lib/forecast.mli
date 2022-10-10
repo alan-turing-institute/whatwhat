@@ -17,10 +17,17 @@ type person =
   ; last_name : string
   }
 
+type allocation =
+  { start_date : CalendarLib.Date.t
+  ; end_date : CalendarLib.Date.t
+  ; rate : float
+  }
+
 type assignment =
   { project : int
   ; person : string
   ; finance_code : string option
+  ; allocations : allocation list
   }
 
 type schedule =
@@ -29,5 +36,9 @@ type schedule =
   ; assignments : assignment list
   }
 
-val getTheSchedule : Date.t -> Date.t -> schedule
-val getTheCurrentSchedule : int -> schedule
+val get_the_schedule : Date.t -> Date.t -> schedule
+val get_the_current_schedule : int -> schedule
+val show_project : project -> string
+val show_person : person -> string
+val show_allocation : allocation -> string
+val show_assignment : assignment -> string
