@@ -2,6 +2,20 @@
 
 A reimagining of `nowwhat` in OCaml.
 
+Usage (prefix with `dune exec` in a build environment, or `dune exec --` is you are passing
+command-line arguments):
+
+```sh
+whathat
+```
+Currently reports errors found when parsing the github metadata
+
+```sh
+whathat --target=github
+```
+Posts a comment to each GitHub issue in the Project Tracker where a problem was discovered
+
+
 ### Setup for MacOS
 
 1. `brew install opam` (The package manager.)
@@ -26,11 +40,25 @@ new switch. Maybe there's some way to say "this switch builds on this other one?
 
 2. I think ... `opam switch create .` (Then `eval $(opam env)`)
 
+### You will need a secrets file with authentication tokens
+
+Put this in `~/.config/nowwhat/secrets.json`: 
+```json
+{
+    "githubToken"    : "<yours here>",
+    "githubBotToken" : "<get from the Shared Drive>",
+    "forecastId"     : "<check the URL when you connect to Forecast>",
+    "forecastToken"  : "<yours here>",
+    "slackToken"     : "<get from the Shared Drive>"
+}
+```
+
 ### Building and running
 
 1. To build: `dune build`
 2. To build the docs: `dune build @doc`
 3. To run: `dune exec whatwhat`
+4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
 
 
 
