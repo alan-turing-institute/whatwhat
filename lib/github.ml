@@ -1,5 +1,6 @@
 module Raw = GithubRaw
 
+
 (* Whatwhat doesn't care about all projects: only those in the folowing stages:
    - Finding people
    - Awaiting start
@@ -66,10 +67,24 @@ let log_parseerror (what : parseerror) (number : int) msg =
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
-type fte_time =
+type resource =
   | FTEWeeks of float
   | FTEMonths of float
 [@@deriving show]
+
+type project_plan =
+  {
+    budget : resource
+  ; valid_finance_codes : string list
+  ; latest_start_date : CalendarLib.Date.t
+  ; earliest_start_date : CalendarLib.Date.t option
+  (** [earliest_start_date = None] means "can start as soon as you like" *)
+  ; latest_end_date : CalendarLib.Date.t option
+  (** [latest_end_date = None] means "can end whenever you like" *)
+  ; nominal_fte_percent : float
+  ; max_fte_percent : float
+  ; min_fte_percent : float
+  }
 
 type metadata =
   { turing_project_code : string list option
@@ -80,7 +95,7 @@ type metadata =
   ; max_fte_percent : float
   ; min_fte_percent : float
   ; nominal_fte_percent : float
-  ; fte_time : fte_time
+  ; fte_time : resoruce
   }
 [@@deriving show]
 

@@ -11,6 +11,8 @@
 
  *)
 
+open Allocation
+
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
 module StringMap = Map.Make (String) (* email => person *)
@@ -29,20 +31,12 @@ type person =
   }
 [@@deriving show]
 
-type allocation =
-  { start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; end_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; rate : float
-  }
-[@@deriving show]
-
 type assignment =
   { project : int (* The project code *)
   ; person : string (* An email *)
   ; finance_code : string option
-  ; allocations : allocation list
+  ; allocation : allocation
   }
-[@@deriving show]
 
 type schedule =
   { projects : project IntMap.t
@@ -186,8 +180,10 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
          { project = project.number
          ; person = person.email
          ; finance_code = Raw.IdMap.find_opt a.project_id fcs
-         ; allocations =
-             [ { start_date; end_date; rate = forecast_rate_to_fte_percent a.allocation }
+         ; allocation =
+             [ { start_date = start_date;
+                 days = CalendarLib.Date.sub start_date end_date;
+                 rate = Rate (forecast_rate_to_fte_percent a.allocation) }
              ]
          }
      | _ ->
@@ -242,7 +238,7 @@ let collate_allocations assignments =
         { project = a.project
         ; person = a.person
         ; finance_code = a.finance_code
-        ; allocations = existing_assignment.allocations @ a.allocations
+        ; allocation = existing_assignment.allocation @ a.allocation
         }
       (* Otherwise add a new assignment to the map. *)
       | None -> a

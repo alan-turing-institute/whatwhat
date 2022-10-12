@@ -1,53 +1,67 @@
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
-type fte_time = Github.fte_time =
+open Allocation
+
+type plan = Github.plan =
+  {
+    budget : resource
+  ; latest_start_date : CalendarLib.Date.t
+  ; earliest_start_date : CalendarLib.Date.t option
+  (** [earliest_start_date = None] means "can start as soon as you like" *)
+  ; latest_end_date : CalendarLib.Date.t option
+  (** [latest_end_date = None] means "can end whenever you like" *)
+  ; nominal_fte_percent : float
+  ; max_fte_percent : float
+  ; min_fte_percent : float
+  }
+
+type resource = Github.fte_time =
   | FTEWeeks of float
   | FTEMonths of float
-[@@deriving show]
-
-type allocation = Forecast.allocation =
-  { start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; end_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; rate : float
-  }
 [@@deriving show]
 
 type assignment = Forecast.assignment =
   { project : int
   ; person : string
   ; finance_code : string option
-  ; allocations : allocation list
+  ; allocation : allocation
   }
-[@@deriving show]
 
 (* TODO Add fields for list of assignments and list of allocations *)
 type person =
   { email : string
   ; name : string
-  ; github_login : string
   }
 [@@deriving show]
 
+type project_state =
+  | Suggested
+  | Proposal
+  | ExtraInfoNeeded
+  | ProjectAppraisal
+  | AwaitingGoNogo
+  | FindingPeople
+  | AwaitingStart
+  | Active
+  | CompletionReview
+  | Done
+  | Cancelled
+  | Rejected
+(* Should this be a polymorphic variant? *)
+
 (* TODO Add fields for list of allocations, list of finance codes, programme *)
 type project =
-  { forecast_id : int
-  ; github_id : int
+  { nmbr : int  (** The issue number from GitHub *)
   ; name : string
+  ; state : project_state
+  ; programme : string option
+  
   ; github_assignees : string list
   ; reactions : (string * string) list
-  ; column : string
-  ; turing_project_code : string list option
-  ; earliest_start_date : CalendarLib.Date.t option
-       [@printer DatePrinter.pp_print_date_opt]
-  ; latest_start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; latest_end_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
-  ; fte_time : fte_time
-  ; nominal_fte_percent : float
-  ; max_fte_percent : float
-  ; min_fte_percent : float
+
+ 
   }
-[@@deriving show]
 
 (* ---------------------------------------------------------------------- *)
 (* MERGE PEOPLE FROM FORECAST AND GITHUB *)
@@ -88,7 +102,7 @@ let get_people_list (fc_people : Forecast.person list) (gh_people : Github.perso
     match gh_p_opt with
     | Some gh_p ->
       let new_person =
-        { email = fc_p.email; name = person_name fc_p; github_login = gh_p.login }
+        { email = fc_p.email; name = person_name fc_p}
       in
       m @ [ new_person ]
     | None -> m
