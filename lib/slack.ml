@@ -5,7 +5,7 @@ module Basic = Yojson.Basic
 exception SlackAPIError of string
 
 let slack_post_message_url = "https://slack.com/api/chat.postMessage"
-let slack_token = Config.settings.slack_token
+let slack_token = Config.get_slack_token ()
 let slack_channel = "C0465E3FEN4" (* The #hut23-whatwhat-bot-test channel *)
 
 let header =
