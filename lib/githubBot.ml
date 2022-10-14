@@ -10,7 +10,7 @@ let github_post repo issue post_body =
     let headers =
       Header.of_list
         [ "Accept", "application/vnd.github+json"
-        ; "Authorization", "Bearer " ^ Config.settings.githubbot_token
+        ; "Authorization", "Bearer " ^ Config.get_githubbot_token ()
         ]
     and uri =
       Uri.of_string

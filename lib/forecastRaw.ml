@@ -12,8 +12,8 @@ let forecast_request ?(query = []) endpoint =
   let _, body =
     let headers =
       Header.of_list
-        [ "Forecast-Account-ID", Config.settings.forecast_id
-        ; "Authorization", "Bearer " ^ Config.settings.forecast_token
+        [ "Forecast-Account-ID", Config.get_forecast_id ()
+        ; "Authorization", "Bearer " ^ Config.get_forecast_token ()
         ]
     and uri =
       Uri.with_query' (Uri.of_string ("https://api.forecastapp.com/" ^ endpoint)) query

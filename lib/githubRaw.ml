@@ -203,7 +203,7 @@ let build_issue_query project_name cursor =
 (* These are the main functions of this module, that would be called externally. *)
 
 let get_users () =
-  let github_token = Config.settings.github_token in
+  let github_token = Config.get_github_token () in
   let user_query = read_file_as_string user_query_template_path in
   let body_json = run_github_query github_token user_query in
   let users =
@@ -255,7 +255,7 @@ let rec get_project_issues_page
 (* The external-facing function for getting issues, with arguments needed for recursion
    hidden away in get_project_issues_page. *)
 let get_project_issues (project_name : string) =
-  let github_token = Config.settings.github_token in
+  let github_token = Config.get_github_token () in
   let all_issues = get_project_issues_page project_name github_token None [] in
   List.map fst all_issues
 ;;
