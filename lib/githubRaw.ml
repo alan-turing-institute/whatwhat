@@ -257,8 +257,7 @@ let rec get_project_issues_page
     issues.projects
     |> List.hd
     |> (fun x -> x.columns)
-    |> List.map (fun column -> column.cards)
-    |> List.concat
+    |> List.concat_map (fun column -> column.cards)
   in
   let new_acc = acc @ issue_data in
 
