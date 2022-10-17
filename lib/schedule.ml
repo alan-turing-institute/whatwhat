@@ -185,7 +185,7 @@ let get_project_list
 
 (* TODO Finish this, by getting allocations as well.*)
 let get_the_schedule () =
-  let fc_schedule = Forecast.get_the_current_schedule 180 in
+  let fc_schedule = Forecast.get_the_current_schedule 365 in
   (* Convert maps to lists. *)
   let fc_people = fc_schedule.people |> Forecast.StringMap.bindings |> List.map snd in
   let fc_projects = fc_schedule.projects |> Forecast.IntMap.bindings |> List.map snd in
