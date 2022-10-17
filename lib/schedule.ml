@@ -1,72 +1,9 @@
-(* ---------------------------------------------------------------------- *)
-(* TYPES *)
+(* Merge data sources and provide a unified view *)
 
-open Allocation
-
-type plan = Github.plan =
-  {
-    budget : resource
-  ; latest_start_date : CalendarLib.Date.t
-  ; earliest_start_date : CalendarLib.Date.t option
-  (** [earliest_start_date = None] means "can start as soon as you like" *)
-  ; latest_end_date : CalendarLib.Date.t option
-  (** [latest_end_date = None] means "can end whenever you like" *)
-  ; nominal_fte_percent : float
-  ; max_fte_percent : float
-  ; min_fte_percent : float
-  }
-
-type resource = Github.fte_time =
-  | FTEWeeks of float
-  | FTEMonths of float
-[@@deriving show]
-
-type assignment = Forecast.assignment =
-  { project : int
-  ; person : string
-  ; finance_code : string option
-  ; allocation : allocation
-  }
-
-(* TODO Add fields for list of assignments and list of allocations *)
-type person =
-  { email : string
-  ; name : string
-  }
-[@@deriving show]
-
-type project_state =
-  | Suggested
-  | Proposal
-  | ExtraInfoNeeded
-  | ProjectAppraisal
-  | AwaitingGoNogo
-  | FindingPeople
-  | AwaitingStart
-  | Active
-  | CompletionReview
-  | Done
-  | Cancelled
-  | Rejected
-(* Should this be a polymorphic variant? *)
-
-(* TODO Add fields for list of allocations, list of finance codes, programme *)
-type project =
-  { nmbr : int  (** The issue number from GitHub *)
-  ; name : string
-  ; state : project_state
-  ; programme : string option
-  
-  ; github_assignees : string list
-  ; reactions : (string * string) list
-
- 
-  }
+open Domain
 
 (* ---------------------------------------------------------------------- *)
 (* MERGE PEOPLE FROM FORECAST AND GITHUB *)
-
-let person_name (fc_p : Forecast.person) = fc_p.first_name ^ " " ^ fc_p.last_name
 
 let compare_opts a b =
   match a, b with
@@ -75,10 +12,10 @@ let compare_opts a b =
 ;;
 
 (** Find the matching Github user for Forecast user fc_p.*)
-let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : Forecast.person) =
+let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : person) =
   let person_matches (gh_p : Github.person) =
     let emails_match = compare_opts gh_p.email (Some fc_p.email) in
-    let names_match = compare_opts gh_p.name (Some (person_name fc_p)) in
+    let names_match = compare_opts gh_p.name (Some fc_p.full_name) in
     emails_match || names_match
   in
   let gh_person = List.find_opt person_matches gh_people in
@@ -86,23 +23,27 @@ let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : Forecast
     if gh_person = None
     then (
       let error_msg =
-        "No matching Github user: " ^ person_name fc_p ^ " <" ^ fc_p.email ^ ">"
+        "No matching Github user: " ^ fc_p.full_name ^ " <" ^ fc_p.email ^ ">"
       in
-      Log.log Log.Error Log.Schedule (Log.Person (person_name fc_p)) error_msg)
+      Log.log Log.Error Log.Schedule (Log.Person fc_p.full_name) error_msg)
   in
   gh_person
 ;;
 
 (** Create a list of all people, merging data from Forecast and Github. *)
-let get_people_list (fc_people : Forecast.person list) (gh_people : Github.person list) =
+let get_people_list (fc_people : person list) (gh_people : Github.person list) =
   (* We fold over Forecast people, looking for the matching Github person for each,
-   since Forecast is considered authoritative for people.*)
-  let add_person (fc_p : Forecast.person) m =
+     since Forecast is considered authoritative for people. *)
+  let add_person (fc_p : person) m =
     let gh_p_opt = get_matching_gh_person_opt gh_people fc_p in
     match gh_p_opt with
     | Some gh_p ->
       let new_person =
-        { email = fc_p.email; name = person_name fc_p}
+        { email = fc_p.email;
+          full_name = fc_p.full_name;
+          github_handle = Some gh_p.login;
+          slack_handle = None
+        }
       in
       m @ [ new_person ]
     | None -> m
@@ -116,24 +57,25 @@ let get_people_list (fc_people : Forecast.person list) (gh_people : Github.perso
 (** Find the Forecast project associated with a given Github issue. *)
 let get_matching_fc_project
   (fc_projects : Forecast.project list)
-  (gh_project : Github.project)
+  (gh_project : project)
   =
-  let project_matches (x : Forecast.project) = x.number = gh_project.number in
+  let project_matches (x : Forecast.project) = x.number = gh_project.nmbr in
   let fc_p_opt = List.find_opt project_matches fc_projects in
   let () =
     if fc_p_opt = None
     then (
       let error_msg =
-        "No Forecast project for Github issue " ^ Int.to_string gh_project.number
+        "No Forecast project for Github issue " ^ Int.to_string gh_project.nmbr
       in
-      Log.log Log.Error Log.Schedule (Log.Project gh_project.number) error_msg)
+      Log.log Log.Error Log.Schedule (Log.Project gh_project.nmbr) error_msg)
   in
   fc_p_opt
 ;;
 
 (** Find the [person] matching the given Github user. *)
 let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
-  let login_matches person = person.github_login = gh_person.login in
+  let login_matches person =
+    person.github_handle = Some gh_person.login in
   let person_opt = List.find_opt login_matches people in
   if person_opt = None
   then (
@@ -144,54 +86,57 @@ let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
   person_opt
 ;;
 
-(** Create a list of all projects, merging data from Forecast and Github. *)
-let get_project_list
-  (fc_projects : Forecast.project list)
-  (gh_issues : Github.project list)
-  (people : person list)
-  =
-  (* We fold over Github projects, looking for the matching Forecast project for each,
-   since Github is considered authoritative for people.*)
-  let add_project (gh_project : Github.project) m =
-    let fc_p_opt = get_matching_fc_project fc_projects gh_project in
-    let get_person_opt = person_opt_of_gh_person people in
-    match fc_p_opt with
-    | Some fc_p ->
-      let github_assignees =
-        List.filter_map get_person_opt gh_project.assignees
-        |> List.map (fun person -> person.email)
-      in
-      let reactions =
-        List.filter_map
-          (fun (emoji, gh_person) ->
-            let person_opt = person_opt_of_gh_person people gh_person in
-            match person_opt with
-            | Some person -> Some (emoji, person.email)
-            | None -> None)
-          gh_project.reactions
-      in
-      let new_project =
-        { forecast_id = fc_p.number
-        ; github_id = gh_project.number
-        ; name = gh_project.title
-        ; github_assignees
-        ; reactions
-          (* TODO The Option.get is dangerous, handle failures more gracefully. *)
-        ; column = Option.get gh_project.column
-        ; turing_project_code = gh_project.metadata.turing_project_code
-        ; earliest_start_date = gh_project.metadata.earliest_start_date
-        ; latest_start_date = gh_project.metadata.latest_start_date
-        ; latest_end_date = gh_project.metadata.latest_end_date
-        ; fte_time = gh_project.metadata.fte_time
-        ; nominal_fte_percent = gh_project.metadata.nominal_fte_percent
-        ; max_fte_percent = gh_project.metadata.max_fte_percent
-        ; min_fte_percent = gh_project.metadata.min_fte_percent
-        }
-      in
-      m @ [ new_project ]
-    | None -> m
+(* Check that each Forecast project has a hut23 code which matches that of a
+   Github project
+
+   In addition, this function should (but currently does not)
+   - check that the "Client" on Forecast is the same as the "Programme" on GitHub
+   - (maybe) check that the name is identical
+   - replace the people in "assignees" and "emojis" with the matching person from Forecast
+
+   TODO: This is O(N^2). Tut tut. 
+ *)
+let merge_projects (fc_projects : Forecast.project list) (gh_issues : project list) =
+  let check_project_exists (fc_p : Forecast.project) =
+    if not (List.exists (fun p -> p.nmbr = fc_p.number) gh_issues) then
+      let open Log in
+      log Error Schedule (RawForecastProject fc_p.name) "No matching GitHub project"
   in
-  List.fold_right add_project gh_issues []
+  List.iter check_project_exists fc_projects
+  
+  
+  (* OLD CODE *)
+  (* Fold over Github projects, looking for the matching Forecast project for each,
+     since Github is authoritative for projects. *)
+  (* let add_project (gh_project : project) m = *)
+    (* let fc_p_opt = get_matching_fc_project fc_projects gh_project in *)
+    (* let get_person_opt = person_opt_of_gh_person people in *)
+    (* match fc_p_opt with *)
+    (* | Some fc_p -> *)
+    (*   let github_assignees = *)
+    (*     List.filter_map get_person_opt gh_project.assignees *)
+    (*     |> List.map (fun person -> person.email) *)
+    (*   in *)
+    (*   let reactions = *)
+    (*     List.filter_map *)
+    (*       (fun (emoji, gh_person) -> *)
+    (*         let person_opt = person_opt_of_gh_person people gh_person in *)
+    (*         match person_opt with *)
+    (*         | Some person -> Some (emoji, person.email) *)
+    (*         | None -> None) *)
+    (*       gh_project.reactions *)
+    (*   in *)
+  (*     let new_project = *)
+  (*       { nmbr = fc_p.num *)
+  (*       ; name = gh_project.title *)
+  (*       ; state = state_of_column gh_project.column *)
+  (*       ; plan = gh_project.plan  *)
+  (*       } *)
+  (*     in *)
+  (*     m @ [ new_project ] *)
+  (*   | None -> m *)
+  (* in *)
+  (* List.fold_right add_project gh_issues [] *)
 ;;
 
 (* ---------------------------------------------------------------------- *)
@@ -206,7 +151,7 @@ let get_the_schedule () =
   let gh_issues = Github.get_project_issues "Project Tracker" in
   let gh_people = Github.get_users () in
   let people = get_people_list fc_people gh_people in
-  let projects = get_project_list fc_projects gh_issues people in
+  let projects = merge_projects fc_projects gh_issues in
   let assignments = fc_schedule.assignments in
   people, projects, assignments
 ;;

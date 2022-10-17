@@ -33,6 +33,8 @@
 
  *)
 
+open Domain
+
 (** Errors and warnings for logging problems with the issue metadata. *)
 type parseerror =
   | DateOutOfBoundsError
@@ -47,10 +49,6 @@ type parseerror =
   (* | NullCompulsoryFieldError *)
   | YamlError
 
-type fte_time =
-  | FTEWeeks of float
-  | FTEMonths of float
-
 type metadata =
   { turing_project_code : string list option
   ; earliest_start_date : CalendarLib.Date.t option
@@ -59,7 +57,7 @@ type metadata =
   ; max_fte_percent : float
   ; min_fte_percent : float
   ; nominal_fte_percent : float
-  ; fte_time : fte_time
+  ; fte_time : resource
   }
 
 (** A type to hold the parsed YAML metadata from an issue header. *)
@@ -73,27 +71,15 @@ type person = GithubRaw.person =
   ; name : string option
   ; email : string option
   }
-
-(** A type for Github users. *)
 val show_person : person -> string
-
-type project =
-  { number : int
-  ; title : string
-  ; body : string
-  ; state : string
-  ; assignees : person list
-  ; reactions : (string * person) list
-  ; column : string option
-  ; metadata : metadata
-  }
+(** A type for Github users. *)
 
 (** Projects are 1-to-1 related with Github issues. *)
-val show_project : project -> string
+val show_project : Domain.project -> string
 
 (** Given a project board name, return a list of projects, one for each issue on the
     board. *)
-val get_project_issues : string -> project list
+val get_project_issues : string -> Domain.project list
 
 (** Return all the users in the Alan Turing Institute Github organisation. *)
 val get_users : unit -> person list

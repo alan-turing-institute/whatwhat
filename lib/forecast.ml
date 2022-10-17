@@ -11,7 +11,7 @@
 
  *)
 
-open Allocation
+open Domain
 
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
@@ -23,26 +23,6 @@ type project =
   ; programme : string
   }
 [@@deriving show]
-
-type person =
-  { email : string
-  ; first_name : string
-  ; last_name : string
-  }
-[@@deriving show]
-
-type assignment =
-  { project : int (* The project code *)
-  ; person : string (* An email *)
-  ; finance_code : string option
-  ; allocation : allocation
-  }
-
-type schedule =
-  { projects : project IntMap.t
-  ; people : person StringMap.t
-  ; assignments : assignment list
-  }
 
 (* ------------------------------------------------------------ *)
 (* Utilities *)
@@ -138,7 +118,7 @@ let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
 
 (* People *)
 
-let validate_person _ (p : Raw.person) =
+let validate_person _ (p : Raw.person) : person option =
   if p.archived
   then None
   else (
@@ -149,7 +129,7 @@ let validate_person _ (p : Raw.person) =
     | Some "" ->
       log_raw_person Log.Error p "Email is the empty string";
       None
-    | Some email -> Some { email; first_name = p.first_name; last_name = p.last_name })
+    | Some email -> Some { email; full_name = p.first_name ^ " " ^ p.last_name })
 ;;
 
 (* Allocations *)
