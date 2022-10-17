@@ -218,6 +218,28 @@ let get_users () =
   users
 ;;
 
+(* The next cursor is the last cursor from the column with the most cards. If no cards are
+   in the project given, then [None].*)
+let find_next_cursor issues =
+  issues.projects
+  |> List.hd
+  |> (fun x -> x.columns)
+  |> List.map (fun column ->
+       let cards = column.cards in
+       let length = List.length cards in
+       let last_cursor =
+         if length > 0 then List.last cards |> fun (_, c) -> Some c else None
+       in
+       length, last_cursor)
+  |> List.fold_left
+       (fun (max_length, max_cursor) (this_length, this_cursor) ->
+         if this_length > max_length
+         then this_length, this_cursor
+         else max_length, max_cursor)
+       (min_int, None)
+  |> snd
+;;
+
 (* Recursively get the API query results page by page, and accumulate them into [acc]. *)
 let rec get_project_issues_page
   (project_name : string)
@@ -240,13 +262,8 @@ let rec get_project_issues_page
   in
   let new_acc = acc @ issue_data in
 
-  (* Cursor points to the last item returned, used for paging of the requests *)
-  let next_cursor =
-    if List.length issue_data = 0
-    then None
-    else issue_data |> List.last |> fun (_, c) -> Some c
-  in
-
+  (* The cursor is used for paging of the requests *)
+  let next_cursor = find_next_cursor issues in
   match next_cursor with
   | Some _ -> get_project_issues_page project_name github_token next_cursor new_acc
   | None -> new_acc
