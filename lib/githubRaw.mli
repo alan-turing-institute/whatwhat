@@ -18,6 +18,7 @@ type issue =
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
+  ; labels : string list
   ; column : string option
   }
 

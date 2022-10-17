@@ -25,6 +25,7 @@ type issue =
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
+  ; labels : string list
   ; column : string option
   }
 [@@deriving show]
@@ -87,6 +88,12 @@ let issue_of_json json =
       |> member "assignees"
       |> member "edges"
       |> Basic.Util.convert_each (fun y -> y |> member "node" |> person_of_json)
+  ; labels =
+      x
+      |> member "labels"
+      |> member "edges"
+      |> Basic.Util.convert_each (fun y ->
+           y |> member "node" |> member "name" |> Basic.Util.to_string)
   ; reactions =
       x
       |> member "reactions"
