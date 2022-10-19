@@ -55,35 +55,35 @@ let get_people_list (fc_people : person list) (gh_people : Github.person list) =
 (* MERGE PROJECTS FROM FORECAST AND GITHUB *)
 
 (** Find the Forecast project associated with a given Github issue. *)
-let get_matching_fc_project
-  (fc_projects : Forecast.project list)
-  (gh_project : project)
-  =
-  let project_matches (x : Forecast.project) = x.number = gh_project.nmbr in
-  let fc_p_opt = List.find_opt project_matches fc_projects in
-  let () =
-    if fc_p_opt = None
-    then (
-      let error_msg =
-        "No Forecast project for Github issue " ^ Int.to_string gh_project.nmbr
-      in
-      Log.log Log.Error Log.Schedule (Log.Project gh_project.nmbr) error_msg)
-  in
-  fc_p_opt
-;;
+(* let get_matching_fc_project *)
+(*   (fc_projects : Forecast.project list) *)
+(*   (gh_project : project) *)
+(*   = *)
+(*   let project_matches (x : Forecast.project) = x.number = gh_project.nmbr in *)
+(*   let fc_p_opt = List.find_opt project_matches fc_projects in *)
+(*   let () = *)
+(*     if fc_p_opt = None *)
+(*     then ( *)
+(*       let error_msg = *)
+(*         "No Forecast project for Github issue " ^ Int.to_string gh_project.nmbr *)
+(*       in *)
+(*       Log.log Log.Error Log.Schedule (Log.Project gh_project.nmbr) error_msg) *)
+(*   in *)
+(*   fc_p_opt *)
+(* ;; *)
 
 (** Find the [person] matching the given Github user. *)
-let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
-  let login_matches person =
-    person.github_handle = Some gh_person.login in
-  let person_opt = List.find_opt login_matches people in
-  if person_opt = None
-  then (
-    let error_msg =
-      "People list doesn't have an entry for Github login " ^ gh_person.login
-    in
-    Log.log Log.Error Log.Schedule (Log.Person gh_person.login) error_msg);
-  person_opt
+(* let person_opt_of_gh_person (people : person list) (gh_person : Github.person) = *)
+(*   let login_matches person = *)
+(*     person.github_handle = Some gh_person.login in *)
+(*   let person_opt = List.find_opt login_matches people in *)
+(*   if person_opt = None *)
+(*   then ( *)
+(*     let error_msg = *)
+(*       "People list doesn't have an entry for Github login " ^ gh_person.login *)
+(*     in *)
+(*     Log.log Log.Error Log.Schedule (Log.Person gh_person.login) error_msg); *)
+(*   person_opt *)
 ;;
 
 (* Check that each Forecast project has a hut23 code which matches that of a
@@ -101,11 +101,12 @@ let merge_projects (fc_projects : Forecast.project list) (gh_issues : project li
     if not (List.exists (fun p -> p.nmbr = fc_p.number) gh_issues) then
       let open Log in
       log Error Schedule (RawForecastProject fc_p.name) "No matching GitHub project"
-  in
-  List.iter check_project_exists fc_projects
+  in begin
+      List.iter check_project_exists fc_projects;
+      gh_issues
+    end
   
-  
-  (* OLD CODE *)
+    (* OLD CODE *)
   (* Fold over Github projects, looking for the matching Forecast project for each,
      since Github is authoritative for projects. *)
   (* let add_project (gh_project : project) m = *)
@@ -144,14 +145,14 @@ let merge_projects (fc_projects : Forecast.project list) (gh_issues : project li
 
 (* TODO Finish this, by getting allocations as well.*)
 let get_the_schedule () =
-  let fc_schedule = Forecast.get_the_current_schedule 180 in
-  (* Convert maps to lists. *)
-  let fc_people = fc_schedule.people |> Forecast.StringMap.bindings |> List.map snd in
-  let fc_projects = fc_schedule.projects |> Forecast.IntMap.bindings |> List.map snd in
+  let fc_projects, fc_people, assignments =
+    let fcpp, fcpr, fcas = Forecast.get_the_current_schedule 180 in
+    (fcpp |> Forecast.IntMap.bindings |> List.map snd,
+     fcpr |> Forecast.StringMap.bindings |> List.map snd,
+     fcas) in
   let gh_issues = Github.get_project_issues "Project Tracker" in
   let gh_people = Github.get_users () in
   let people = get_people_list fc_people gh_people in
   let projects = merge_projects fc_projects gh_issues in
-  let assignments = fc_schedule.assignments in
   people, projects, assignments
 ;;

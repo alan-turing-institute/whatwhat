@@ -22,7 +22,6 @@ type project =
   ; name : string
   ; programme : string
   }
-[@@deriving show]
 
 (* ------------------------------------------------------------ *)
 (* Utilities *)
@@ -129,7 +128,10 @@ let validate_person _ (p : Raw.person) : person option =
     | Some "" ->
       log_raw_person Log.Error p "Email is the empty string";
       None
-    | Some email -> Some { email; full_name = p.first_name ^ " " ^ p.last_name })
+    | Some email -> Some { email;
+                          full_name = p.first_name ^ " " ^ p.last_name;
+                          github_handle = None;
+                          slack_handle = None })
 ;;
 
 (* Allocations *)
@@ -240,7 +242,7 @@ let make_people_map people_id =
 
 (* Make map number => project, with the slight complication that there may be
    two projects with the same issue number *)
-let make_project_map projects_id =
+let make_project_map projects_id : (project IntMap.t) =
   let add_project m (_, (p : project)) =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
@@ -273,10 +275,9 @@ let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.D
     List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
     |> collate_allocations
   in
-  { projects = make_project_map projects_id
-  ; people = make_people_map people_id
-  ; assignments
-  }
+  (make_project_map projects_id,
+   make_people_map people_id,
+   assignments)
 ;;
 
 let get_the_current_schedule days =

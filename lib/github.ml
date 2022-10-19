@@ -7,10 +7,11 @@ open Domain
    - Awaiting start
    - Active
  *)
-let is_valid_column = function
-  | "Finding people" -> true
-  | "Awaiting start" -> true
-  | "Active" -> true
+let is_valid_column col =
+  match (state_of_column col) with 
+  | State.FindingPeople -> true
+  | State.AwaitingStart -> true
+  | State.Active -> true
   | _ -> false
 ;;
 
@@ -300,19 +301,21 @@ let validate_issue (issue : Raw.issue) =
   let metadata, _ = parse_metadata issue.number issue.body in
   match metadata with
   | None -> None
-  | Some x ->
+  | Some plan ->
     Some
       { nmbr = issue.number
       ; name = issue.title
       ; state = state_of_column issue.column
-      ; plan = x
+      ; plan = plan
       }
 ;;
 
 let get_project_issues (project_name : string) =
   let issues =
     Raw.get_project_issues project_name
-    |> List.filter (fun (issue : Raw.issue) -> is_valid_column issue.column)
+    |> List.filter (fun (issue : Raw.issue) ->
+           try is_valid_column issue.column with
+             UnknownColumn msg -> failwith (msg ^ " for " ^ (string_of_int issue.number)))
   in
   Printf.printf "Obtained %d Github issues\n" (List.length issues);
   List.filter_map validate_issue issues

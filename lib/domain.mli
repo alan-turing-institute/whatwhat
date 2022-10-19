@@ -110,8 +110,10 @@ type project =
     {b TODO:} Add back in the list of assignees and emojis (both from Github)
  *)
 
-val state_of_column : string -> State.t
-(** Convert the column name in GitHub to a variant type. *)
+exception UnknownColumn of string 
+
+val state_of_column : string option -> State.t
+(** Convert the column name in GitHub to a variant type. May raise UnknownColumn *)
 
 type person =
   { email : string; (** Email is the primary key for persons *)

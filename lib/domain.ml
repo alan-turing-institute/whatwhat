@@ -48,21 +48,26 @@ module State = struct
     | Rejected
 end
 
+exception UnknownColumn of string 
+
 let state_of_column col =
   match col with
-  | "Suggested"        -> State.Suggested
-  | "Proposal"         -> State.Proposal
-  | "ExtraInfoNeeded"  -> State.ExtraInfoNeeded
-  | "ProjectAppraisal" -> State.ProjectAppraisal
-  | "AwaitingGoNogo"   -> State.AwaitingGoNogo
-  | "FindingPeople"    -> State.FindingPeople
-  | "AwaitingStart"    -> State.AwaitingStart
-  | "Active"           -> State.Active
-  | "CompletionReview" -> State.CompletionReview
-  | "Done"             -> State.Done
-  | "Cancelled"        -> State.Cancelled
-  | "Rejected"         -> State.Rejected
-  | _                  -> failwith ("Unknown GitHub column: " ^ col)
+  | None -> failwith ("No GitHub column!")
+  | Some colname ->
+     match colname with
+     | "Suggested"         -> State.Suggested
+     | "Proposal"          -> State.Proposal
+     | "Extra info needed" -> State.ExtraInfoNeeded
+     | "Project appraisal" -> State.ProjectAppraisal
+     | "Awaiting go/no-go" -> State.AwaitingGoNogo
+     | "Finding people"    -> State.FindingPeople
+     | "Awaiting start"    -> State.AwaitingStart
+     | "Active"            -> State.Active
+     | "Completion review" -> State.CompletionReview
+     | "Done"              -> State.Done
+     | "Cancelled"         -> State.Cancelled
+     | "Rejected"          -> State.Rejected
+     | _                   -> raise (UnknownColumn ("Unknown GitHub column: " ^ colname))
 
 type project =
   { nmbr : int  (** The issue number from GitHub *)

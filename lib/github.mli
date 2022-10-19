@@ -33,8 +33,6 @@
 
  *)
 
-open Domain
-
 (** Errors and warnings for logging problems with the issue metadata. *)
 type parseerror =
   | DateOutOfBoundsError
@@ -49,20 +47,6 @@ type parseerror =
   (* | NullCompulsoryFieldError *)
   | YamlError
 
-type metadata =
-  { turing_project_code : string list option
-  ; earliest_start_date : CalendarLib.Date.t option
-  ; latest_start_date : CalendarLib.Date.t
-  ; latest_end_date : CalendarLib.Date.t option
-  ; max_fte_percent : float
-  ; min_fte_percent : float
-  ; nominal_fte_percent : float
-  ; fte_time : resource
-  }
-
-(** A type to hold the parsed YAML metadata from an issue header. *)
-val show_metadata : metadata -> string
-
 (* We reexport the Raw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)
 
@@ -73,9 +57,6 @@ type person = GithubRaw.person =
   }
 val show_person : person -> string
 (** A type for Github users. *)
-
-(** Projects are 1-to-1 related with Github issues. *)
-val show_project : Domain.project -> string
 
 (** Given a project board name, return a list of projects, one for each issue on the
     board. *)

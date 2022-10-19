@@ -2,7 +2,6 @@
     defined accoring to our domain model. *)
 
 open CalendarLib
-open Domain
 
 module IntMap : module type of Map.Make (Int)
 module StringMap : module type of Map.Make (String)
@@ -13,7 +12,9 @@ type project =
   ; programme : string
   }
 
-val get_the_schedule : Date.t -> Date.t -> schedule
-val get_the_current_schedule : int -> schedule
-val show_project : project -> string
-val show_person : person -> string
+val get_the_schedule :
+  Date.t -> Date.t -> (project IntMap.t) * (Domain.person StringMap.t) * (Domain.assignment list)
+
+val get_the_current_schedule :
+  int -> (project IntMap.t) * (Domain.person StringMap.t) * (Domain.assignment list)
+

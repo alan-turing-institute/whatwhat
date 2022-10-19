@@ -22,7 +22,3 @@ open Domain
     return a list of allocations as well. *)
 val get_the_schedule : unit -> person list * project list * assignment list
 
-val show_resource : resource -> string
-val show_person : person -> string
-val show_project : project -> string
-val show_assignment : assignment -> string
