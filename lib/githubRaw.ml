@@ -63,7 +63,7 @@ let person_of_json json =
   }
 ;;
 
-let issue_of_json json =
+let issue_of_json column_name json =
   json
   |> member "node"
   |> member "content"
@@ -72,17 +72,7 @@ let issue_of_json json =
   ; title = x |> member_to_string "title"
   ; body = x |> member_to_string "body"
   ; state = x |> member_to_string "state"
-  ; column =
-      x
-      |> member "projectCards"
-      |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
-           y
-           |> member "node"
-           |> member "column"
-           |> member "name"
-           |> Basic.Util.to_string_option)
-      |> List.first
+  ; column = Some column_name
   ; assignees =
       x
       |> member "assignees"
@@ -105,17 +95,16 @@ let issue_of_json json =
 ;;
 
 let column_of_json json =
-  json
-  |> member "node"
-  |> fun x ->
-  { name = x |> member_to_string "name"
-  ; cards =
-      x
-      |> member "cards"
-      |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
-           issue_of_json y, y |> member_to_string "cursor")
-  }
+  let name = json |> member "node" |> member_to_string "name" in
+  let cards =
+    json
+    |> member "node"
+    |> member "cards"
+    |> member "edges"
+    |> Basic.Util.convert_each (fun y ->
+         issue_of_json name y, y |> member_to_string "cursor")
+  in
+  { name; cards }
 ;;
 
 let project_of_json json =
