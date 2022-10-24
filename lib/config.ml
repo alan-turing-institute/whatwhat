@@ -2,11 +2,14 @@
    separate files. They are otherwise treated identically though, and both are collected
    into the same record type `t`. *)
 type t =
-  { github_token : string option
+  { github_project_name : string option
+  ; github_token : string option
+  ; github_url : string option
   ; githubbot_token : string option
   ; forecast_id : string option
   ; forecast_ignored_projects : int list option
   ; forecast_token : string option
+  ; forecast_url : string option
   ; slack_token : string option
   }
 
@@ -73,12 +76,16 @@ let load_settings () : t =
     try Some (Yojson.Basic.from_file config_path) with
     | Sys_error _ -> None
   in
-  { github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
+  { github_project_name =
+      find_setting string_opt_of_json "github_project_name" config_json_opt
+  ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
+  ; github_url = find_setting string_opt_of_json "github_url" config_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_ignored_projects =
       find_setting int_list_opt_of_json "forecast_ignored_projects" config_json_opt
   ; forecast_token = find_setting string_opt_of_json "forecastToken" secrets_json_opt
+  ; forecast_url = find_setting string_opt_of_json "forecast_url" config_json_opt
   ; slack_token = find_setting string_opt_of_json "slackToken" secrets_json_opt
   }
 ;;
@@ -86,10 +93,22 @@ let load_settings () : t =
 let settings = load_settings ()
 
 (* TODO Isn't there some metaprogramming way to autogenerate these? Preprocessing? *)
+let get_github_project_name () =
+  match settings.github_project_name with
+  | Some value -> value
+  | None -> raise (MissingConfig "github_project_name")
+;;
+
 let get_github_token () =
   match settings.github_token with
   | Some value -> value
   | None -> raise (MissingSecret "github_token")
+;;
+
+let get_github_url () =
+  match settings.github_url with
+  | Some value -> value
+  | None -> raise (MissingConfig "github_url")
 ;;
 
 let get_githubbot_token () =
@@ -114,6 +133,12 @@ let get_forecast_token () =
   match settings.forecast_token with
   | Some value -> value
   | None -> raise (MissingSecret "forecast_token")
+;;
+
+let get_forecast_url () =
+  match settings.forecast_url with
+  | Some value -> value
+  | None -> raise (MissingConfig "forecast_url")
 ;;
 
 let get_slack_token () =

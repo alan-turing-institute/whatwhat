@@ -135,12 +135,11 @@ let project_root_of_json json =
    https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#communicating-with-graphql
 *)
 
-let github_graph_ql_endpoint = "https://api.github.com/graphql"
-
 (** Query the Github GraphQL API with the given authentication token and request body.
     Return the body of the response as a JSON object, or raise a HttpError or a QueryError
     if something goes wrong. *)
 let run_github_query (git_hub_token : string) request_body =
+  let github_graph_ql_endpoint = Config.get_github_url () in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ git_hub_token) in
   let header =
     Header.init ()

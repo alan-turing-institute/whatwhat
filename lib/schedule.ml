@@ -198,7 +198,7 @@ let get_the_schedule () =
   (* Convert maps to lists. *)
   let fc_people = fc_schedule.people |> Forecast.StringMap.bindings |> List.map snd in
   let fc_projects = fc_schedule.projects |> Forecast.IntMap.bindings |> List.map snd in
-  let gh_issues = Github.get_project_issues "Project Tracker" in
+  let gh_issues = Github.get_project_issues @@ Config.get_github_project_name () in
   let gh_people = Github.get_users () in
   let people = get_people_list fc_people gh_people in
   let projects = get_project_list fc_projects gh_issues people in
