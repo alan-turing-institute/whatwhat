@@ -16,7 +16,7 @@ let forecast_request ?(query = []) endpoint =
         ; "Authorization", "Bearer " ^ Config.get_forecast_token ()
         ]
     and uri =
-      Uri.with_query' (Uri.of_string ("https://api.forecastapp.com/" ^ endpoint)) query
+      Uri.with_query' (Uri.of_string (Config.get_forecast_url () ^ endpoint)) query
     in
     Client.get ~headers uri |> Lwt_main.run
   in

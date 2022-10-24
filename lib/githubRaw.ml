@@ -135,12 +135,11 @@ let project_root_of_json json =
    https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#communicating-with-graphql
 *)
 
-let github_graph_ql_endpoint = "https://api.github.com/graphql"
-
 (** Query the Github GraphQL API with the given authentication token and request body.
     Return the body of the response as a JSON object, or raise a HttpError or a QueryError
     if something goes wrong. *)
 let run_github_query (git_hub_token : string) request_body =
+  let github_graph_ql_endpoint = Config.get_github_url () in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ git_hub_token) in
   let header =
     Header.init ()
@@ -177,31 +176,45 @@ let read_file_as_string filepath =
   return_string
 ;;
 
+(* Take a list of pairs of [regexp * string], and run [Str.global_replace] on each pair on
+   the string [str].*)
+let replace_multiple replacements str =
+  let folder query (to_replace, replace_with) =
+    Str.global_replace to_replace replace_with query
+  in
+  List.fold_left folder str replacements
+;;
+
 (* The Github API query's body is built by taking a template and replacing some
    placeholders with the project board name and cursor for paging. *)
 let build_issue_query project_name cursor =
   let query_template = read_file_as_string issue_query_template_path in
-  let cursor_query =
-    let to_replace = Str.regexp "CURSOR" in
-    let replace_with =
-      match cursor with
-      | None -> "null" (* Get first batch *)
-      | Some crs -> "\\\"" ^ crs ^ "\\\"" (* Get subsequent batches *)
-    in
-    Str.global_replace to_replace replace_with query_template
+  (* List of pairs (part of the template to replace, value to replace it with). *)
+  let replacements =
+    [ ( Str.regexp "CURSOR"
+      , match cursor with
+        | None -> "null" (* Get first batch *)
+        | Some crs -> "\\\"" ^ crs ^ "\\\"" (* Get subsequent batches *) )
+    ; Str.regexp "PROJECTNAME", "\\\"" ^ project_name ^ "\\\""
+    ; Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
+    ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
+    ]
   in
-
-  let to_replace = Str.regexp "PROJECTNAME" in
-  let replace_with = "\\\"" ^ project_name ^ "\\\"" in
-  Str.global_replace to_replace replace_with cursor_query |> remove_line_breaks
+  replace_multiple replacements query_template |> remove_line_breaks
 ;;
 
 (* These are the main functions of this module, that would be called externally. *)
 
 let get_users () =
   let github_token = Config.get_github_token () in
-  let user_query = read_file_as_string user_query_template_path in
-  let body_json = run_github_query github_token user_query in
+  let query_template = read_file_as_string user_query_template_path in
+  let replacements =
+    [ Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
+    ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
+    ]
+  in
+  let query = replace_multiple replacements query_template in
+  let body_json = run_github_query github_token query in
   let users =
     body_json
     |> Basic.Util.member "data"
