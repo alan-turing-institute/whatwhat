@@ -25,6 +25,7 @@ type issue =
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
+  ; labels : string list
   ; column : string option
   }
 [@@deriving show]
@@ -62,7 +63,7 @@ let person_of_json json =
   }
 ;;
 
-let issue_of_json json =
+let issue_of_json column_name json =
   json
   |> member "node"
   |> member "content"
@@ -71,22 +72,18 @@ let issue_of_json json =
   ; title = x |> member_to_string "title"
   ; body = x |> member_to_string "body"
   ; state = x |> member_to_string "state"
-  ; column =
-      x
-      |> member "projectCards"
-      |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
-           y
-           |> member "node"
-           |> member "column"
-           |> member "name"
-           |> Basic.Util.to_string_option)
-      |> List.first
+  ; column = Some column_name
   ; assignees =
       x
       |> member "assignees"
       |> member "edges"
       |> Basic.Util.convert_each (fun y -> y |> member "node" |> person_of_json)
+  ; labels =
+      x
+      |> member "labels"
+      |> member "edges"
+      |> Basic.Util.convert_each (fun y ->
+           y |> member "node" |> member "name" |> Basic.Util.to_string)
   ; reactions =
       x
       |> member "reactions"
@@ -98,17 +95,16 @@ let issue_of_json json =
 ;;
 
 let column_of_json json =
-  json
-  |> member "node"
-  |> fun x ->
-  { name = x |> member_to_string "name"
-  ; cards =
-      x
-      |> member "cards"
-      |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
-           issue_of_json y, y |> member_to_string "cursor")
-  }
+  let name = json |> member "node" |> member_to_string "name" in
+  let cards =
+    json
+    |> member "node"
+    |> member "cards"
+    |> member "edges"
+    |> Basic.Util.convert_each (fun y ->
+         issue_of_json name y, y |> member_to_string "cursor")
+  in
+  { name; cards }
 ;;
 
 let project_of_json json =
@@ -203,7 +199,7 @@ let build_issue_query project_name cursor =
 (* These are the main functions of this module, that would be called externally. *)
 
 let get_users () =
-  let github_token = Config.settings.github_token in
+  let github_token = Config.get_github_token () in
   let user_query = read_file_as_string user_query_template_path in
   let body_json = run_github_query github_token user_query in
   let users =
@@ -216,6 +212,28 @@ let get_users () =
          json |> Basic.Util.member "node" |> person_of_json)
   in
   users
+;;
+
+(* The next cursor is the last cursor from the column with the most cards. If no cards are
+   in the project given, then [None].*)
+let find_next_cursor issues =
+  issues.projects
+  |> List.hd
+  |> (fun x -> x.columns)
+  |> List.map (fun column ->
+       let cards = column.cards in
+       let length = List.length cards in
+       let last_cursor =
+         if length > 0 then List.last cards |> fun (_, c) -> Some c else None
+       in
+       length, last_cursor)
+  |> List.fold_left
+       (fun (max_length, max_cursor) (this_length, this_cursor) ->
+         if this_length > max_length
+         then this_length, this_cursor
+         else max_length, max_cursor)
+       (min_int, None)
+  |> snd
 ;;
 
 (* Recursively get the API query results page by page, and accumulate them into [acc]. *)
@@ -235,18 +253,12 @@ let rec get_project_issues_page
     issues.projects
     |> List.hd
     |> (fun x -> x.columns)
-    |> List.map (fun column -> column.cards)
-    |> List.concat
+    |> List.concat_map (fun column -> column.cards)
   in
   let new_acc = acc @ issue_data in
 
-  (* Cursor points to the last item returned, used for paging of the requests *)
-  let next_cursor =
-    if List.length issue_data = 0
-    then None
-    else issue_data |> List.last |> fun (_, c) -> Some c
-  in
-
+  (* The cursor is used for paging of the requests *)
+  let next_cursor = find_next_cursor issues in
   match next_cursor with
   | Some _ -> get_project_issues_page project_name github_token next_cursor new_acc
   | None -> new_acc
@@ -255,7 +267,7 @@ let rec get_project_issues_page
 (* The external-facing function for getting issues, with arguments needed for recursion
    hidden away in get_project_issues_page. *)
 let get_project_issues (project_name : string) =
-  let github_token = Config.settings.github_token in
+  let github_token = Config.get_github_token () in
   let all_issues = get_project_issues_page project_name github_token None [] in
   List.map fst all_issues
 ;;

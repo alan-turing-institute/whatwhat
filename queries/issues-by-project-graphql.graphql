@@ -46,6 +46,14 @@
                                 }
                               }
                             }
+                            labels(first: 100) {
+                              edges {
+                                node {
+                                  name
+                                  description
+                                }
+                              }
+                            }
                             projectCards(first: 100) {
                               edges {
                                 node {

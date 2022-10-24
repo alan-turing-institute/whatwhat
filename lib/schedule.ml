@@ -145,8 +145,17 @@ let merge_projects (fc_projects : Forecast.project list) (gh_issues : project li
 
 (* TODO Finish this, by getting allocations as well.*)
 let get_the_schedule () =
+  let start_date =
+    CalendarLib.Calendar.lmake ~year:2016 ~month:1 ~day:1 ()
+    |> CalendarLib.Calendar.to_date
+  in
+  let end_date =
+    CalendarLib.Date.add
+      (CalendarLib.Date.today ())
+      (CalendarLib.Date.Period.lmake ~year:1 ())
+  in
   let fc_projects, fc_people, assignments =
-    let fcpp, fcpr, fcas = Forecast.get_the_current_schedule 180 in
+    let fcpp, fcpr, fcas = Forecast.get_the_schedule start_date end_date in
     (fcpp |> Forecast.IntMap.bindings |> List.map snd,
      fcpr |> Forecast.StringMap.bindings |> List.map snd,
      fcas) in
