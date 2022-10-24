@@ -1,14 +1,17 @@
 module Raw = GithubRaw
 
+open Domain
+
 (* Whatwhat doesn't care about all projects: only those in the folowing stages:
    - Finding people
    - Awaiting start
    - Active
  *)
-let is_valid_column = function
-  | Some "Finding people" -> true
-  | Some "Awaiting start" -> true
-  | Some "Active" -> true
+let is_valid_column col =
+  match (state_of_column col) with 
+  | State.FindingPeople -> true
+  | State.AwaitingStart -> true
+  | State.Active -> true
   | _ -> false
 ;;
 
@@ -66,40 +69,10 @@ let log_parseerror (what : parseerror) (number : int) msg =
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
-type fte_time =
-  | FTEWeeks of float
-  | FTEMonths of float
-[@@deriving show]
-
-type metadata =
-  { turing_project_code : string list option
-  ; earliest_start_date : CalendarLib.Date.t option
-       [@printer DatePrinter.pp_print_date_opt]
-  ; latest_start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; latest_end_date : CalendarLib.Date.t option [@printer DatePrinter.pp_print_date_opt]
-  ; max_fte_percent : float
-  ; min_fte_percent : float
-  ; nominal_fte_percent : float
-  ; fte_time : fte_time
-  }
-[@@deriving show]
-
 type person = GithubRaw.person =
   { login : string
   ; name : string option
   ; email : string option
-  }
-[@@deriving show]
-
-type project =
-  { number : int
-  ; title : string
-  ; body : string
-  ; state : string
-  ; assignees : person list
-  ; reactions : (string * person) list
-  ; column : string option
-  ; metadata : metadata
   }
 [@@deriving show]
 
@@ -251,7 +224,10 @@ let check_extra_keys n yaml =
    The [yaml] block is assumed to be of dictionary type. *)
 let metadata_of_yaml (n : int) (yaml : Yaml.value) =
   let* () = check_extra_keys n yaml in
-  let* turing_project_code = read_string_list_field n yaml "turing-project-code" in
+  let* finance_codes =
+    read_string_list_field n yaml "turing-project-code"
+    >>= enforce_compulsory_field n "turing-project-code"
+  in
   let* earliest_start_date = read_date_field n yaml "earliest-start-date" in
   let* latest_start_date =
     read_date_field n yaml "latest-start-date"
@@ -262,16 +238,16 @@ let metadata_of_yaml (n : int) (yaml : Yaml.value) =
   let* min_fte_percent_opt = read_float_field n yaml "min-FTE-percent" in
   let* nominal_fte_percent =
     read_float_field n yaml "nominal-FTE-percent"
-    >>= enforce_compulsory_field n "turing-project-code"
+    >>= enforce_compulsory_field n "nominal-FTE-percent"
   in
   let max_fte_percent = Option.value max_fte_percent_opt ~default:nominal_fte_percent in
   let min_fte_percent = Option.value min_fte_percent_opt ~default:nominal_fte_percent in
   let* fte_months = read_float_field n yaml "FTE-months" in
   let* fte_weeks = read_float_field n yaml "FTE-weeks" in
-  let* fte_time =
+  let* budget =
     match fte_weeks, fte_months with
-    | Some weeks, None -> Ok (FTEWeeks weeks)
-    | None, Some months -> Ok (FTEMonths months)
+    | Some weeks, None -> Ok (FTE_weeks weeks)
+    | None, Some months -> Ok (FTE_months months)
     | None, None ->
       log_parseerror FTETimeUnderSpecifiedError n "";
       Error ()
@@ -280,14 +256,14 @@ let metadata_of_yaml (n : int) (yaml : Yaml.value) =
       Error ()
   in
   Ok
-    { turing_project_code
+    { budget
+    ; finance_codes
     ; earliest_start_date
     ; latest_start_date
     ; latest_end_date
     ; max_fte_percent
     ; min_fte_percent
     ; nominal_fte_percent
-    ; fte_time
     }
 ;;
 
@@ -321,26 +297,25 @@ let parse_metadata (n : int) (body : string) =
 ;;
 
 let validate_issue (issue : Raw.issue) =
-  let metadata, body = parse_metadata issue.number issue.body in
+  (* GithubRaw returns the issue body as well, but we ignore for now *)
+  let metadata, _ = parse_metadata issue.number issue.body in
   match metadata with
   | None -> None
-  | Some x ->
+  | Some plan ->
     Some
-      { number = issue.number
-      ; title = issue.title
-      ; body
-      ; state = issue.state
-      ; assignees = issue.assignees
-      ; reactions = issue.reactions
-      ; column = issue.column
-      ; metadata = x
+      { nmbr = issue.number
+      ; name = issue.title
+      ; state = state_of_column issue.column
+      ; plan = plan
       }
 ;;
 
 let get_project_issues (project_name : string) =
   let issues =
     Raw.get_project_issues project_name
-    |> List.filter (fun (issue : Raw.issue) -> is_valid_column issue.column)
+    |> List.filter (fun (issue : Raw.issue) ->
+           try is_valid_column issue.column with
+             UnknownColumn msg -> failwith (msg ^ " for " ^ (string_of_int issue.number)))
   in
   Printf.printf "Obtained %d Github issues\n" (List.length issues);
   List.filter_map validate_issue issues
