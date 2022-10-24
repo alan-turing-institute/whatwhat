@@ -79,18 +79,17 @@ let load_settings () : t =
     | Sys_error _ -> None
   in
   { github_project_name =
-      find_setting string_opt_of_json "github_project_name" config_json_opt
-  ; github_repo_name = find_setting string_opt_of_json "github_repo_name" config_json_opt
-  ; github_repo_owner =
-      find_setting string_opt_of_json "github_repo_owner" config_json_opt
+      find_setting string_opt_of_json "githubProjectName" config_json_opt
+  ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
+  ; github_repo_owner = find_setting string_opt_of_json "githubRepoOwner" config_json_opt
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
-  ; github_url = find_setting string_opt_of_json "github_url" config_json_opt
+  ; github_url = find_setting string_opt_of_json "githubUrl" config_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_ignored_projects =
-      find_setting int_list_opt_of_json "forecast_ignored_projects" config_json_opt
+      find_setting int_list_opt_of_json "forecastIgnoredProjects" config_json_opt
   ; forecast_token = find_setting string_opt_of_json "forecastToken" secrets_json_opt
-  ; forecast_url = find_setting string_opt_of_json "forecast_url" config_json_opt
+  ; forecast_url = find_setting string_opt_of_json "forecastUrl" config_json_opt
   ; slack_token = find_setting string_opt_of_json "slackToken" secrets_json_opt
   }
 ;;
@@ -101,65 +100,65 @@ let settings = load_settings ()
 let get_github_project_name () =
   match settings.github_project_name with
   | Some value -> value
-  | None -> raise (MissingConfig "github_project_name")
+  | None -> raise (MissingConfig "githubProjectName")
 ;;
 
 let get_github_repo_name () =
   match settings.github_repo_name with
   | Some value -> value
-  | None -> raise (MissingConfig "github_repo_name")
+  | None -> raise (MissingConfig "githubRepoName")
 ;;
 
 let get_github_repo_owner () =
   match settings.github_repo_owner with
   | Some value -> value
-  | None -> raise (MissingConfig "github_repo_owner")
+  | None -> raise (MissingConfig "githubRepoOwner")
 ;;
 
 let get_github_token () =
   match settings.github_token with
   | Some value -> value
-  | None -> raise (MissingSecret "github_token")
+  | None -> raise (MissingSecret "githubToken")
 ;;
 
 let get_github_url () =
   match settings.github_url with
   | Some value -> value
-  | None -> raise (MissingConfig "github_url")
+  | None -> raise (MissingConfig "githubUrl")
 ;;
 
 let get_githubbot_token () =
   match settings.githubbot_token with
   | Some value -> value
-  | None -> raise (MissingSecret "githubbot_token")
+  | None -> raise (MissingSecret "githubbotToken")
 ;;
 
 let get_forecast_id () =
   match settings.forecast_id with
   | Some value -> value
-  | None -> raise (MissingConfig "forecast_id")
+  | None -> raise (MissingConfig "forecastId")
 ;;
 
 let get_forecast_ignored_projects () =
   match settings.forecast_ignored_projects with
   | Some value -> value
-  | None -> raise (MissingConfig "forecast_ignored_projects")
+  | None -> raise (MissingConfig "forecastIgnoredProjects")
 ;;
 
 let get_forecast_token () =
   match settings.forecast_token with
   | Some value -> value
-  | None -> raise (MissingSecret "forecast_token")
+  | None -> raise (MissingSecret "forecastToken")
 ;;
 
 let get_forecast_url () =
   match settings.forecast_url with
   | Some value -> value
-  | None -> raise (MissingConfig "forecast_url")
+  | None -> raise (MissingConfig "forecastUrl")
 ;;
 
 let get_slack_token () =
   match settings.slack_token with
   | Some value -> value
-  | None -> raise (MissingSecret "github_bot_token")
+  | None -> raise (MissingSecret "githubBotToken")
 ;;
