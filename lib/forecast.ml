@@ -11,6 +11,8 @@
 
  *)
 
+open Domain
+
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
 module StringMap = Map.Make (String) (* email => person *)
@@ -19,35 +21,6 @@ type project =
   { number : int (* Ought to be a GitHub issue number *)
   ; name : string
   ; programme : string
-  }
-[@@deriving show]
-
-type person =
-  { email : string
-  ; first_name : string
-  ; last_name : string
-  }
-[@@deriving show]
-
-type allocation =
-  { start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; end_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; rate : float
-  }
-[@@deriving show]
-
-type assignment =
-  { project : int (* The project code *)
-  ; person : string (* An email *)
-  ; finance_code : string option
-  ; allocations : allocation list
-  }
-[@@deriving show]
-
-type schedule =
-  { projects : project IntMap.t
-  ; people : person StringMap.t
-  ; assignments : assignment list
   }
 
 (* ------------------------------------------------------------ *)
@@ -144,7 +117,7 @@ let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
 
 (* People *)
 
-let validate_person _ (p : Raw.person) =
+let validate_person _ (p : Raw.person) : person option =
   if p.archived
   then None
   else (
@@ -155,7 +128,10 @@ let validate_person _ (p : Raw.person) =
     | Some "" ->
       log_raw_person Log.Error p "Email is the empty string";
       None
-    | Some email -> Some { email; first_name = p.first_name; last_name = p.last_name })
+    | Some email -> Some { email;
+                          full_name = p.first_name ^ " " ^ p.last_name;
+                          github_handle = None;
+                          slack_handle = None })
 ;;
 
 (* Allocations *)
@@ -186,8 +162,10 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
          { project = project.number
          ; person = person.email
          ; finance_code = Raw.IdMap.find_opt a.project_id fcs
-         ; allocations =
-             [ { start_date; end_date; rate = forecast_rate_to_fte_percent a.allocation }
+         ; allocation =
+             [ { start_date = start_date;
+                 days = CalendarLib.Date.sub start_date end_date;
+                 rate = Rate (forecast_rate_to_fte_percent a.allocation) }
              ]
          }
      | _ ->
@@ -242,7 +220,7 @@ let collate_allocations assignments =
         { project = a.project
         ; person = a.person
         ; finance_code = a.finance_code
-        ; allocations = existing_assignment.allocations @ a.allocations
+        ; allocation = existing_assignment.allocation @ a.allocation
         }
       (* Otherwise add a new assignment to the map. *)
       | None -> a
@@ -264,7 +242,7 @@ let make_people_map people_id =
 
 (* Make map number => project, with the slight complication that there may be
    two projects with the same issue number *)
-let make_project_map projects_id =
+let make_project_map projects_id : (project IntMap.t) =
   let add_project m (_, (p : project)) =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
@@ -297,10 +275,9 @@ let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.D
     List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
     |> collate_allocations
   in
-  { projects = make_project_map projects_id
-  ; people = make_people_map people_id
-  ; assignments
-  }
+  (make_project_map projects_id,
+   make_people_map people_id,
+   assignments)
 ;;
 
 let get_the_current_schedule days =
