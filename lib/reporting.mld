@@ -85,10 +85,10 @@ and the YAML data block has the following fields:
   Finance code; however, projects may not (yet) have a Finance code or may have
   more than one Finance code. 
 - [earliest-start-date]: missing or null allowed; means "no earliest start date"
-- [latest-start-date]: missing or null allowed; means "no latest start date"
+- [latest-start-date]: not null
 - [latest-end-date]: missing or null allowed; means "no latest end date"
-- [max-FTE-percent]: Integer 0–100
-- [min-FTE-percent]: Integer 0–100
+- [max-FTE-percent]: Integer 0–100, null allowed: means "same as nominal"
+- [min-FTE-percent]: Integer 0–100, null allowed: means "same as nominal"
 - [nominal-FTE-percent]: Integer 0–100
 - [FTE-months]: Integer, must not be specified together with [FTE-weeks] 
 - [FTE-weeks]: Integer, must not be specified together with [FTE-months] 
@@ -141,9 +141,9 @@ present allocations but the project is no "active".
 - The project is past its latest start date but is not "active"
 
 
-{1 Notifications}
+{1 Reporting}
 
-If whatwhat is run in "notification" mode, it issues a report on likely
+If whatwhat is run in "report" mode, it issues a report on likely
 problems. These are of two kinds: problems that exist now, and problems that
 will exist in the future if left uncorrected.
 
@@ -165,3 +165,25 @@ will exist in the future if left uncorrected.
 - A project's allocations will change within T + delta
 
 
+{1 Notifications}
+
+{b TODO}
+   
+The following individuals may receive messages:
+
+    - Fallback (email): A hard-coded person if the Scheduler cannot be found
+
+    - The Scheduler (GitHub): The people listed in the GitHub service area for
+      Scheduling
+
+    - Project Shepherd (GitHub): Anyone listed in the project GitHub issue
+
+    - Project Team (email): Anyone allocated to the project in the next six
+      months
+
+    - Programme Shepherd (GitHub): Anyone listed in the Programme Service area
+
+    - Programe Lead (Forecast): Anyone allocated to the Programme Service area
+      in the next six months.
+
+    - The On-Call (Forecast): The person referred to by a particular assignment

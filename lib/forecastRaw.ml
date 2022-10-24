@@ -12,11 +12,11 @@ let forecast_request ?(query = []) endpoint =
   let _, body =
     let headers =
       Header.of_list
-        [ "Forecast-Account-ID", Config.settings.forecast_id
-        ; "Authorization", "Bearer " ^ Config.settings.forecast_token
+        [ "Forecast-Account-ID", Config.get_forecast_id ()
+        ; "Authorization", "Bearer " ^ Config.get_forecast_token ()
         ]
     and uri =
-      Uri.with_query' (Uri.of_string ("https://api.forecastapp.com/" ^ endpoint)) query
+      Uri.with_query' (Uri.of_string (Config.get_forecast_url () ^ endpoint)) query
     in
     Client.get ~headers uri |> Lwt_main.run
   in
@@ -108,14 +108,52 @@ type assignment =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
-let get_assignments (start_date : Date.t) (end_date : Date.t) =
-  assert (Date.Period.nb_days (Date.sub end_date start_date) >= 0);
+(* The Forecast API sets the longest period assignments can be queried for in one query.
+ *)
+let max_period = Date.Period.lmake ~day:179 ()
 
+let get_assignments_period (start_date : Date.t) (end_date : Date.t) =
+  assert (Date.sub end_date start_date <= max_period);
   let st = Printer.DatePrinter.to_string start_date
   and ed = Printer.DatePrinter.to_string end_date in
   forecast_request "assignments" ~query:[ "start_date", st; "end_date", ed ]
   |> to_list
   |> List.map (fun x -> assignment_of_yojson (x : Basic.t :> Safe.t))
+;;
+
+module IntMap = Map.Make (Int)
+
+let rec get_assignments_inner
+  ?(acc = IntMap.empty)
+  (start_date : Date.t)
+  (end_date : Date.t)
+  =
+  (* If we can't do the whole requested period in one Forecast API call, get as much as
+k    we can, recursively call for the rest, and merge the results into a Map to avoid
+     duplicates. *)
+  let max_end_date = Date.add start_date max_period in
+  let batch_end_date = if max_end_date < end_date then max_end_date else end_date in
+  let new_assignments =
+    get_assignments_period start_date batch_end_date
+    |> List.to_seq
+    |> Seq.map (fun a -> a.id, a)
+    |> IntMap.of_seq
+  in
+  let new_acc =
+    IntMap.union
+      (fun _ x y ->
+        assert (x = y);
+        Some x)
+      acc
+      new_assignments
+  in
+  if end_date > batch_end_date
+  then get_assignments_inner ~acc:new_acc batch_end_date end_date
+  else new_acc
+;;
+
+let get_assignments (start_date : Date.t) (end_date : Date.t) =
+  get_assignments_inner start_date end_date |> IntMap.to_seq |> Seq.map snd |> List.of_seq
 ;;
 
 (* ---------------------------------------------------------------------- *)

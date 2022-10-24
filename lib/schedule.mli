@@ -1,58 +1,17 @@
-(** Schedule collates data from both Github and Forecast, and joins them into
-    single, source-agnostic data structure. It deals with people, projects, and
-    allocations. *)
+(** Schedule collates data from both Github and Forecast, and joins them into a
+    single, source-agnostic data structure. It deals with people, projects,
+    assignments, and allocations.
 
-(** A person, combining both a Forecast user and a matching Github user.
+    Forecast is authoritative for persons and assignments; GitHub is
+    authoritative for projects.
+ *)
 
-    Forecast is considered the authoritative source for people, and Github logins are
-    attached to the Forecast information. *)
-type person =
-  { email : string
-  ; name : string
-  ; github_login : string option
-  }
+open Domain
 
-(** A project, combining both a Github issue and a matching Forecast project.
-
-    Github is considered the authoritative source for projects, information from
-    Forecast is attached to the issues found on Github. *
-
-    Assignees and reactions are recorded by the email of the user on Forecast, if a match
-    between the Github and Forecast users is found, or [None] otherwise. *)
-type project =
-  { forecast_id : int
-  ; github_id : int
-  ; name : string
-  ; github_assignees : string option list
-  ; reactions : (string * string option) list
-  ; column : string (* TODO column could be an enum type?*)
-  ; turing_project_code : string option
-  ; earliest_start_date : CalendarLib.Date.t option
-  ; latest_start_date : CalendarLib.Date.t option
-  ; latest_end_date : CalendarLib.Date.t option
-  ; fte_months : float option
-  ; nominal_fte_percent : float option
-  ; max_fte_percent : float option
-  ; min_fte_percent : float option
-  }
-
-(** A working period with a start and end date, and [rate], i.e. a number of
-    hours per day this work covers. Instances of [allocation] are attached to
-    [assignment]s. *)
-type allocation = Forecast.allocation =
-  { start_date : CalendarLib.Date.t
-  ; end_date : CalendarLib.Date.t
-  ; rate : float
-  }
-
-(** An assignment of a person to a project, together with a list of allocations, i.e. time
-    periods and rates during which said person works on the project. *)
-type assignment = Forecast.assignment =
-  { project : int
-  ; person : string
-  ; finance_code : string option
-  ; allocations : allocation list
-  }
+(* Other data that we need to have somewhere, but maybe not here? :
+  ; github_assignees : string list
+  ; reactions : (string * string) list
+ *)
 
 (** Return a list of people and projects for which we succesfully merged
     Forecast and Github data. In the process of doing the merge, log various
@@ -62,7 +21,3 @@ type assignment = Forecast.assignment =
     TODO This function remains a work-in-progress. For one, we need to have it
     return a list of allocations as well. *)
 val get_the_schedule : unit -> person list * project list * assignment list
-
-val show_person : person -> string
-val show_project : project -> string
-val show_assignment : assignment -> string

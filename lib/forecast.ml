@@ -11,6 +11,8 @@
 
  *)
 
+open Domain
+
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
 module StringMap = Map.Make (String) (* email => person *)
@@ -20,92 +22,53 @@ type project =
   ; name : string
   ; programme : string
   }
-[@@deriving show]
-
-type person =
-  { email : string
-  ; first_name : string
-  ; last_name : string
-  }
-[@@deriving show]
-
-type allocation =
-  { start_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; end_date : CalendarLib.Date.t [@printer DatePrinter.pp_print_date]
-  ; rate : float
-  }
-[@@deriving show]
-
-type assignment =
-  { project : int (* The project code *)
-  ; person : string (* An email *)
-  ; finance_code : string option
-  ; allocations : allocation list
-  }
-[@@deriving show]
-
-type schedule =
-  { projects : project IntMap.t
-  ; people : person StringMap.t
-  ; assignments : assignment list
-  }
 
 (* ------------------------------------------------------------ *)
 (* Utilities *)
 
-(* Like "short-circuit and".  See "let-punning",
+(* `let+` is like "short-circuit and".  See "let-punning",
    https://v2.ocaml.org/manual/bindingops.html *)
 let ( let+ ) o f = Option.map f o
-let person_name p = (p.first_name ^ " ") ^ p.last_name
 
 (* ------------------------------------------------------------ *)
 (* Logging for errors and warnings *)
 
-let log_raw_project (lvl : Log.log_type) (p : Raw.project) msg =
-  Log.log lvl @@ msg ^ " for project id=" ^ string_of_int p.id
+let log_event lvl ent msg = Log.log lvl Log.Forecast ent msg
+
+let log_raw_project (lvl : Log.level) (rp : Raw.project) msg =
+  log_event lvl (Log.RawForecastProject rp.name) msg
 ;;
 
-let log_project (lvl : Log.log_type) (p : project) msg =
-  let make_hut23_code n = " [hut23-" ^ string_of_int n ^ "]" in
-  Log.log lvl @@ msg ^ " for project " ^ make_hut23_code p.number
+let log_project (lvl : Log.level) (p : project) msg =
+  log_event lvl (Log.Project p.number) msg
 ;;
 
-let log_raw_person (lvl : Log.log_type) (p : Raw.person) msg =
+let log_raw_person (lvl : Log.level) (p : Raw.person) msg =
   let name = p.first_name ^ " " ^ p.last_name in
-  Log.log lvl @@ msg ^ " for " ^ name
+  log_event lvl (Log.RawForecastPerson name) msg
 ;;
 
-let log_assignment (lvl : Log.log_type) (a : Raw.assignment) msg =
+let log_assignment (lvl : Log.level) (a : Raw.assignment) msg =
   let aid (a : Raw.assignment) = "(" ^ string_of_int a.id ^ ")" in
-  Log.log lvl @@ msg ^ aid a
+  log_event lvl Log.RawForecastAssignment (msg ^ aid a)
 ;;
 
-(* ------------------------------------------------------------ *)
-(* domain-specific data *)
+(* ------------------------------------------------------------ 
+   Domain-specific data
+ *)
 
 (* Regex to match the `NNN` in `hut23-NNN` *)
 let hut23_code_re = Re.compile Re.(seq [ start; str "hut23-"; group (rep1 digit); stop ])
 
 (* The Forecast internal id of a single, hard-coded project in Forecast called
    "Time off", which we do not use *)
-let timeoff_project_id = 1684536
+let ignored_project_ids = Config.get_forecast_ignored_projects ()
 
-(* ------------------------------------------------------------ *)
-(* Utilities for extracting data from particular fields and entities *)
+(* ------------------------------------------------------------ 
+   Utilities for converting raw entities to nicer ones
+ *)
 
-let extract_finance_code _ (project : Raw.project) =
-  match project.tags with
-  | [] ->
-    log_raw_project Log.Warning project "Missing Finance Code";
-    None
-  | fc :: [] -> Some fc
-  | fc :: _ ->
-    log_raw_project
-      Log.Warning
-      project
-      "More than one potential Finance code (using the first tag)";
-    Some fc
-;;
+(* Projects *)
 
 let extract_project_number (project : Raw.project) =
   let cd = project.code in
@@ -124,10 +87,8 @@ let extract_project_number (project : Raw.project) =
     None
 ;;
 
-(* ------------------------------------------------------------ *)
-
 let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
-  if p.archived || id = timeoff_project_id
+  if p.archived || List.mem id ignored_project_ids
   then None
   else (
     let nmbr = extract_project_number p in
@@ -136,7 +97,27 @@ let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
     { number = nmbr; name = p.name; programme = client.name })
 ;;
 
-let validate_person _ (p : Raw.person) =
+let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
+  let log_appropriate_project_warning (rp : Raw.project) msg =
+    match IntMap.find_opt rp.id projects with
+    | None -> log_raw_project Log.Warning rp msg
+    | Some p -> log_project Log.Warning p msg
+  in
+  match rp.tags with
+  | [] ->
+    log_appropriate_project_warning rp "Missing Finance Code";
+    None
+  | fc :: [] -> Some fc
+  | fc :: _ ->
+    log_appropriate_project_warning
+      rp
+      "More than one potential Finance code (using the first tag)";
+    Some fc
+;;
+
+(* People *)
+
+let validate_person _ (p : Raw.person) : person option =
   if p.archived
   then None
   else (
@@ -147,19 +128,13 @@ let validate_person _ (p : Raw.person) =
     | Some "" ->
       log_raw_person Log.Error p "Email is the empty string";
       None
-    | Some email -> Some { email; first_name = p.first_name; last_name = p.last_name })
+    | Some email -> Some { email;
+                          full_name = p.first_name ^ " " ^ p.last_name;
+                          github_handle = None;
+                          slack_handle = None })
 ;;
 
-(* if StringMap.mem email m then *)
-(*     begin *)
-(*       log_raw_person Log.Error p "Another person has the same email as this"; *)
-(*       m *)
-(*     end *)
-(*   else *)
-(*     StringMap.add email {email = email; first_name = p.first_name; last_name = p.last_name} m *)
-(* in *)
-(* Raw.IdMap.to_seq people *)
-(* |> Seq.fold_left add_person StringMap.empty  *)
+(* Allocations *)
 
 (** Forecast reports rates as seconds in a day. We divide by the number of seconds in 8h
     to get the FTE percentage.*)
@@ -187,8 +162,10 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
          { project = project.number
          ; person = person.email
          ; finance_code = Raw.IdMap.find_opt a.project_id fcs
-         ; allocations =
-             [ { start_date; end_date; rate = forecast_rate_to_fte_percent a.allocation }
+         ; allocation =
+             [ { start_date = start_date;
+                 days = CalendarLib.Date.sub start_date end_date;
+                 rate = Rate (forecast_rate_to_fte_percent a.allocation) }
              ]
          }
      | _ ->
@@ -243,7 +220,7 @@ let collate_allocations assignments =
         { project = a.project
         ; person = a.person
         ; finance_code = a.finance_code
-        ; allocations = existing_assignment.allocations @ a.allocations
+        ; allocation = existing_assignment.allocation @ a.allocation
         }
       (* Otherwise add a new assignment to the map. *)
       | None -> a
@@ -265,7 +242,7 @@ let make_people_map people_id =
 
 (* Make map number => project, with the slight complication that there may be
    two projects with the same issue number *)
-let make_project_map projects_id =
+let make_project_map projects_id : (project IntMap.t) =
   let add_project m (_, (p : project)) =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
@@ -290,20 +267,17 @@ let make_project_map projects_id =
 let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.Date.t) =
   let clnts, peopl, _, projs, asnts = Raw.get_the_schedule start_date end_date in
 
-  (* A things_id is a map from forecast ids to the thing *)
-  let fcs_id = Raw.IdMap.filter_map extract_finance_code projs in
-
+  (* A things_id is a map from raw Forecast ids to the thing *)
   let projects_id = IntMap.filter_map (validate_project clnts) projs in
+  let fcs_id = Raw.IdMap.filter_map (extract_finance_code projects_id) projs in
   let people_id = IntMap.filter_map validate_person peopl in
   let assignments =
     List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
     |> collate_allocations
   in
-
-  let projects = make_project_map projects_id in
-  let people = make_people_map people_id in
-
-  { projects; people; assignments }
+  (make_project_map projects_id,
+   make_people_map people_id,
+   assignments)
 ;;
 
 let get_the_current_schedule days =

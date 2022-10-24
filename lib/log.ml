@@ -1,20 +1,63 @@
-(* TODO: Change this to add the notifications to a stack *)
+(** Utilities for logging issues during the course of ingesting the data for 
+    later summary and notification 
+ *)
 
-type log_type =
+type level =
   | Error
   | Warning
+  | Info
+  | Debug
 
-let show_log_type = function
-  | Error -> "Error"
-  | Warning -> "Warning"
+type source =
+  | Forecast
+  | Github
+  | GithubMetadata
+  | Schedule
+
+type entity =
+  | RawForecastProject of string
+  | Project of int
+  | RawForecastPerson of string
+  | Person of string
+  | RawForecastAssignment
+  | Assignment of (int * string)
+
+type event =
+  { level : level
+  ; source : source
+  ; entity : entity
+  ; message : string
+  }
+
+(* ------------------------------------------------------------ *)
+
+(* The log is a mutable stack of events *)
+let the_log : event Stack.t = Stack.create ()
+
+let default_logger lvl src ent msg =
+  Stack.push { level = lvl; source = src; entity = ent; message = msg } the_log
 ;;
 
-(* TODO: While we get going, just print to stdout. *)
-let lvl_prefix lvl = show_log_type lvl ^ ":"
-let default_logger lvl msg = Printf.printf "%-8s %s\n" (lvl_prefix lvl) msg
 let the_logger = ref default_logger
 
-(* "Every problem in computer science can be solved through another layer of
-   indirection" *)
-let log (lvl : log_type) (msg : string) : unit = !the_logger lvl msg
+(* Interface -------------------------------------------------- *)
 
+let log (lvl : level) (src : source) (ent : entity) (msg : string) : unit =
+  !the_logger lvl src ent msg
+;;
+
+let get_the_log () = Stack.to_seq the_log
+
+let show_level = function
+  | Error -> "Error"
+  | Warning -> "Warning"
+  | Info -> "Info"
+  | Debug -> "Debug"
+;;
+
+let show_source = function
+  | Forecast -> "Forecast"
+  | Github -> "Github"
+  | GithubMetadata -> "Github Metadata"
+  | Schedule -> "Schedule"
+;;

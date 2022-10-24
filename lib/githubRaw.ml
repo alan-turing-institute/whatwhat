@@ -9,7 +9,6 @@ open Yojson
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
-exception HttpError of string
 exception QueryError of string
 
 type person =
@@ -26,6 +25,7 @@ type issue =
   ; state : string
   ; assignees : person list
   ; reactions : (string * person) list
+  ; labels : string list
   ; column : string option
   }
 [@@deriving show]
@@ -63,7 +63,7 @@ let person_of_json json =
   }
 ;;
 
-let issue_of_json json =
+let issue_of_json column_name json =
   json
   |> member "node"
   |> member "content"
@@ -72,22 +72,18 @@ let issue_of_json json =
   ; title = x |> member_to_string "title"
   ; body = x |> member_to_string "body"
   ; state = x |> member_to_string "state"
-  ; column =
-      x
-      |> member "projectCards"
-      |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
-           y
-           |> member "node"
-           |> member "column"
-           |> member "name"
-           |> Basic.Util.to_string_option)
-      |> List.first
+  ; column = Some column_name
   ; assignees =
       x
       |> member "assignees"
       |> member "edges"
       |> Basic.Util.convert_each (fun y -> y |> member "node" |> person_of_json)
+  ; labels =
+      x
+      |> member "labels"
+      |> member "edges"
+      |> Basic.Util.convert_each (fun y ->
+           y |> member "node" |> member "name" |> Basic.Util.to_string)
   ; reactions =
       x
       |> member "reactions"
@@ -99,17 +95,16 @@ let issue_of_json json =
 ;;
 
 let column_of_json json =
-  json
-  |> member "node"
-  |> fun x ->
-  { name = x |> member_to_string "name"
-  ; cards =
-      x
-      |> member "cards"
-      |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
-           issue_of_json y, y |> member_to_string "cursor")
-  }
+  let name = json |> member "node" |> member_to_string "name" in
+  let cards =
+    json
+    |> member "node"
+    |> member "cards"
+    |> member "edges"
+    |> Basic.Util.convert_each (fun y ->
+         issue_of_json name y, y |> member_to_string "cursor")
+  in
+  { name; cards }
 ;;
 
 let project_of_json json =
@@ -140,20 +135,11 @@ let project_root_of_json json =
    https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#communicating-with-graphql
 *)
 
-let github_graph_ql_endpoint = "https://api.github.com/graphql"
-
-(** Raise a HttpError if the API request response indicates failure. *)
-let check_http_response response =
-  if Response.status response |> Code.code_of_status |> Code.is_success |> not
-  then (
-    let code_string = Response.status response |> Code.string_of_status in
-    raise @@ HttpError code_string)
-;;
-
 (** Query the Github GraphQL API with the given authentication token and request body.
     Return the body of the response as a JSON object, or raise a HttpError or a QueryError
     if something goes wrong. *)
 let run_github_query (git_hub_token : string) request_body =
+  let github_graph_ql_endpoint = Config.get_github_url () in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ git_hub_token) in
   let header =
     Header.init ()
@@ -165,7 +151,7 @@ let run_github_query (git_hub_token : string) request_body =
   let response, response_body =
     Client.post ~headers:header ~body:request_body_obj uri |> Lwt_main.run
   in
-  let () = check_http_response response in
+  let () = Utils.check_http_response response in
   let response_body_json =
     response_body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
   in
@@ -190,31 +176,45 @@ let read_file_as_string filepath =
   return_string
 ;;
 
+(* Take a list of pairs of [regexp * string], and run [Str.global_replace] on each pair on
+   the string [str].*)
+let replace_multiple replacements str =
+  let folder query (to_replace, replace_with) =
+    Str.global_replace to_replace replace_with query
+  in
+  List.fold_left folder str replacements
+;;
+
 (* The Github API query's body is built by taking a template and replacing some
    placeholders with the project board name and cursor for paging. *)
 let build_issue_query project_name cursor =
   let query_template = read_file_as_string issue_query_template_path in
-  let cursor_query =
-    let to_replace = Str.regexp "CURSOR" in
-    let replace_with =
-      match cursor with
-      | None -> "null" (* Get first batch *)
-      | Some crs -> "\\\"" ^ crs ^ "\\\"" (* Get subsequent batches *)
-    in
-    Str.global_replace to_replace replace_with query_template
+  (* List of pairs (part of the template to replace, value to replace it with). *)
+  let replacements =
+    [ ( Str.regexp "CURSOR"
+      , match cursor with
+        | None -> "null" (* Get first batch *)
+        | Some crs -> "\\\"" ^ crs ^ "\\\"" (* Get subsequent batches *) )
+    ; Str.regexp "PROJECTNAME", "\\\"" ^ project_name ^ "\\\""
+    ; Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
+    ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
+    ]
   in
-
-  let to_replace = Str.regexp "PROJECTNAME" in
-  let replace_with = "\\\"" ^ project_name ^ "\\\"" in
-  Str.global_replace to_replace replace_with cursor_query |> remove_line_breaks
+  replace_multiple replacements query_template |> remove_line_breaks
 ;;
 
 (* These are the main functions of this module, that would be called externally. *)
 
 let get_users () =
-  let github_token = Config.settings.github_token in
-  let user_query = read_file_as_string user_query_template_path in
-  let body_json = run_github_query github_token user_query in
+  let github_token = Config.get_github_token () in
+  let query_template = read_file_as_string user_query_template_path in
+  let replacements =
+    [ Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
+    ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
+    ]
+  in
+  let query = replace_multiple replacements query_template in
+  let body_json = run_github_query github_token query in
   let users =
     body_json
     |> Basic.Util.member "data"
@@ -225,6 +225,28 @@ let get_users () =
          json |> Basic.Util.member "node" |> person_of_json)
   in
   users
+;;
+
+(* The next cursor is the last cursor from the column with the most cards. If no cards are
+   in the project given, then [None].*)
+let find_next_cursor issues =
+  issues.projects
+  |> List.hd
+  |> (fun x -> x.columns)
+  |> List.map (fun column ->
+       let cards = column.cards in
+       let length = List.length cards in
+       let last_cursor =
+         if length > 0 then List.last cards |> fun (_, c) -> Some c else None
+       in
+       length, last_cursor)
+  |> List.fold_left
+       (fun (max_length, max_cursor) (this_length, this_cursor) ->
+         if this_length > max_length
+         then this_length, this_cursor
+         else max_length, max_cursor)
+       (min_int, None)
+  |> snd
 ;;
 
 (* Recursively get the API query results page by page, and accumulate them into [acc]. *)
@@ -244,18 +266,12 @@ let rec get_project_issues_page
     issues.projects
     |> List.hd
     |> (fun x -> x.columns)
-    |> List.map (fun column -> column.cards)
-    |> List.concat
+    |> List.concat_map (fun column -> column.cards)
   in
   let new_acc = acc @ issue_data in
 
-  (* Cursor points to the last item returned, used for paging of the requests *)
-  let next_cursor =
-    if List.length issue_data = 0
-    then None
-    else issue_data |> List.last |> fun (_, c) -> Some c
-  in
-
+  (* The cursor is used for paging of the requests *)
+  let next_cursor = find_next_cursor issues in
   match next_cursor with
   | Some _ -> get_project_issues_page project_name github_token next_cursor new_acc
   | None -> new_acc
@@ -264,7 +280,7 @@ let rec get_project_issues_page
 (* The external-facing function for getting issues, with arguments needed for recursion
    hidden away in get_project_issues_page. *)
 let get_project_issues (project_name : string) =
-  let github_token = Config.settings.github_token in
+  let github_token = Config.get_github_token () in
   let all_issues = get_project_issues_page project_name github_token None [] in
   List.map fst all_issues
 ;;
