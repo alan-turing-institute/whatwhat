@@ -89,7 +89,7 @@ let hut23_code_re = Re.compile Re.(seq [ start; str "hut23-"; group (rep1 digit)
 
 (* The Forecast internal id of a single, hard-coded project in Forecast called
    "Time off", which we do not use *)
-let timeoff_project_id = 1684536
+let ignored_project_ids = Config.get_forecast_ignored_projects ()
 
 (* ------------------------------------------------------------ 
    Utilities for converting raw entities to nicer ones
@@ -115,7 +115,7 @@ let extract_project_number (project : Raw.project) =
 ;;
 
 let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
-  if p.archived || id = timeoff_project_id
+  if p.archived || List.mem id ignored_project_ids
   then None
   else (
     let nmbr = extract_project_number p in
