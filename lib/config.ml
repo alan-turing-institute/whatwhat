@@ -3,6 +3,8 @@
    into the same record type `t`. *)
 type t =
   { github_project_name : string option
+  ; github_repo_name : string option
+  ; github_repo_owner : string option
   ; github_token : string option
   ; github_url : string option
   ; githubbot_token : string option
@@ -78,6 +80,9 @@ let load_settings () : t =
   in
   { github_project_name =
       find_setting string_opt_of_json "github_project_name" config_json_opt
+  ; github_repo_name = find_setting string_opt_of_json "github_repo_name" config_json_opt
+  ; github_repo_owner =
+      find_setting string_opt_of_json "github_repo_owner" config_json_opt
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
   ; github_url = find_setting string_opt_of_json "github_url" config_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
@@ -97,6 +102,18 @@ let get_github_project_name () =
   match settings.github_project_name with
   | Some value -> value
   | None -> raise (MissingConfig "github_project_name")
+;;
+
+let get_github_repo_name () =
+  match settings.github_repo_name with
+  | Some value -> value
+  | None -> raise (MissingConfig "github_repo_name")
+;;
+
+let get_github_repo_owner () =
+  match settings.github_repo_owner with
+  | Some value -> value
+  | None -> raise (MissingConfig "github_repo_owner")
 ;;
 
 let get_github_token () =
