@@ -6,54 +6,74 @@ open Domain
 (* LOGGING *)
 
 type schedule_error =
-  | AllocationEndsTooLate
-  | AllocationStartsTooEarly
-  | FinanceCodeNotFound
-  | NoMatchingForecastProject
-  | NoMatchingForecastUser
+  | AllocationEndsTooLate of assignment
+  | AllocationStartsTooEarly of assignment
+  | FinanceCodeNotFound of assignment * string
   | NoMatchingGithubIssue of string
   | NoMatchingGithubUser of string
+(*
+  | NoMatchingForecastProject
+  | NoMatchingForecastUser
   | NoProjectColumn
+  *)
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log (error : schedule_error) =
   let level =
     match error with
-    | AllocationEndsTooLate -> Log.Warning
-    | AllocationStartsTooEarly -> Log.Warning
-    | FinanceCodeNotFound -> Log.Error
-    | NoMatchingForecastProject -> Log.Error
-    | NoMatchingForecastUser -> Log.Warning
+    | AllocationEndsTooLate _ -> Log.Warning
+    | AllocationStartsTooEarly _ -> Log.Warning
+    | FinanceCodeNotFound _ -> Log.Error
     | NoMatchingGithubIssue _ -> Log.Error
     | NoMatchingGithubUser _ -> Log.Warning
+    (*
+    | NoMatchingForecastProject -> Log.Error
+    | NoMatchingForecastUser -> Log.Warning
     | NoProjectColumn -> Log.Error
+    *)
   in
   let entity =
     match error with
-    (*| AllocationEndsTooLate -> Log.Warning
-    | AllocationStartsTooEarly -> Log.Warning
-    | FinanceCodeNotFound -> Log.Error
-    | NoMatchingForecastProject -> Log.Error
-    | NoMatchingForecastUser -> Log.Warning
-    *)
+    | AllocationEndsTooLate asg -> Log.Assignment (asg.project, asg.person)
+    | AllocationStartsTooEarly asg -> Log.Assignment (asg.project, asg.person)
+    | FinanceCodeNotFound (asg, _) -> Log.Assignment (asg.project, asg.person)
     | NoMatchingGithubIssue name -> Log.RawForecastProject name
     | NoMatchingGithubUser email -> Log.RawForecastPerson email
     (*
+    | NoMatchingForecastProject -> Log.Error
+    | NoMatchingForecastUser -> Log.Warning
     | NoProjectColumn -> Log.Error
     *)
   in
   let msg =
     match error with
-    | AllocationEndsTooLate -> "Allocation has an end date after project latest end: "
-    | AllocationStartsTooEarly ->
-      "Allocation has a start date before project earliest start: "
-    | FinanceCodeNotFound -> "Assignment has a finance code not found on Github: "
-    | NoMatchingForecastProject -> "No Forecast project for Github issue "
-    | NoMatchingForecastUser -> "People list doesn't have an entry for Github login "
+    | AllocationEndsTooLate asg ->
+      "Assignment of "
+      ^ asg.person
+      ^ " to project "
+      ^ Int.to_string asg.project
+      ^ " has an end date after project latest end"
+    | AllocationStartsTooEarly asg ->
+      "Assignment of "
+      ^ asg.person
+      ^ " to project "
+      ^ Int.to_string asg.project
+      ^ " has a start date before project latest end"
+    | FinanceCodeNotFound (asg, code) ->
+      "Assignment of "
+      ^ asg.person
+      ^ " to project "
+      ^ Int.to_string asg.project
+      ^ " has an unknown finance code: "
+      ^ code
     | NoMatchingGithubIssue name ->
       "No matching Github issue for Forecast project " ^ name
     | NoMatchingGithubUser name -> "No matching Github user for " ^ name
+    (*
+    | NoMatchingForecastProject -> "No Forecast project for Github issue "
+    | NoMatchingForecastUser -> "People list doesn't have an entry for Github login "
     | NoProjectColumn -> "Github issue has no project column: "
+    *)
   in
   Log.log level Log.Schedule entity msg
 ;;
@@ -225,47 +245,38 @@ let get_the_schedule () =
 
 let check_finance_code (prj : project) (asg : assignment) =
   let codes_match =
-    match asg.finance_code, prj.finance_code with
-    | Some afc, Some pfc -> afc = pfc
-    | None, _ -> true
-    | _ -> false
+    Option.is_none asg.finance_code
+    || List.mem (Option.get asg.finance_code) prj.plan.finance_codes
   in
   if not codes_match
-  then
-    (* The Option.get is safe, because the above match guarantees that
-       assignment.finance_code isn't None. *)
-    log FinanceCodeNotFound
-    @@ Option.get asg.finance_code
-    ^ ", issue "
-    ^ Int.to_string prj.github_id
+     (* The Option.get is safe, because the above match guarantees that asg.finance_code
+        isn't None. *)
+  then log (FinanceCodeNotFound (asg, Option.get asg.finance_code))
 ;;
 
 let check_end_date (prj : project) (asg : assignment) =
-  match prj.latest_end_date with
+  match prj.plan.latest_end_date with
   | None -> ()
   | Some end_date ->
-    List.iter
-      (fun all ->
-        if end_date < all.end_date
-        then log AllocationEndsTooLate @@ CalendarLib.Printer.Date.to_string all.end_date)
-      asg.allocations
+    let check_simple_allocation simple_aln =
+      if CalendarLib.Date.add simple_aln.start_date simple_aln.days > end_date
+      then log (AllocationEndsTooLate asg)
+    in
+    List.iter check_simple_allocation asg.allocation
 ;;
 
 let check_start_date (prj : project) (asg : assignment) =
-  match prj.latest_start_date with
+  match prj.plan.earliest_start_date with
   | None -> ()
   | Some start_date ->
-    List.iter
-      (fun all ->
-        if start_date > all.start_date
-        then
-          log AllocationStartsTooEarly
-          @@ CalendarLib.Printer.Date.to_string all.start_date)
-      asg.allocations
+    let check_simple_allocation simple_aln =
+      if simple_aln.start_date < start_date then log (AllocationStartsTooEarly asg)
+    in
+    List.iter check_simple_allocation asg.allocation
 ;;
 
 let check_assignment people projects (asg : assignment) =
-  let p = List.find (fun (prj : project) -> prj.github_id = asg.project) projects in
+  let prj = List.find (fun (prj : project) -> prj.nmbr = asg.project) projects in
   let () = check_finance_code prj asg in
   let () = check_end_date prj asg in
   let () = check_start_date prj asg in
