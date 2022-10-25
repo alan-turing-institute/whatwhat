@@ -12,7 +12,6 @@
  *)
 
 open Domain
-
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
 module StringMap = Map.Make (String) (* email => person *)
@@ -128,10 +127,13 @@ let validate_person _ (p : Raw.person) : person option =
     | Some "" ->
       log_raw_person Log.Error p "Email is the empty string";
       None
-    | Some email -> Some { email;
-                          full_name = p.first_name ^ " " ^ p.last_name;
-                          github_handle = None;
-                          slack_handle = None })
+    | Some email ->
+      Some
+        { email
+        ; full_name = p.first_name ^ " " ^ p.last_name
+        ; github_handle = None
+        ; slack_handle = None
+        })
 ;;
 
 (* Allocations *)
@@ -163,9 +165,10 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
          ; person = person.email
          ; finance_code = Raw.IdMap.find_opt a.project_id fcs
          ; allocation =
-             [ { start_date = start_date;
-                 days = CalendarLib.Date.sub start_date end_date;
-                 rate = Rate (forecast_rate_to_fte_percent a.allocation) }
+             [ { start_date
+               ; days = CalendarLib.Date.sub start_date end_date
+               ; rate = Rate (forecast_rate_to_fte_percent a.allocation)
+               }
              ]
          }
      | _ ->
@@ -242,7 +245,7 @@ let make_people_map people_id =
 
 (* Make map number => project, with the slight complication that there may be
    two projects with the same issue number *)
-let make_project_map projects_id : (project IntMap.t) =
+let make_project_map projects_id : project IntMap.t =
   let add_project m (_, (p : project)) =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
@@ -275,9 +278,7 @@ let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.D
     List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
     |> collate_allocations
   in
-  (make_project_map projects_id,
-   make_people_map people_id,
-   assignments)
+  make_project_map projects_id, make_people_map people_id, assignments
 ;;
 
 let get_the_current_schedule days =

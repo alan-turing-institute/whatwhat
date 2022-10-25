@@ -55,8 +55,9 @@ type person = GithubRaw.person =
   ; name : string option
   ; email : string option
   }
-val show_person : person -> string
+
 (** A type for Github users. *)
+val show_person : person -> string
 
 (** Given a project board name, return a list of projects, one for each issue on the
     board. *)
