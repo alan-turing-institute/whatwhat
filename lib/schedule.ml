@@ -6,11 +6,15 @@ open Domain
 (* LOGGING *)
 
 type schedule_error =
+  | ActiveProjectWithoutAssignments of project
   | AllocationEndsTooLate of assignment
   | AllocationStartsTooEarly of assignment
+  | AssignmentWithoutProject of assignment
   | FinanceCodeNotFound of assignment * string
-  | NoMatchingGithubIssue of string
+  | ExtraneousForecastProject of string
+  | MissingForecastProject of int
   | NoMatchingGithubUser of string
+  | ProjectStartOverdue of int
 (*
   | NoMatchingForecastProject
   | NoMatchingForecastUser
@@ -21,32 +25,46 @@ type schedule_error =
 let log (error : schedule_error) =
   let level =
     match error with
+    | ActiveProjectWithoutAssignments _ -> Log.Warning
     | AllocationEndsTooLate _ -> Log.Warning
     | AllocationStartsTooEarly _ -> Log.Warning
+    | AssignmentWithoutProject _ -> Log.Error
+    | ExtraneousForecastProject _ -> Log.Error
     | FinanceCodeNotFound _ -> Log.Error
-    | NoMatchingGithubIssue _ -> Log.Error
+    | MissingForecastProject _ -> Log.Warning
     | NoMatchingGithubUser _ -> Log.Warning
+    | ProjectStartOverdue _ -> Log.Warning
     (*
     | NoMatchingForecastProject -> Log.Error
     | NoMatchingForecastUser -> Log.Warning
     | NoProjectColumn -> Log.Error
     *)
   in
+
   let entity =
     match error with
+    | ActiveProjectWithoutAssignments prj -> Log.Project prj.nmbr
     | AllocationEndsTooLate asg -> Log.Assignment (asg.project, asg.person)
     | AllocationStartsTooEarly asg -> Log.Assignment (asg.project, asg.person)
+    | AssignmentWithoutProject asg -> Log.Assignment (asg.project, asg.person)
+    | ExtraneousForecastProject name -> Log.RawForecastProject name
     | FinanceCodeNotFound (asg, _) -> Log.Assignment (asg.project, asg.person)
-    | NoMatchingGithubIssue name -> Log.RawForecastProject name
+    | MissingForecastProject number -> Log.Project number
     | NoMatchingGithubUser email -> Log.RawForecastPerson email
+    | ProjectStartOverdue number -> Log.Project number
     (*
     | NoMatchingForecastProject -> Log.Error
     | NoMatchingForecastUser -> Log.Warning
     | NoProjectColumn -> Log.Error
     *)
   in
+
   let msg =
     match error with
+    | ActiveProjectWithoutAssignments prj ->
+      "Project "
+      ^ Int.to_string prj.nmbr
+      ^ " is active (or later), but has no assignments"
     | AllocationEndsTooLate asg ->
       "Assignment of "
       ^ asg.person
@@ -59,6 +77,14 @@ let log (error : schedule_error) =
       ^ " to project "
       ^ Int.to_string asg.project
       ^ " has a start date before project latest end"
+    | AssignmentWithoutProject asg ->
+      "Assignment of "
+      ^ asg.person
+      ^ " to project "
+      ^ Int.to_string asg.project
+      ^ " does not match any Github issue"
+    | ExtraneousForecastProject name ->
+      "No matching Github issue for Forecast project " ^ name
     | FinanceCodeNotFound (asg, code) ->
       "Assignment of "
       ^ asg.person
@@ -66,15 +92,19 @@ let log (error : schedule_error) =
       ^ Int.to_string asg.project
       ^ " has an unknown finance code: "
       ^ code
-    | NoMatchingGithubIssue name ->
-      "No matching Github issue for Forecast project " ^ name
+    | MissingForecastProject number ->
+      "No matching Forecast project for " ^ Int.to_string number
     | NoMatchingGithubUser name -> "No matching Github user for " ^ name
+    | ProjectStartOverdue number ->
+      "Project is past it latest start date, but not active:\n      "
+      ^ Int.to_string number
     (*
     | NoMatchingForecastProject -> "No Forecast project for Github issue "
     | NoMatchingForecastUser -> "People list doesn't have an entry for Github login "
     | NoProjectColumn -> "Github issue has no project column: "
     *)
   in
+
   Log.log level Log.Schedule entity msg
 ;;
 
@@ -163,9 +193,16 @@ let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
 let merge_projects (fc_projects : Forecast.project list) (gh_issues : project list) =
   let check_project_exists (fc_p : Forecast.project) =
     if not (List.exists (fun p -> p.nmbr = fc_p.number) gh_issues)
-    then log (NoMatchingGithubIssue fc_p.name)
+    then log (ExtraneousForecastProject fc_p.name)
+  in
+  let check_fc_project_exists (gh_p : project) =
+    if gh_p.state >= FindingPeople
+       && not
+            (List.exists (fun (p : Forecast.project) -> p.number = gh_p.nmbr) fc_projects)
+    then log (MissingForecastProject gh_p.nmbr)
   in
   List.iter check_project_exists fc_projects;
+  List.iter check_fc_project_exists gh_issues;
   gh_issues
 ;;
 
@@ -215,32 +252,6 @@ let merge_projects (fc_projects : Forecast.project list) (gh_issues : project li
   *)
 
 (* ---------------------------------------------------------------------- *)
-(* BUILD SCHEDULE *)
-
-let get_the_schedule () =
-  let start_date =
-    CalendarLib.Calendar.lmake ~year:2016 ~month:1 ~day:1 ()
-    |> CalendarLib.Calendar.to_date
-  in
-  let end_date =
-    CalendarLib.Date.add
-      (CalendarLib.Date.today ())
-      (CalendarLib.Date.Period.lmake ~year:1 ())
-  in
-  let fc_projects, fc_people, assignments =
-    let fcpp, fcpr, fcas = Forecast.get_the_schedule start_date end_date in
-    ( fcpp |> Forecast.IntMap.bindings |> List.map snd
-    , fcpr |> Forecast.StringMap.bindings |> List.map snd
-    , fcas )
-  in
-  let gh_issues = Github.get_project_issues @@ Config.get_github_project_name () in
-  let gh_people = Github.get_users () in
-  let people = get_people_list fc_people gh_people in
-  let projects = merge_projects fc_projects gh_issues in
-  people, projects, assignments
-;;
-
-(* ---------------------------------------------------------------------- *)
 (* CHECKS ON SCHEDULE *)
 
 let check_finance_code (prj : project) (asg : assignment) =
@@ -257,9 +268,9 @@ let check_finance_code (prj : project) (asg : assignment) =
 let check_end_date (prj : project) (asg : assignment) =
   match prj.plan.latest_end_date with
   | None -> ()
-  | Some end_date ->
+  | Some latest_end_date ->
     let check_simple_allocation simple_aln =
-      if CalendarLib.Date.add simple_aln.start_date simple_aln.days > end_date
+      if CalendarLib.Date.add simple_aln.start_date simple_aln.days > latest_end_date
       then log (AllocationEndsTooLate asg)
     in
     List.iter check_simple_allocation asg.allocation
@@ -268,21 +279,90 @@ let check_end_date (prj : project) (asg : assignment) =
 let check_start_date (prj : project) (asg : assignment) =
   match prj.plan.earliest_start_date with
   | None -> ()
-  | Some start_date ->
+  | Some earliest_start_date ->
     let check_simple_allocation simple_aln =
-      if simple_aln.start_date < start_date then log (AllocationStartsTooEarly asg)
+      if simple_aln.start_date < earliest_start_date
+      then log (AllocationStartsTooEarly asg)
     in
     List.iter check_simple_allocation asg.allocation
 ;;
 
 let check_assignment _ projects (asg : assignment) =
-  let prj = List.find (fun (prj : project) -> prj.nmbr = asg.project) projects in
-  let () = check_finance_code prj asg in
-  let () = check_end_date prj asg in
-  let () = check_start_date prj asg in
-  ()
+  let prj_opt = List.find_opt (fun (prj : project) -> prj.nmbr = asg.project) projects in
+  match prj_opt with
+  | None ->
+    (* TODO There should probably be a check here, where if this project is not in one of
+       the columns that we process in github.ml, then there's no reason to raise an
+       error. *)
+    log (AssignmentWithoutProject asg);
+    false
+  | Some prj ->
+    check_finance_code prj asg;
+    check_end_date prj asg;
+    check_start_date prj asg;
+    true
 ;;
 
 let check_assignments people projects assignments =
-  List.iter (check_assignment people projects) assignments
+  List.filter (check_assignment people projects) assignments
+;;
+
+module IntMap = Map.Make (Int)
+
+let today = CalendarLib.Date.today ()
+
+let check_is_overdue prj =
+  if prj.plan.latest_start_date < today && prj.state < Active
+  then log (ProjectStartOverdue prj.nmbr)
+;;
+
+let check_projects_active assignments_map prj =
+  let asgs_opt = IntMap.find_opt prj.nmbr assignments_map in
+  if prj.state >= Active && Option.is_none asgs_opt
+     (* TODO Should this check for assignments that are active in right now, rather than any
+     assignments? *)
+     (* TODO Why does 1095 (Scivision - Phase 2) trip this wire? *)
+  then log (ActiveProjectWithoutAssignments prj)
+;;
+
+let check_projects projects assignments =
+  let folder acc asg =
+    IntMap.update
+      asg.project
+      (function
+       | None -> Some [ asg ]
+       | Some old_asgs -> Some (asg :: old_asgs))
+      acc
+  in
+  let assigntments_by_project = List.fold_left folder IntMap.empty assignments in
+  List.iter check_is_overdue projects;
+  List.iter (check_projects_active assigntments_by_project) projects
+;;
+
+(* ---------------------------------------------------------------------- *)
+(* BUILD SCHEDULE *)
+
+let get_the_schedule () =
+  let start_date =
+    CalendarLib.Calendar.lmake ~year:2016 ~month:1 ~day:1 ()
+    |> CalendarLib.Calendar.to_date
+  in
+  let end_date =
+    CalendarLib.Date.add
+      (CalendarLib.Date.today ())
+      (CalendarLib.Date.Period.lmake ~year:1 ())
+  in
+  let fc_projects, fc_people, fc_assignments =
+    let fcpp, fcpr, fcas = Forecast.get_the_schedule start_date end_date in
+    ( fcpp |> Forecast.IntMap.bindings |> List.map snd
+    , fcpr |> Forecast.StringMap.bindings |> List.map snd
+    , fcas )
+  in
+  let gh_issues = Github.get_project_issues @@ Config.get_github_project_name () in
+  let gh_people = Github.get_users () in
+  let people = get_people_list fc_people gh_people in
+  let projects = merge_projects fc_projects gh_issues in
+  let assignments = check_assignments people projects fc_assignments in
+  check_projects projects assignments;
+  people, projects, assignments
 ;;

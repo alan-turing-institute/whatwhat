@@ -21,5 +21,3 @@ open Domain
     TODO This function remains a work-in-progress. For one, we need to have it
     return a list of allocations as well. *)
 val get_the_schedule : unit -> person list * project list * assignment list
-
-val check_assignments : person list -> project list -> assignment list -> unit
