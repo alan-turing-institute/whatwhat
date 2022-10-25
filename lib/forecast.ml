@@ -52,20 +52,15 @@ let log_assignment (lvl : Log.level) (a : Raw.assignment) msg =
   log_event lvl Log.RawForecastAssignment (msg ^ aid a)
 ;;
 
-(* ------------------------------------------------------------ 
-   Domain-specific data
- *)
+(* ------------------------------------------------------------ *)
+(* Domain-specific data *)
 
 (* Regex to match the `NNN` in `hut23-NNN` *)
 let hut23_code_re = Re.compile Re.(seq [ start; str "hut23-"; group (rep1 digit); stop ])
-
-(* The Forecast internal id of a single, hard-coded project in Forecast called
-   "Time off", which we do not use *)
 let ignored_project_ids = Config.get_forecast_ignored_projects ()
 
-(* ------------------------------------------------------------ 
-   Utilities for converting raw entities to nicer ones
- *)
+(* ------------------------------------------------------------  *)
+(* Utilities for converting raw entities to nicer ones *)
 
 (* Projects *)
 

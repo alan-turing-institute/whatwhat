@@ -1,7 +1,6 @@
 (* Queries Github API and traverses the GraphQL results. Validation is done in github.ml
  *)
 
-open Batteries
 open Cohttp
 open Cohttp_lwt_unix
 open Yojson
@@ -53,6 +52,7 @@ type project_root = { projects : project list } [@@deriving show]
 (* Convenient bindings for functions we use repeatedly when parsing the JSON returned by
    the API. *)
 let member = Basic.Util.member
+let convert_each = Basic.Util.convert_each
 let member_to_string (str : string) json = json |> member str |> Basic.Util.to_string
 let member_to_int (str : string) json = member str json |> Basic.Util.to_int
 
@@ -77,18 +77,17 @@ let issue_of_json column_name json =
       x
       |> member "assignees"
       |> member "edges"
-      |> Basic.Util.convert_each (fun y -> y |> member "node" |> person_of_json)
+      |> convert_each (fun y -> y |> member "node" |> person_of_json)
   ; labels =
       x
       |> member "labels"
       |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
-           y |> member "node" |> member "name" |> Basic.Util.to_string)
+      |> convert_each (fun y -> y |> member "node" |> member_to_string "name")
   ; reactions =
       x
       |> member "reactions"
       |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
+      |> convert_each (fun y ->
            ( y |> member "node" |> member_to_string "content"
            , y |> member "node" |> member "user" |> person_of_json ))
   }
@@ -101,8 +100,7 @@ let column_of_json json =
     |> member "node"
     |> member "cards"
     |> member "edges"
-    |> Basic.Util.convert_each (fun y ->
-         issue_of_json name y, y |> member_to_string "cursor")
+    |> convert_each (fun y -> issue_of_json name y, y |> member_to_string "cursor")
   in
   { name; cards }
 ;;
@@ -113,8 +111,7 @@ let project_of_json json =
   |> fun x ->
   { number = x |> member_to_int "number"
   ; name = x |> member_to_string "name"
-  ; columns =
-      x |> member "columns" |> member "edges" |> Basic.Util.convert_each column_of_json
+  ; columns = x |> member "columns" |> member "edges" |> convert_each column_of_json
   }
 ;;
 
@@ -125,7 +122,7 @@ let project_root_of_json json =
       |> member "repository"
       |> member "projects"
       |> member "edges"
-      |> Basic.Util.convert_each project_of_json
+      |> convert_each project_of_json
   }
 ;;
 
@@ -155,7 +152,7 @@ let run_github_query (git_hub_token : string) request_body =
   let response_body_json =
     response_body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
   in
-  let errors = Basic.Util.member "errors" response_body_json in
+  let errors = member "errors" response_body_json in
   (* member returns `Null if the field isn't found *)
   match errors with
   | `Null -> response_body_json
@@ -170,9 +167,9 @@ let user_query_template_path = "./queries/users.graphql"
 let remove_line_breaks (q : string) = Str.global_replace (Str.regexp "\n") "" q
 
 let read_file_as_string filepath =
-  let channel = open_in filepath in
+  let channel = Batteries.open_in filepath in
   let return_string = channel |> BatIO.lines_of |> BatEnum.fold ( ^ ) "" in
-  let () = close_in channel in
+  let () = Batteries.close_in channel in
   return_string
 ;;
 
@@ -217,12 +214,11 @@ let get_users () =
   let body_json = run_github_query github_token query in
   let users =
     body_json
-    |> Basic.Util.member "data"
-    |> Basic.Util.member "repository"
-    |> Basic.Util.member "assignableUsers"
-    |> Basic.Util.member "edges"
-    |> Basic.Util.convert_each (fun json ->
-         json |> Basic.Util.member "node" |> person_of_json)
+    |> member "data"
+    |> member "repository"
+    |> member "assignableUsers"
+    |> member "edges"
+    |> convert_each (fun json -> json |> member "node" |> person_of_json)
   in
   users
 ;;
@@ -237,7 +233,7 @@ let find_next_cursor issues =
        let cards = column.cards in
        let length = List.length cards in
        let last_cursor =
-         if length > 0 then List.last cards |> fun (_, c) -> Some c else None
+         if length > 0 then Batteries.List.last cards |> fun (_, c) -> Some c else None
        in
        length, last_cursor)
   |> List.fold_left

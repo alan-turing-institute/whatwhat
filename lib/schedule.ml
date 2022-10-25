@@ -275,7 +275,7 @@ let check_start_date (prj : project) (asg : assignment) =
     List.iter check_simple_allocation asg.allocation
 ;;
 
-let check_assignment people projects (asg : assignment) =
+let check_assignment _ projects (asg : assignment) =
   let prj = List.find (fun (prj : project) -> prj.nmbr = asg.project) projects in
   let () = check_finance_code prj asg in
   let () = check_end_date prj asg in

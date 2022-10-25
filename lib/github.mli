@@ -34,17 +34,14 @@
  *)
 
 (** Errors and warnings for logging problems with the issue metadata. *)
-type parseerror =
-  | DateOutOfBoundsError
+type parse_error =
   | DateParsingError
   | ExtraFieldError
   | FieldTypeError
   | FTETimeUnderSpecifiedError
   | FTETimeOverSpecifiedError
   | MissingCompulsoryFieldError
-  | MissingOptionalFieldError
   | NoMetadataError
-  (* | NullCompulsoryFieldError *)
   | YamlError
 
 (* We reexport the Raw.person type so that no other module ever has a need to import
