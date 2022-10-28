@@ -13,19 +13,17 @@ module StringMap : module type of Map.Make (String)
 
 (** {1 Measures and units} *)
 
+(** A [resource] is the total amount of effort put in to a project, either in 
+    FTE-weeks or FTE-months. The conversion used is 52/12. *)
 type resource =
   | FTE_weeks of float
   | FTE_months of float (** *)
 
-(** A [resource] is the total amount of effort put in to a project, either in 
-    FTE-weeks or FTE-months. The conversion used is 52/12. *)
 val show_resource : resource -> string
 
-type rate =
-  | Rate of float
-      (** A [rate] is a number, representing the hours per day at which a person is
-    assigned to a project, out of a nominal maximum of 8.0 h/day.
- *)
+(** A [rate] is a number, representing the hours per day at which a person is
+    assigned to a project, out of a nominal maximum of 8.0 h/day. *)
+type rate = Rate of float
 
 (** {1 Periods of time} *)
 
@@ -100,8 +98,7 @@ end
 
 (** A project, combining both a Github issue and a matching Forecast project.
 
-    {b TODO:} Add back in the list of assignees and emojis (both from Github)
- *)
+    {b TODO:} Add back in the list of assignees and emojis (both from Github) *)
 type project =
   { nmbr : int (** The issue number from GitHub *)
   ; name : string
