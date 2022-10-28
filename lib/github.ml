@@ -286,6 +286,18 @@ let parse_metadata (n : int) (body : string) =
     None, body
 ;;
 
+let programme_regex =
+  Re.(seq [ start; str "Programme: "; group (rep1 any); stop ]) |> Re.compile
+;;
+
+let find_programme (issue : Raw.issue) =
+  let parse_label (label : string) =
+    let re_group = Re.exec_opt programme_regex label in
+    Option.bind re_group (fun g -> Re.Group.get_opt g 1)
+  in
+  List.find_map parse_label issue.labels
+;;
+
 let validate_issue (issue : Raw.issue) =
   (* GithubRaw returns the issue body as well, but we ignore for now *)
   let metadata, _ = parse_metadata issue.number issue.body in
@@ -296,6 +308,7 @@ let validate_issue (issue : Raw.issue) =
       { nmbr = issue.number
       ; name = issue.title
       ; state = state_of_column issue.column
+      ; programme = find_programme issue
       ; plan
       }
 ;;

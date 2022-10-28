@@ -72,7 +72,8 @@ let state_of_column col =
 type project =
   { nmbr : int (** The issue number from GitHub *)
   ; name : string
-  ; state : State.t (* TODO: Fix this ; programme : string option *)
+  ; state : State.t
+  ; programme : string option
   ; plan : project_plan
   }
 
