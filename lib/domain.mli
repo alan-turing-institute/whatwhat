@@ -8,22 +8,22 @@
 
  *)
 
-module IntMap : module type of Map.Make(Int)
-module StringMap : module type of Map.Make(String)
+module IntMap : module type of Map.Make (Int)
+module StringMap : module type of Map.Make (String)
 
 (** {1 Measures and units} *)
 
+(** A [resource] is the total amount of effort put in to a project, either in 
+    FTE-weeks or FTE-months. The conversion used is 52/12. *)
 type resource =
   | FTE_weeks of float
   | FTE_months of float (** *)
-val show_resource : resource -> string
-(** A [resource] is the total amount of effort put in to a project, either in 
-    FTE-weeks or FTE-months. The conversion used is 52/12. *)
 
-type rate = Rate of float
+val show_resource : resource -> string
+
 (** A [rate] is a number, representing the hours per day at which a person is
-    assigned to a project, out of a nominal maximum of 8.0 h/day.
- *)
+    assigned to a project, out of a nominal maximum of 8.0 h/day. *)
+type rate = Rate of float
 
 (** {1 Periods of time} *)
 
@@ -46,41 +46,42 @@ type rate = Rate of float
      
  *)
 
-type simple_allocation = 
-  { start_date : CalendarLib.Date.t 
+(** A contiguous range of [days] days, including [start_date], togethre with a rate. *)
+type simple_allocation =
+  { start_date : CalendarLib.Date.t
   ; days : CalendarLib.Date.Period.t (** [days >=0] must be true *)
   ; rate : rate
   }
-(** A contiguous range of [days] days, including [start_date], togethre with a rate. *) 
 
-type allocation = simple_allocation list 
 (**  An [allocation] is conceptually a map from days to rates, representing the
      total time that a person is allocated to a project on a given day. We
      represent an allocation as a set of {i primitive allocations}, where a
      primitive allocation is a contiguous period of time together with a
      rate. The allocation rate on a given day is the sum of the rates of all
      primitive allocations that include that day. *)
-
+type allocation = simple_allocation list
 
 (** {1 Entities relevant to scheduling and planning} *)
 
-type project_plan = 
-  {
-    budget : resource
+(** A [plan] gives the constraints on the possible allocations to a project. *)
+type project_plan =
+  { budget : resource
   ; finance_codes : string list
   ; latest_start_date : CalendarLib.Date.t
   ; earliest_start_date : CalendarLib.Date.t option
-  (** [earliest_start_date = None] means "can start as soon as you like" *)
+      (** [earliest_start_date = None] means "can start as soon as you like" *)
   ; latest_end_date : CalendarLib.Date.t option
-  (** [latest_end_date = None] means "can end whenever you like" *)
+      (** [latest_end_date = None] means "can end whenever you like" *)
   ; nominal_fte_percent : float
   ; max_fte_percent : float
   ; min_fte_percent : float
   }
-(** A [plan] gives the constraints on the possible allocations to a project. *)
 
+(** The project status on the Project Tracker, shown by the column the project
+    issue is in.
+ *)
 module State : sig
-    type t =
+  type t =
     | Suggested
     | Proposal
     | ExtraInfoNeeded
@@ -94,49 +95,40 @@ module State : sig
     | Cancelled
     | Rejected
 end
-(** The project status on the Project Tracker, shown by the column the project
-    issue is in.
- *)
 
-type project =
-  { nmbr : int  (** The issue number from GitHub *)
-  ; name : string
-  ; state : State.t
-  (*  ; programme : string option *)
-  ; plan : project_plan
-  }
 (** A project, combining both a Github issue and a matching Forecast project.
 
-    {b TODO:} Add back in the list of assignees and emojis (both from Github)
- *)
-
-exception UnknownColumn of string 
-
-val state_of_column : string option -> State.t
-(** Convert the column name in GitHub to a variant type. May raise UnknownColumn *)
-
-type person =
-  { email : string; (** Email is the primary key for persons *)
-    full_name : string;
-    github_handle : string option;
-    slack_handle : string option
+    {b TODO:} Add back in the list of assignees and emojis (both from Github) *)
+type project =
+  { nmbr : int (** The issue number from GitHub *)
+  ; name : string
+  ; state : State.t (*  ; programme : string option *)
+  ; plan : project_plan
   }
-(** A person *)
 
-type assignment = 
+exception UnknownColumn of string
+
+(** Convert the column name in GitHub to a variant type. May raise UnknownColumn *)
+val state_of_column : string option -> State.t
+
+(** A person *)
+type person =
+  { email : string (** Email is the primary key for persons *)
+  ; full_name : string
+  ; github_handle : string option
+  ; slack_handle : string option
+  }
+
+(** An assignment of a person to a project for a specific allocation *)
+type assignment =
   { project : int (* The project code *)
   ; person : string (* An email *)
   ; finance_code : string option
   ; allocation : allocation
   }
-(** An assignment of a person to a project for a specific allocation *)
 
 type schedule =
-  {
-    projects : project IntMap.t;
-    people : person StringMap.t;
-    assignments : assignment list
+  { projects : project IntMap.t
+  ; people : person StringMap.t
+  ; assignments : assignment list
   }
-
-
-
