@@ -101,14 +101,14 @@ A malformed YAML block halts parsing of entire block. Possible reasons for error
   {- A field cannot be parsed, because: 
   {ul {- its name is not in the accepted list; or}
       {- the format of the value is not valid.}}} 
+  {- A non-optional field is missing}
   {- The same field is specified twice}
   {- there is no [FTE-months] or [FTE-weeks]} 
   {- both [FTE-months] and [FTE-weeks] are specified}}
 
 {2 Warnings}
 
-- A field that can be null is missing
-- A field that can be null has a missing value
+N/A
 
 {1 Combining data}
 
@@ -118,6 +118,8 @@ we may still have problems when they are combined.
 {2 Errors}
 
 - A project on Forecast has a Hut23 code that is not present in the list of
+  projects from GitHub.
+- An assignment on Forecast has a Hut23 code that is not present in the list of
   projects from GitHub.
 - A project on Forecast has a Finance Code that is not in the list of Finance
   Codes from the metadata. (What do we do when the project Finance Code is
@@ -137,7 +139,7 @@ what's implied by the metadata.
 max-FTE-percent.
 - An individual has an allocation that is greater than 100%
 - The project is in "active" but there are no present allocations; or there are
-present allocations but the project is no "active".
+present allocations but the project is not "active".
 - The project is past its latest start date but is not "active"
 
 
