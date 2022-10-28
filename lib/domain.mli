@@ -102,7 +102,8 @@ end
 type project =
   { nmbr : int (** The issue number from GitHub *)
   ; name : string
-  ; state : State.t (*  ; programme : string option *)
+  ; state : State.t
+  ; programme : string option
   ; plan : project_plan
   }
 
