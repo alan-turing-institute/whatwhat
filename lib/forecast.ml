@@ -77,7 +77,7 @@ let extract_project_number (project : Raw.project) =
     log_raw_project Log.Error project "Missing project code";
     None
   | Not_found ->
-    log_raw_project Log.Error project "Malformed project code";
+    log_raw_project Log.Error project @@ "Malformed project code: " ^ Option.get cd;
     None
 ;;
 

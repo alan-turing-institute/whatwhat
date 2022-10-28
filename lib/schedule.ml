@@ -319,9 +319,8 @@ let check_is_overdue prj =
 let check_projects_active assignments_map prj =
   let asgs_opt = IntMap.find_opt prj.nmbr assignments_map in
   if prj.state >= Active && Option.is_none asgs_opt
-     (* TODO Should this check for assignments that are active in right now, rather than any
-     assignments? *)
-     (* TODO Why does 1095 (Scivision - Phase 2) trip this wire? *)
+     (* TODO This should check for assignments that are active right now, rather than
+        any assignments *)
   then log (ActiveProjectWithoutAssignments prj)
 ;;
 
