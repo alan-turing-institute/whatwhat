@@ -2,12 +2,15 @@
 
 A reimagining of `nowwhat` in OCaml.
 
-1. [Usage]("Usage")
-2. [Setting up OCaml on MacOS](Setting up OCaml on MacOS)
-3. [Setting up whatwhat development environment](Setting up whatwhat development environment)
-4. [Resources for getting started with OCaml](Resources for getting started with OCaml)
-5. [Glossary](Glossary)
+**Contents:**
 
+1. [Usage](#1-usage)
+2. [Setting up OCaml on MacOS](#2-setting-up-ocaml-on-macos)
+3. [Setting up whatwhat development environment](#3-setting-up-whatwhat-development-environment)
+4. [Resources for getting started with OCaml](#4-resources-for-getting-started-with-ocaml)
+5. [Glossary](#5-glossary)
+
+----
 
 ### 1. Usage
 
@@ -24,6 +27,7 @@ whathat --target=github
 ```
 Post a comment to each GitHub issue in the Project Tracker where a problem was discovered.
 
+---
 
 ### 2. Setting up OCaml on MacOS
 
@@ -48,6 +52,8 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
 
 6. (For Emacs and Vim) `opam user-setup install` (I don't have an example yet of a successful Vim set
    up. Someone **has** used `ocaml-lsp-server` with Vim, however.)
+
+---
 
 ### 3. Setting up whatwhat development environment
 
@@ -77,7 +83,7 @@ Put this in `~/.config/nowwhat/secrets.json` (note the different name!):
 3. To run: `dune exec whatwhat`
 4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
 
-
+---
 
 ### 4. Resources for getting started with OCaml
 
@@ -107,7 +113,7 @@ Main website: https://ocaml.org/
 
 [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
 
-
+---
 
 ### 5. Glossary 
 
