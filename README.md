@@ -2,13 +2,12 @@
 
 A reimagining of `nowwhat` in OCaml.
 
-1. [Usage](Usage)
+1. [Usage]("Usage")
 2. [Setting up OCaml on MacOS](Setting up OCaml on MacOS)
 3. [Setting up whatwhat development environment](Setting up whatwhat development environment)
 4. [Resources for getting started with OCaml](Resources for getting started with OCaml)
 5. [Glossary](Glossary)
 
-[Usage]: 
 
 ### 1. Usage
 
