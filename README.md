@@ -2,9 +2,17 @@
 
 A reimagining of `nowwhat` in OCaml.
 
-### Usage
+1. [Usage](Usage)
+2. [Setting up OCaml on MacOS](Setting up OCaml on MacOS)
+3. [Setting up whatwhat development environment](Setting up whatwhat development environment)
+4. [Resources for getting started with OCaml](Resources for getting started with OCaml)
+5. [Glossary](Glossary)
 
-(Prefix with `dune exec` in a build environment, or `dune exec --` if you are passing
+[Usage]: 
+
+### 1. Usage
+
+(Prefix command with `dune exec` in a build environment, or `dune exec --` if you are passing
 command-line arguments.)
 
 ```sh
@@ -15,19 +23,25 @@ Currently, report errors found when parsing the github metadata.
 ```sh
 whathat --target=github
 ```
-Post, a comment to each GitHub issue in the Project Tracker where a problem was discovered.
+Post a comment to each GitHub issue in the Project Tracker where a problem was discovered.
 
 
-### Setup for MacOS
+### 2. Setting up OCaml on MacOS
 
 1. `brew install opam` (The package manager.)
 
-2. `opam init` (in $HOME)
+2. `opam init` (in `$HOME`)
+
+    This creates `~/.ocaml`, which contains all your local libraries and
+    binaries. `opam` doesn't write anywhere else apart from `/tmp`.
 
    ```eval `opam env` ```
 
-3. `opam install dune utop merlin odig` (And I think you will need to do this again if you create a
-new switch. Maybe there's some way to say "this switch builds on this other one?") 
+3. `opam install dune utop merlin odig` 
+
+    (And I think you will need to do this again if you create a new
+    switch. Maybe there's some way to say "this switch builds on this other
+    one?")
 
 4. (For VS Code) `opam install ocaml-lsp-server`
 
@@ -36,15 +50,17 @@ new switch. Maybe there's some way to say "this switch builds on this other one?
 6. (For Emacs and Vim) `opam user-setup install` (I don't have an example yet of a successful Vim set
    up. Someone **has** used `ocaml-lsp-server` with Vim, however.)
 
-### Project setup (existing project)
+### 3. Setting up whatwhat development environment
+
+#### Project setup (existing project)
 
 1. In `whatwhat/`...
 
 2. I think ... `opam switch create .` (Then `eval $(opam env)`)
 
-### You will need a secrets file with authentication tokens
+#### You will need a secrets file with authentication tokens
 
-Put this in `~/.config/nowwhat/secrets.json`: 
+Put this in `~/.config/nowwhat/secrets.json` (note the different name!): 
 ```json
 {
     "githubToken"    : "<yours here>",
@@ -55,7 +71,7 @@ Put this in `~/.config/nowwhat/secrets.json`:
 }
 ```
 
-### Building and running
+#### Building and running
 
 1. To build: `dune build`
 2. To build the docs: `dune build @doc`
@@ -64,7 +80,7 @@ Put this in `~/.config/nowwhat/secrets.json`:
 
 
 
-### Resources
+### 4. Resources for getting started with OCaml
 
 #### Official
 
@@ -92,7 +108,7 @@ Main website: https://ocaml.org/
 
 
 
-### What are these things?
+### 5. Glossary 
 
 `opam` :: Package manager and virtual environment manager
 
