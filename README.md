@@ -117,15 +117,15 @@ Main website: https://ocaml.org/
 
 ### 5. Glossary 
 
-`opam` :: Package manager and virtual environment manager
+`opam` :: A package manager and virtual environment manager
 
-`dune` :: A build tool
+`dune` :: A build tool. Created by Jane Street, so can be idiosyncratic
 
 `utop` :: The recommended REPL
 
 `odoc` :: The recommended documentation generator
 
-`odig` :: For reading local documentation
+`odig` :: Tool for reading local documentation
 
 `ocamldoc` :: A format for documentation, and the old documentation generator.
 
