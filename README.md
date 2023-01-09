@@ -102,6 +102,8 @@ Main website: https://ocaml.org/
 
 #### Books and documentation
 
+[OCaml Programming: Correct + Efficient + Beautiful](https://cs3110.github.io/textbook/cover.html) (A nice textbook with accompanying lecture series.)
+
 [Real World OCaml (Jane Street)](https://dev.realworldocaml.org/index.html)
 
 [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
