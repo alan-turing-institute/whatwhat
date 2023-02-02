@@ -19,7 +19,7 @@ let issue_report (issue) =
 let () = issue_report (issue) ;; *)
 
 
-let person_reactions = Query_reports.person_summary "Finding people" "Joe Palmer";;
+let person_reactions = Query_reports.person_summary "Finding people" "Joe Pnxvgxalmer";;
 
 let person_report (person_reactions) = 
   print_endline ("\n" ) ;

@@ -192,17 +192,27 @@ let get_reaction_table (issue : Raw.issue) =
 
 
 
-let get_person_reaction (i : Raw.issue) (name : string)= 
+let get_person_reaction (i : Raw.issue) (name : string) = 
 
   (* Get only the reactions of the person *)
-  let reactions = i.reactions 
-    |> List.filter (fun (_a, b) -> get_name b = name)  in
+  i.reactions 
+    |> List.filter (fun (_a, b) -> get_name b = name)  
+    |> List.map (fun x -> (fun (a, _b) -> a) x)
 
   (* 
      TODO: check what happens with multiple reactions
   *)
-  reactions |> List.map (fun x -> (fun (a, _b) -> a) x)
+;;
 
+let get_person_reaction_n (i : Raw.issue) (name : string) = 
+
+  (* Get only the reactions of the person *)
+  let reactions = i.reactions 
+    |> List.filter (fun (_a, b) -> get_name b = name)  
+    |> List.map (fun x -> (fun (a, _b) -> a) x) in
+    
+
+  List.length reactions
 ;;
 
 let person_summary (project_column : string) (name : string)= 
@@ -228,20 +238,21 @@ let person_summary (project_column : string) (name : string)=
 
   (* Create list of project reactions *)    
   let persons_reactions = issues_subset |> List.map (fun x -> get_person_reaction x name) |> List.flatten in
+  (* This line reapeats the project name to create long format tables in cases where someone reacts multiple times on the same issue *)
+  let project_names = List.map2 (fun x y -> Batteries.List.make (get_person_reaction_n x name) (y) ) issues_subset issues_subset_names |> List.flatten in
 
-  (* print the persons reactions *)
-  let max_name_length = List.fold_left (fun x y -> max x (String.length y)) 0 issues_subset_names in
 
+  let max_name_length = List.fold_left (fun x y -> max x (String.length y)) 0 project_names in
   let table_format_emojis = List.map (fun x -> get_outcome x) persons_reactions in
 
-
+  (* print the persons reactions *)
   print_endline ("\n" ^ name ^ " has reacted to " ^ string_of_int (List.length issues_subset) ^ " issues:\n");
 
   (* print table *)
   border_line (max_name_length) (max_emoji_length );
   header_line (max_name_length) (max_emoji_length );
   border_line (max_name_length) (max_emoji_length );
-  List.iter print_endline (List.map2 (fun x y -> body_list max_name_length x y) issues_subset_names table_format_emojis);
+  List.iter print_endline (List.map2 (fun x y -> body_list max_name_length x y) project_names table_format_emojis);
   border_line (max_name_length) (max_emoji_length );
 
  
