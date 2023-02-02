@@ -6,7 +6,7 @@
 
 open Whatwhat
 
-let issue = Query_reports.issue_summary "Finding people" 1;;
+let issue = Query_reports.issue_summary "Finding people" "1216";;
 
 let issue_report (issue) = 
   print_endline ("\n" ) ;

@@ -5,31 +5,69 @@ let project_column_issues (project_board : string) (project_column : string) =
   let all_issues = Raw.get_project_issues (project_board) in
 
   (* function to check the column*)
-  let test_column (colname) (i : Raw.issue)  = 
+  let test_column (colname : string) (i : Raw.issue)  = 
     if (Option.get i.column = colname) then Some i else None in
 
   all_issues
     |> List.map (fun x -> test_column project_column x)
     |> List.filter (fun x -> x <> None) 
+    |> List.map (fun x -> Option.get x)
 ;;
 
 (* Function for printing issue summary*)
 let print_issue (i : Raw.issue) = 
   print_endline (" ");
-  print_endline ("Issue number: " ^ string_of_int i.number);
+  print_endline ("Issue number: " ^ string_of_int i.number ^ " (https://github.com/alan-turing-institute/Hut23/issues/" ^ string_of_int i.number ^ ")");
   print_endline ("Issue title: " ^ i.title) ;
   print_endline ("State: " ^ i.state);
   print_endline ("Column: " ^ Option.get i.column)
 ;;
 
+(* filter list by issue number *)
+let test_issue_number (issue_number : int) (i : Raw.issue)  = 
+  print_endline i.title;
+  if (i.number = issue_number) then Some i else None
+;;
+
+let strip str = 
+  let str = Str.replace_first (Str.regexp "^ +") "" str in
+  Str.replace_first (Str.regexp " +$") "" str;;    
+
+let test_issue_title (issue_title : string) (i : Raw.issue)  = 
+  (* ignores cases and whitespace *)
+  if (strip (String.lowercase_ascii i.title) = strip (String.lowercase_ascii issue_title)) then Some i else None
+;;
+
 (* Get the issue summary: number, title, state, column*)
-let issue_summary (project_column : string) (issue_number : int)= 
-  let column_issues = project_column_issues "Project Tracker" project_column in
-  Option.get (List.nth column_issues issue_number) 
+let issue_summary (project_column : string) (lookup_term)= 
+  let column_issues = project_column_issues "Project Tracker" project_column in 
+  print_endline ("Number of issues " ^ string_of_int (List.length column_issues));
+
+  let issues_subset = 
+    if Str.string_match (Str.regexp "[0-9]+") lookup_term 0 
+      then 
+        column_issues
+          |> List.map (fun x -> test_issue_number ( int_of_string lookup_term ) (x))
+          |> List.filter (fun x -> x <> None) 
+          |> List.map (fun x -> Option.get x) 
+      else
+        column_issues
+          |> List.map (fun x -> test_issue_title ( lookup_term ) (x)) 
+          |> List.filter (fun x -> x <> None) 
+          |> List.map (fun x -> Option.get x) 
+    in
+
+  if List.length issues_subset = 0 then
+    raise(Failure("No issue found for " ^ lookup_term ^ ". Make sure you are searching by issue number (e.g. 1214) or issue title (e.g. Molecular Biology).")) ;
+
+  issues_subset
+    |> List.hd
 ;;
 
 (* For each element in all_names, get the name *)
-(* TO DO: have a look-up for these names *)
+(* 
+  TODO: have a look-up for these names 
+*)
 let get_name (single_person : Raw.person) = 
   if (single_person.name <> None) then
     Option.get single_person.name
@@ -93,6 +131,9 @@ let border_line (name_length : int) (emoji_length) =
 ;;
 
 (* Get the reactions *)
+(* 
+  TODO: collapse people with multiple reactions (example: Joe Palmer issue 1216)
+*)
 let get_reaction_table (issue : Raw.issue) = 
   (* Get issue reactions then sort by most love -> least love, then alphabetically *)
   let issue_reactions = issue.reactions 
