@@ -38,6 +38,35 @@ let test_issue_title (issue_title : string) (i : Raw.issue)  =
   if (strip (String.lowercase_ascii i.title) = strip (String.lowercase_ascii issue_title)) then Some i else None
 ;;
 
+(* For each element in all_names, get the name *)
+(* 
+  TODO: have a look-up for these names 
+*)
+let get_name (single_person : Raw.person) = 
+  if (single_person.name <> None) then
+    Option.get single_person.name
+  else 
+    single_person.login
+;;
+
+let get_title (i : Raw.issue) = 
+  i.title
+;;
+
+
+(* check if this issue contain reactions from name*)
+let test_person_name (name : string) (i : Raw.issue)  = 
+  let all_names = i.reactions 
+    |> List.map (fun x -> (fun (_a, b) -> b) x) 
+    |> List.map (fun x -> get_name x) 
+    |> List.map (fun x -> strip (String.lowercase_ascii x)) in
+
+  let formatted_name = strip (String.lowercase_ascii name) in
+
+  (* ignores cases and whitespace *)
+  if (List.mem formatted_name all_names) then Some i else None
+;;
+
 (* Get the issue summary: number, title, state, column*)
 let issue_summary (project_column : string) (lookup_term)= 
   let column_issues = project_column_issues "Project Tracker" project_column in 
@@ -64,17 +93,6 @@ let issue_summary (project_column : string) (lookup_term)=
     |> List.hd
 ;;
 
-(* For each element in all_names, get the name *)
-(* 
-  TODO: have a look-up for these names 
-*)
-let get_name (single_person : Raw.person) = 
-  if (single_person.name <> None) then
-    Option.get single_person.name
-  else 
-    single_person.login
-;;
-
 (* Possible emoji responses*)
 let refactor_emoji (e)= 
   match e with
@@ -84,7 +102,7 @@ let refactor_emoji (e)=
   | _ -> 3
 ;;
 
-(* Table cell dimensions *)
+(* Table cell dimensions: project specific table *)
 let max_emoji_length = (String.length "THUMBS_DOWN") + 2 ;;
 let half_cell = String.make (  (max_emoji_length / 2) ) ' ';;
 let empty_cell = String.make (max_emoji_length + 3 ) ' ';;
@@ -112,12 +130,12 @@ let get_outcome (emoji : string) =
   | "LAUGH" -> "|" ^ occupied_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|"
   | "THUMBS_UP" -> "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|"
   | "THUMBS_DOWN" -> "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|" ^ empty_cell ^ "|"
-  | _ -> empty_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|"
+  | _ -> "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|"
 ;;
 
 (* Create string of cells for table body *)
-let body_list (name : string) (emoji_cells : string)  = 
-  "| " ^ name ^ String.make (20 - String.length name) ' ' ^ " " ^ 
+let body_list (max_string : int) (name : string) (emoji_cells : string) = 
+  "| " ^ name ^ String.make (max_string - String.length name) ' ' ^ " " ^ 
   emoji_cells
 ;;
 
@@ -128,6 +146,14 @@ let border_line (name_length : int) (emoji_length) =
   " | " ^ String.make (emoji_length + 1) '-' ^
   " | " ^ String.make (emoji_length + 1) '-' ^
   " | " ^ String.make (emoji_length + 1) '-' ^ " |")
+;;
+
+let header_line (max_name_length : int) (max_emoji_length : int) =
+  print_endline ("| Name" ^ String.make (max_name_length - 4) ' ' ^ 
+  " | :laugh: " ^ String.make (max_emoji_length - (String.length(":laugh:")) ) ' ' ^ 
+  " | :thumbs up: " ^ String.make (max_emoji_length - (String.length(":thumbs up:")) )  ' ' ^ 
+  " | :thumbs down: " ^ String.make (max_emoji_length - (String.length(":thumbs down:")) )  ' ' ^ 
+  " | other " ^ String.make (max_emoji_length - String.length "other") ' ' ^ " |")
 ;;
 
 (* Get the reactions *)
@@ -155,20 +181,77 @@ let get_reaction_table (issue : Raw.issue) =
   (* Print the number of reactions*)
   print_endline ("There are " ^ string_of_int (List.length issue_reactions) ^ " reactions for this issue:\n" );
  
-  (* Print the table header *)
+  (* Print the table *)
   border_line (max_name_length) (max_emoji_length );
-  print_endline ("| Name" ^ String.make (max_name_length - 4) ' ' ^ 
-  " | :laugh: " ^ String.make (max_emoji_length - (String.length(":laugh:")) ) ' ' ^ 
-  " | :thumbs up: " ^ String.make (max_emoji_length - (String.length(":thumbs up:")) )  ' ' ^ 
-  " | :thumbs down: " ^ String.make (max_emoji_length - (String.length(":thumbs down:")) )  ' ' ^ 
-  " | other " ^ String.make (max_emoji_length - String.length "other") ' ' ^ " |");
-
+  header_line (max_name_length) (max_emoji_length );
   border_line (max_name_length) (max_emoji_length );
-
-  List.iter print_endline (List.map2 body_list all_names table_format_emojis);
-
+  List.iter print_endline (List.map2 (fun x y -> body_list max_name_length x y) all_names table_format_emojis);
   border_line (max_name_length) (max_emoji_length )
 ;;
+
+
+
+
+let get_person_reaction (i : Raw.issue) (name : string)= 
+
+  (* Get only the reactions of the person *)
+  let reactions = i.reactions 
+    |> List.filter (fun (_a, b) -> get_name b = name)  in
+
+  (* 
+     TODO: check what happens with multiple reactions
+  *)
+  reactions |> List.map (fun x -> (fun (a, _b) -> a) x)
+
+;;
+
+let person_summary (project_column : string) (name : string)= 
+  let column_issues = project_column_issues "Project Tracker" project_column in 
+
+  let issues_subset = 
+    column_issues
+      |> List.map (fun x -> test_person_name ( name ) (x))
+      |> List.filter (fun x -> x <> None) 
+      |> List.map (fun x -> Option.get x) in
+
+  (* Print outputs*)
+  if List.length issues_subset = 0 then
+    raise(Failure("No issues found for '" ^ name ^ "'. Make sure you are spelling the name correctly. ")) ;
+
+  (* Get all issue names: those reacted to, and those not*)
+  let column_issues_names = column_issues |> List.map (fun x -> get_title x) in
+  let issues_subset_names = issues_subset |> List.map (fun x -> get_title x) in
+
+  (* Get the difference between the two lists: those not reacted to*)
+  let difference = 
+    List.filter (fun x -> not (List.mem x issues_subset_names)) column_issues_names in 
+
+  (* Create list of project reactions *)    
+  let persons_reactions = issues_subset |> List.map (fun x -> get_person_reaction x name) |> List.flatten in
+
+  (* print the persons reactions *)
+  let max_name_length = List.fold_left (fun x y -> max x (String.length y)) 0 issues_subset_names in
+
+  let table_format_emojis = List.map (fun x -> get_outcome x) persons_reactions in
+
+
+  print_endline ("\n" ^ name ^ " has reacted to " ^ string_of_int (List.length issues_subset) ^ " issues:\n");
+
+  (* print table *)
+  border_line (max_name_length) (max_emoji_length );
+  header_line (max_name_length) (max_emoji_length );
+  border_line (max_name_length) (max_emoji_length );
+  List.iter print_endline (List.map2 (fun x y -> body_list max_name_length x y) issues_subset_names table_format_emojis);
+  border_line (max_name_length) (max_emoji_length );
+
+ 
+  
+  print_endline ("\n\nThey have not reacted to " ^ string_of_int (List.length difference) ^
+   " '" ^ project_column ^ "' issues: " ^ String.concat ", " difference);
+
+  issues_subset
+;;
+
 
 
 
