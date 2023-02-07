@@ -19,7 +19,7 @@ open Whatwhat
   else Notify.print_metadata_reports ()
 ;; *)
 
-let individuals_reactions target = 
+(* let individuals_reactions target = 
   let bl, hl, table_body, difference = Query_reports.person_summary "Finding people" target in
 
   (* print the person's reactions *)
@@ -33,10 +33,10 @@ let individuals_reactions target =
 
   print_endline ("\nThey have not reacted to " ^ string_of_int (List.length difference) ^
   " issues: " ^ String.concat ", " difference)
-;;
+;; *)
 
-(* let issues_reactions target = 
-  let issue = Query_reports.issue_summary "Finding people" target in
+let issues_reactions target = 
+  let issue = Query_reports.issue_summary ["Finding people"; "Awaiting start"; "Active"] target in
   
   print_endline "";
   Query_reports.print_issue(issue) ;
@@ -51,7 +51,7 @@ let individuals_reactions target =
   print_endline (bl);
   List.iter print_endline (table_body);
   print_endline (bl)
-;; *)
+;;
 
  
 (* 
@@ -68,13 +68,13 @@ let target =
     \             $(docv) may be $(b,github), $(b,slack), $(b,all), or $(b,none)."
   in
 
-  Arg.(value & opt tgs "martin" & info [ "t"; "target" ] ~docv:"TARGET" ~doc)
+  Arg.(value & opt tgs "1214" & info [ "t"; "target" ] ~docv:"TARGET" ~doc)
 ;;
 
 let cmd =
   Cmd.v
-    (Cmd.info "individuals_reactions" ~doc:"Report current project status")
-    Term.(const individuals_reactions $ target)
+    (Cmd.info "issues_reactions" ~doc:"Report current project status")
+    Term.(const issues_reactions $ target)
 ;;
 
 let main () = exit (Cmd.eval cmd)

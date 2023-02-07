@@ -1,15 +1,16 @@
 module Raw = GithubRaw
 
 (* Query the github board and subset to a specific column*)
-let project_column_issues (project_board : string) (project_column : string) = 
+let project_column_issues (project_board : string) (project_columns) = 
   let all_issues = Raw.get_project_issues (project_board) in
 
-  (* function to check the column*)
-  let test_column (colname : string) (i : Raw.issue)  = 
-    if (Option.get i.column = colname) then Some i else None in
+  (* function to check the column is in list*)
+  let test_column (colnames) (i : Raw.issue)  = 
+    if (List.mem (Option.get i.column) colnames) then Some i else None in
+
 
   all_issues
-    |> List.map (fun x -> test_column project_column x)
+    |> List.map (fun x -> test_column project_columns x)
     |> List.filter (fun x -> x <> None) 
     |> List.map (fun x -> Option.get x)
 ;;
@@ -67,8 +68,8 @@ let test_person_name (name : string) (i : Raw.issue)  =
 ;;
 
 (* Get the issue summary: number, title, state, column*)
-let issue_summary (project_column : string) (lookup_term)= 
-  let column_issues = project_column_issues "Project Tracker" project_column in 
+let issue_summary (project_columns) (lookup_term) = 
+  let column_issues = project_column_issues "Project Tracker" project_columns in 
   (* print_endline ("Number of issues " ^ string_of_int (List.length column_issues)); *)
 
   let issues_subset = 
@@ -206,8 +207,8 @@ let get_person_reaction_n (i : Raw.issue) (name : string) =
   List.length reactions
 ;;
 
-let person_summary (project_column : string) (name : string)= 
-  let column_issues = project_column_issues "Project Tracker" project_column in 
+let person_summary (project_columns) (name : string)= 
+  let column_issues = project_column_issues "Project Tracker" project_columns in 
 
   let issues_subset = 
     column_issues
