@@ -254,5 +254,40 @@ let person_summary (project_columns) (name : string)=
 ;;
 
 
+let individuals_reactions target = 
+  let bl, hl, table_body, difference = person_summary ["Finding people"] target in
+
+  (* print the person's reactions *)
+  print_endline ("\n" ^ target ^ " has reacted to " ^ string_of_int (List.length table_body) ^ " issues:\n");
+
+  print_endline bl;
+  print_endline hl;
+  print_endline bl;
+  List.iter print_endline (table_body);
+  print_endline bl;
+
+  print_endline ("\nThey have not reacted to " ^ string_of_int (List.length difference) ^
+  " issues: " ^ String.concat ", " difference)
+;;
+
+
+
+let issues_reactions target = 
+  let issue = issue_summary ["Finding people"; "Awaiting start"; "Active"] target in
+  
+  print_endline "";
+  print_issue(issue) ;
+  
+  let bl, hl, table_body = get_reaction_table(issue) in
+
+  print_endline ("There are " ^ string_of_int (List.length table_body) ^ " reactions for this issue:\n" );
+ 
+  (* Print the table *)
+  print_endline (bl);
+  print_endline (hl);
+  print_endline (bl);
+  List.iter print_endline (table_body);
+  print_endline (bl)
+;;
 
 

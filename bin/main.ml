@@ -6,51 +6,37 @@
 
 open Whatwhat
 
-(* let whatwhat_notify target =
-  let people, projects, assignments = Schedule.get_the_schedule () in
-  print_endline "Whatwhat downloaded:";
-  Printf.printf " %d people; " (List.length people);
-  Printf.printf "%d projects; and " (List.length projects);
-  Printf.printf "%d assignments\n\n" (List.length assignments);
 
-  (* Emit errors and warnings *)
-  if target = Notify.All || target = Notify.Github
-  then Notify.post_metadata_reports ()
-  else Notify.print_metadata_reports ()
-;; *)
 
-(* let individuals_reactions target = 
-  let bl, hl, table_body, difference = Query_reports.person_summary "Finding people" target in
 
-  (* print the person's reactions *)
-  print_endline ("\n" ^ target ^ " has reacted to " ^ string_of_int (List.length table_body) ^ " issues:\n");
+let whatwhat notify person issue=
 
-  print_endline bl;
-  print_endline hl;
-  print_endline bl;
-  List.iter print_endline (table_body);
-  print_endline bl;
+  (* notification reports*)
+  if notify <> Notify.NoTarget then
+    let people, projects, assignments = Schedule.get_the_schedule () in
+    print_endline "Whatwhat downloaded:";
+    Printf.printf " %d people; " (List.length people);
+    Printf.printf "%d projects; and " (List.length projects);
+    Printf.printf "%d assignments\n\n" (List.length assignments);
 
-  print_endline ("\nThey have not reacted to " ^ string_of_int (List.length difference) ^
-  " issues: " ^ String.concat ", " difference)
-;; *)
+    (* Emit errors and warnings *)
+    if notify = Notify.All || notify = Notify.Github
+    then print_endline "Would notify on Github (maybe don't do this for now)." (*Notify.post_metadata_reports ()*)
+    else print_endline "Would print robot messages to the terminal." (*Notify.print_metadata_reports ()*)  
+  else
+    print_endline "No notifications requested." ;
 
-let issues_reactions target = 
-  let issue = Query_reports.issue_summary ["Finding people"; "Awaiting start"; "Active"] target in
-  
-  print_endline "";
-  Query_reports.print_issue(issue) ;
-  
-  let bl, hl, table_body = Query_reports.get_reaction_table(issue) in
+  if person <> "none" then
+    Query_reports.individuals_reactions person
+  else 
+    print_endline "No person queried.";
 
-  print_endline ("There are " ^ string_of_int (List.length table_body) ^ " reactions for this issue:\n" );
- 
-  (* Print the table *)
-  print_endline (bl);
-  print_endline (hl);
-  print_endline (bl);
-  List.iter print_endline (table_body);
-  print_endline (bl)
+  if issue <> "none" then
+    Query_reports.issues_reactions issue
+  else 
+    print_endline "No issue queried."
+
+
 ;;
 
  
@@ -58,23 +44,40 @@ let issues_reactions target =
    TODO: check what happens for GH users without name registered, can they still be queries? 
 *)
 
+
 (* Command-line interface *) 
 open Cmdliner
 
-let target =
-  let tgs = Arg.enum [ "1216", "1216"] in
+(* Capture the arguments *)
+let notify =
+  let tgs =  Arg.enum [ 
+    "github", Notify.Github ; "slack", Notify.Slack ; "all", Notify.All  ; "none", Notify.NoTarget 
+    ] in
   let doc =
     "Where to send notifications.\n\
     \             $(docv) may be $(b,github), $(b,slack), $(b,all), or $(b,none)."
   in
 
-  Arg.(value & opt tgs "1214" & info [ "t"; "target" ] ~docv:"TARGET" ~doc)
+  Arg.(value & opt tgs Notify.NoTarget & info [ "n"; "notify" ] ~docv:"NOTIFY" ~doc)
 ;;
+
+let person =
+  let doc = "Name of person to query. $(docv) must be a string argument." in
+  Arg.(value & opt string "none" & info [ "p"; "person" ] ~docv:"PERSON" ~doc)
+;;
+
+let issue =
+  let doc = "Issue to query for team reactions. Can be entered as issue $(i,title) or $(i,issue number), \n\
+  \             but must be a string argument." in
+  Arg.(value & opt string "none" & info [ "i"; "issue" ] ~docv:"ISSUE" ~doc)
+;;
+
+
 
 let cmd =
   Cmd.v
-    (Cmd.info "issues_reactions" ~doc:"Report current project status")
-    Term.(const issues_reactions $ target)
+    (Cmd.info "whatwhat" ~doc:"Report current project status")
+    Term.(const whatwhat $ notify $ person $ issue)
 ;;
 
 let main () = exit (Cmd.eval cmd)
