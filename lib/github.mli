@@ -50,7 +50,7 @@ type parseerror =
 (* We reexport the Raw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)
 
-type person = GithubRaw.person =
+type person = GithubTypes.person =
   { login : string
   ; name : string option
   ; email : string option

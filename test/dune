@@ -1,0 +1,3 @@
+(tests
+ (names gh_gql gh_rest)
+ (libraries whatwhat))
