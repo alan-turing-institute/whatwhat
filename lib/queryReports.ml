@@ -18,7 +18,9 @@ let project_column_issues (project_board : string) (project_columns) =
 (* Function for printing issue summary*)
 let print_issue (i : Raw.issue) = 
   print_endline (" ");
-  print_endline ("Issue number: " ^ string_of_int i.number ^ " (https://github.com/alan-turing-institute/Hut23/issues/" ^ string_of_int i.number ^ ")");
+  print_endline ("Issue number: " ^ string_of_int i.number ^ 
+  " (https://github.com/alan-turing-institute/Hut23/issues/" ^ 
+  string_of_int i.number ^ ")");
   print_endline ("Issue title: " ^ i.title) ;
   print_endline ("State: " ^ i.state);
   print_endline ("Column: " ^ Option.get i.column)
@@ -35,7 +37,8 @@ let strip str =
 
 let test_issue_title (issue_title : string) (i : Raw.issue)  = 
   (* ignores cases and whitespace *)
-  if (strip (String.lowercase_ascii i.title) = strip (String.lowercase_ascii issue_title)) then Some i else None
+  if (strip (String.lowercase_ascii i.title) = 
+    strip (String.lowercase_ascii issue_title)) then Some i else None
 ;;
 
 (* For each element in all_names, get the name *)
@@ -49,10 +52,7 @@ let get_name (single_person : Raw.person) =
     single_person.login
 ;;
 
-let get_title (i : Raw.issue) = 
-  i.title
-;;
-
+let get_title (i : Raw.issue) = i.title;;
 
 (* check if this issue contain reactions from name*)
 let test_person_name (name : string) (i : Raw.issue)  = 
@@ -70,7 +70,6 @@ let test_person_name (name : string) (i : Raw.issue)  =
 (* Get the issue summary: number, title, state, column*)
 let issue_summary (project_columns) (lookup_term) = 
   let column_issues = project_column_issues "Project Tracker" project_columns in 
-  (* print_endline ("Number of issues " ^ string_of_int (List.length column_issues)); *)
 
   let issues_subset = 
     if Str.string_match (Str.regexp "[0-9]+") lookup_term 0 
@@ -87,7 +86,9 @@ let issue_summary (project_columns) (lookup_term) =
     in
 
   if List.length issues_subset = 0 then
-    raise(Failure("No issue found for " ^ lookup_term ^ ". Make sure you are searching by issue number (e.g. 1214) or issue title (e.g. Molecular Biology).")) ;
+    raise(Failure("No issue found for " ^ lookup_term ^ 
+    ". Make sure you are searching by issue number (e.g. 1214) or issue" ^
+    " title (e.g. Molecular Biology).")) ;
 
   issues_subset
     |> List.hd
@@ -127,10 +128,14 @@ let compare_names a c =
 (* Refactor the emojis for table *)
 let get_outcome (emoji : string) = 
   match emoji with
-  | "LAUGH" -> "|" ^ occupied_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|"
-  | "THUMBS_UP" -> "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|"
-  | "THUMBS_DOWN" -> "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|" ^ empty_cell ^ "|"
-  | _ -> "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|"
+  | "LAUGH" -> "|" ^ occupied_cell ^ "|" ^ empty_cell ^ "|" ^ 
+  empty_cell ^ "|" ^ empty_cell ^ "|"
+  | "THUMBS_UP" -> "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|" ^ 
+  empty_cell ^ "|" ^ empty_cell ^ "|"
+  | "THUMBS_DOWN" -> "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^
+  occupied_cell ^ "|" ^ empty_cell ^ "|"
+  | _ -> "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ 
+  empty_cell ^ "|" ^ occupied_cell ^ "|"
 ;;
 
 
@@ -151,10 +156,14 @@ let border_line (name_length : int) (emoji_length) =
 
 let header_line (max_name_length : int) (max_emoji_length : int) =
   ("| Name" ^ String.make (max_name_length - 4) ' ' ^ 
-  " | :laugh: " ^ String.make (max_emoji_length - (String.length(":laugh:")) ) ' ' ^ 
-  " | :thumbs up: " ^ String.make (max_emoji_length - (String.length(":thumbs up:")) )  ' ' ^ 
-  " | :thumbs down: " ^ String.make (max_emoji_length - (String.length(":thumbs down:")) )  ' ' ^ 
-  " | other " ^ String.make (max_emoji_length - String.length "other") ' ' ^ " |")
+  " | :laugh: " ^ String.make (max_emoji_length - 
+  (String.length(":laugh:")) ) ' ' ^ 
+  " | :thumbs up: " ^ String.make (max_emoji_length - 
+  (String.length(":thumbs up:")) )  ' ' ^ 
+  " | :thumbs down: " ^ String.make (max_emoji_length - 
+  (String.length(":thumbs down:")) )  ' ' ^ 
+  " | other " ^ String.make (max_emoji_length - String.length "other") 
+  ' ' ^ " |")
 ;;
 
 (* Get the reactions *)
@@ -164,7 +173,8 @@ let header_line (max_name_length : int) (max_emoji_length : int) =
   then refactoring the table according to the counts. Is that the best method?
 *)
 let get_reaction_table (issue : Raw.issue) = 
-  (* Get issue reactions then sort by most love -> least love, then alphabetically *)
+  (* Get issue reactions then sort by most love -> least love, 
+     then alphabetically *)
   let issue_reactions = issue.reactions 
     |> List.sort (fun (_a, b) (_c, d) -> compare_names b d)  
     |> List.sort (fun (a, _b) (c, _d) -> compare_emojis a c) in
@@ -176,11 +186,14 @@ let get_reaction_table (issue : Raw.issue) =
   let all_names = List.map (fun x -> get_name x) all_names in
 
   (* Find the longest name for cell size *)
-  let max_name_length = List.fold_left (fun x y -> max x (String.length y)) 0 all_names in
+  let max_name_length = 
+    List.fold_left (fun x y -> max x (String.length y)) 0 all_names in
 
   (* table format emojis*)
   let table_format_emojis = List.map (fun x -> get_outcome x) all_emoji in
-  let table_body = List.map2 (fun x y -> body_list max_name_length x y) all_names table_format_emojis in
+  let table_body = 
+    List.map2 (fun x y -> body_list max_name_length x y) 
+    all_names table_format_emojis in
 
   let bl = border_line (max_name_length) (max_emoji_length ) in
   let hl = header_line (max_name_length) (max_emoji_length ) in
@@ -218,7 +231,8 @@ let person_summary (project_columns) (name : string)=
 
   (* Print outputs*)
   if List.length issues_subset = 0 then
-    raise(Failure("No issues found for '" ^ name ^ "'. Make sure you are spelling the name correctly. ")) ;
+    raise(Failure("No issues found for '" ^ name ^ 
+    "'. Make sure you are spelling the name correctly. ")) ;
 
   (* Get all issue names: those reacted to, and those not*)
   let column_issues_names = column_issues |> List.map (fun x -> get_title x) in
@@ -226,39 +240,43 @@ let person_summary (project_columns) (name : string)=
 
   (* Get the difference between the two lists: those not reacted to*)
   let difference = 
-    List.filter (fun x -> not (List.mem x issues_subset_names)) column_issues_names in 
+    List.filter (fun x -> not (List.mem x issues_subset_names)) 
+    column_issues_names in 
 
   (* Create list of project reactions *)    
-  let persons_reactions = issues_subset |> List.map (fun x -> get_person_reaction x name) |> List.flatten in
-  (* This line reapeats the project name to create long format tables in cases where someone reacts multiple times on the same issue *)
-  let project_names = List.map2 (fun x y -> Batteries.List.make (get_person_reaction_n x name) (y) ) issues_subset issues_subset_names |> List.flatten in
+  let persons_reactions = issues_subset 
+  |> List.map (fun x -> get_person_reaction x name) |> List.flatten in
+  (* This line reapeats the project name to create long format tables in cases 
+     where someone reacts multiple times on the same issue *)
+  let project_names = 
+    List.map2 (fun x y -> Batteries.List.make(get_person_reaction_n x name) (y)) 
+    issues_subset issues_subset_names |> List.flatten in
 
 
-  let max_name_length = List.fold_left (fun x y -> max x (String.length y)) 0 project_names in
-  let table_format_emojis = List.map (fun x -> get_outcome x) persons_reactions in
+  let max_name_length = 
+    List.fold_left (fun x y -> max x (String.length y)) 0 project_names in
+  let table_format_emojis = 
+    List.map (fun x -> get_outcome x) persons_reactions in
 
   
-  let table_body = List.map2 (fun x y -> body_list max_name_length x y) project_names table_format_emojis in
-
-  
+  let table_body = 
+    List.map2 (fun x y -> body_list max_name_length x y) 
+    project_names table_format_emojis in
 
   (* print table *)
   let bl = border_line (max_name_length) (max_emoji_length ) in
   let hl = header_line (max_name_length) (max_emoji_length ) in
 
-  
-
   bl, hl, table_body, difference
-
-  
 ;;
 
 
 let individuals_reactions target = 
-  let bl, hl, table_body, difference = person_summary ["Finding people"] target in
+  let bl, hl, table_body, difference = person_summary ["Finding people"; "Awaiting start"; "Active"] target in
 
   (* print the person's reactions *)
-  print_endline ("\n" ^ target ^ " has reacted to " ^ string_of_int (List.length table_body) ^ " issues:\n");
+  print_endline ("\n" ^ target ^ " has reacted to " ^ 
+  string_of_int (List.length table_body) ^ " issues:\n");
 
   print_endline bl;
   print_endline hl;
@@ -266,21 +284,24 @@ let individuals_reactions target =
   List.iter print_endline (table_body);
   print_endline bl;
 
-  print_endline ("\nThey have not reacted to " ^ string_of_int (List.length difference) ^
+  print_endline ("\nThey have not reacted to " ^ 
+  string_of_int (List.length difference) ^
   " issues: " ^ String.concat ", " difference)
 ;;
 
 
 
 let issues_reactions target = 
-  let issue = issue_summary ["Finding people"; "Awaiting start"; "Active"] target in
+  let issue = 
+    issue_summary ["Finding people"; "Awaiting start"; "Active"] target in
   
   print_endline "";
   print_issue(issue) ;
   
   let bl, hl, table_body = get_reaction_table(issue) in
 
-  print_endline ("There are " ^ string_of_int (List.length table_body) ^ " reactions for this issue:\n" );
+  print_endline ("There are " ^ string_of_int (List.length table_body) ^ 
+  " reactions for this issue:\n" );
  
   (* Print the table *)
   print_endline (bl);
@@ -289,5 +310,3 @@ let issues_reactions target =
   List.iter print_endline (table_body);
   print_endline (bl)
 ;;
-
-
