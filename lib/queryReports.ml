@@ -257,7 +257,7 @@ let person_summary (project_columns) (name : string)=
 
 
 let individuals_reactions target = 
-  let bl, hl, table_body, difference = person_summary ["Finding people"; "Awaiting start"; "Active"] target in
+  let bl, hl, table_body, difference = person_summary (Some ["Finding people"; "Awaiting start"; "Active"]) target in
 
   (* print the person's reactions *)
   print_endline ("\n" ^ target ^ " has reacted to " ^ 
@@ -278,7 +278,7 @@ let individuals_reactions target =
 
 let issues_reactions target = 
   let issue = 
-    issue_summary ["Finding people"; "Awaiting start"; "Active"] target in
+    issue_summary (Some ["Finding people"; "Awaiting start"; "Active"]) target in
   
   print_endline "";
   print_issue(issue) ;

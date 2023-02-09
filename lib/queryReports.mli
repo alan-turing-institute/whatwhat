@@ -32,7 +32,7 @@ val get_title : Raw.issue -> string
 val test_person_name : string -> Raw.issue -> Raw.issue option
 
 (** [issue_summary] returns the issue summary: number, title, state, column. *)
-val issue_summary : string list -> string -> Raw.issue
+val issue_summary : string list option -> string -> Raw.issue
 
 (** The types of emoji reactions we care about. **)
 type emoji = LAUGH | THUMBS_UP | THUMBS_DOWN | OTHER
@@ -83,7 +83,7 @@ val get_person_reaction_n : Raw.issue -> string -> int
 
 (** Return strings required to build table summarising a person's reactions *)
 val person_summary :
-  string list -> string -> string * string * string list * string list
+  string list option -> string -> string * string * string list * string list
 
 (** Print the table of reactions for user: [target] *)
 val individuals_reactions : string -> unit

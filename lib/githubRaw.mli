@@ -102,10 +102,11 @@ val get_issue : ?col_name:string -> int -> issue
     an updated value in the [column] field.
 
     If the [project_issue_numbers] parameter is not passed, this function
-    searches the  'Project Tracker' project for the given issue using the
-    {!get_project_issue_numbers} function. Having the optional parameter
-    allows callers to first obtain this data and then reuse it in multiple
-    requests.
+    searches the 'Project Tracker' project for the given issue using the
+    {!get_project_issue_numbers} function. Note that this also only searches in
+    {!default_columns}. So if you want to locate an issue in another column, you
+    should call {!get_project_issue_numbers} yourself and pass it a list of
+    columns you're interested in (or [None] to search in all columns).
     *)
 val populate_column_name : ?project_issue_numbers:(int * string) list -> issue -> issue
 
@@ -113,11 +114,21 @@ val populate_column_name : ?project_issue_numbers:(int * string) list -> issue -
     number is paired with the name of the column. *)
 val get_issue_numbers_in_column : rest_column -> (int * string) list
 
-(** Get a list of all issue numbers in a given project. The [column_names]
-    parameter can be used to only query specific columns of a project. The issue
-    number is paired with the name of the column. *)
-val get_project_issue_numbers : ?column_names:string list -> string -> (int * string) list
+(** [Some [ "Active"; "Awaiting start"; "Finding people"; "Awaiting go/no-go" ]] *)
+val default_columns : string list option
 
-(** Get a list of all issues in a given project. The [column_names]
-    parameter can be used to only query specific columns of a project. *)
-val get_project_issues : ?column_names:string list -> string -> issue list
+(** Get a list of all issue numbers in a given project. The issue number is
+    paired with the name of the column.
+
+    By default, [column_names] is set to {!default_columns}. This parameter is
+    used to restrict the columns which are searched in. To search in {e all}
+    columns, use [~column_names:None]. *)
+val get_project_issue_numbers : ?column_names:string list option -> string -> (int * string) list
+
+(** Get a list of all issues in a given project. The [column_names] parameter
+    can be used to only query specific columns of a project.
+
+    By default, [column_names] is set to {!default_columns}. This parameter is
+    used to restrict the columns which are searched in. To search in {e all}
+    columns, use [~column_names:None]. *)
+val get_project_issues : ?column_names:string list option -> string -> issue list

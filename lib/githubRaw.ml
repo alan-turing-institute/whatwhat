@@ -260,16 +260,8 @@ let parse_column (column_json : Basic.t) : rest_column =
   { name; id; issues = [] }
 ;;
 
-let default_columns : string list =
-  (* ; "Rejected" *)
-  (* ; "Cancelled" *)
-  (* ; "Done" *)
-  (* ; "Completion review" *)
-  (* ; "Project appraisal" *)
-  (* ; "Extra info needed" *)
-  (* ; "Proposal" *)
-  (* ; "Suggested" *)
-  [ "Active"; "Awaiting start"; "Finding people"; "Awaiting go/no-go" ]
+let default_columns : string list option =
+  Some [ "Active"; "Awaiting start"; "Finding people"; "Awaiting go/no-go" ]
 ;;
 
 let get_project_issue_numbers_async
@@ -284,15 +276,15 @@ let get_project_issue_numbers_async
   in
   let uri = "https://api.github.com/projects/" ^ project_id ^ "/columns" in
   let* columns = run_github_query_async uri in
-  let columns =
-    columns
-    |> Basic.Util.to_list
-    |> List.map parse_column
-    |> List.filter (fun (c : rest_column) -> List.mem c.name column_names)
+  let columns = columns |> Basic.Util.to_list |> List.map parse_column in
+  let filtered_columns =
+    match column_names with
+    | Some names ->
+      columns |> List.filter (fun (c : rest_column) -> List.mem c.name names)
+    | None -> columns
   in
-  (* print_endline ("found " ^ string_of_int (List.length columns) ^ " columns"); *)
   let* issue_numbers' =
-    columns |> List.map get_issue_numbers_in_column_async |> Lwt.all
+    filtered_columns |> List.map get_issue_numbers_in_column_async |> Lwt.all
   in
   Lwt.return (List.flatten issue_numbers')
 ;;
