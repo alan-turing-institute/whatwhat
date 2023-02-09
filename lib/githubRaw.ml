@@ -1,7 +1,6 @@
 (* Queries Github API and traverses the GraphQL results. Validation is done in github.ml
  *)
 
-open Batteries
 open Cohttp
 open Cohttp_lwt_unix
 open Yojson
@@ -53,6 +52,7 @@ type project_root = { projects : project list } [@@deriving show]
 (* Convenient bindings for functions we use repeatedly when parsing the JSON returned by
    the API. *)
 let member = Basic.Util.member
+let convert_each = Basic.Util.convert_each
 let member_to_string (str : string) json = json |> member str |> Basic.Util.to_string
 let member_to_int (str : string) json = member str json |> Basic.Util.to_int
 
@@ -77,18 +77,17 @@ let issue_of_json column_name json =
       x
       |> member "assignees"
       |> member "edges"
-      |> Basic.Util.convert_each (fun y -> y |> member "node" |> person_of_json)
+      |> convert_each (fun y -> y |> member "node" |> person_of_json)
   ; labels =
       x
       |> member "labels"
       |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
-           y |> member "node" |> member "name" |> Basic.Util.to_string)
+      |> convert_each (fun y -> y |> member "node" |> member_to_string "name")
   ; reactions =
       x
       |> member "reactions"
       |> member "edges"
-      |> Basic.Util.convert_each (fun y ->
+      |> convert_each (fun y ->
            ( y |> member "node" |> member_to_string "content"
            , y |> member "node" |> member "user" |> person_of_json ))
   }
@@ -101,8 +100,7 @@ let column_of_json json =
     |> member "node"
     |> member "cards"
     |> member "edges"
-    |> Basic.Util.convert_each (fun y ->
-         issue_of_json name y, y |> member_to_string "cursor")
+    |> convert_each (fun y -> issue_of_json name y, y |> member_to_string "cursor")
   in
   { name; cards }
 ;;
@@ -113,8 +111,7 @@ let project_of_json json =
   |> fun x ->
   { number = x |> member_to_int "number"
   ; name = x |> member_to_string "name"
-  ; columns =
-      x |> member "columns" |> member "edges" |> Basic.Util.convert_each column_of_json
+  ; columns = x |> member "columns" |> member "edges" |> convert_each column_of_json
   }
 ;;
 
@@ -125,7 +122,7 @@ let project_root_of_json json =
       |> member "repository"
       |> member "projects"
       |> member "edges"
-      |> Basic.Util.convert_each project_of_json
+      |> convert_each project_of_json
   }
 ;;
 
@@ -135,12 +132,11 @@ let project_root_of_json json =
    https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#communicating-with-graphql
 *)
 
-let github_graph_ql_endpoint = "https://api.github.com/graphql"
-
 (** Query the Github GraphQL API with the given authentication token and request body.
     Return the body of the response as a JSON object, or raise a HttpError or a QueryError
     if something goes wrong. *)
 let run_github_query (git_hub_token : string) request_body =
+  let github_graph_ql_endpoint = Config.get_github_url () in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ git_hub_token) in
   let header =
     Header.init ()
@@ -156,7 +152,7 @@ let run_github_query (git_hub_token : string) request_body =
   let response_body_json =
     response_body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
   in
-  let errors = Basic.Util.member "errors" response_body_json in
+  let errors = member "errors" response_body_json in
   (* member returns `Null if the field isn't found *)
   match errors with
   | `Null -> response_body_json
@@ -171,45 +167,58 @@ let user_query_template_path = "./queries/users.graphql"
 let remove_line_breaks (q : string) = Str.global_replace (Str.regexp "\n") "" q
 
 let read_file_as_string filepath =
-  let channel = open_in filepath in
+  let channel = Batteries.open_in filepath in
   let return_string = channel |> BatIO.lines_of |> BatEnum.fold ( ^ ) "" in
-  let () = close_in channel in
+  let () = Batteries.close_in channel in
   return_string
+;;
+
+(* Take a list of pairs of [regexp * string], and run [Str.global_replace] on each pair on
+   the string [str].*)
+let replace_multiple replacements str =
+  let folder query (to_replace, replace_with) =
+    Str.global_replace to_replace replace_with query
+  in
+  List.fold_left folder str replacements
 ;;
 
 (* The Github API query's body is built by taking a template and replacing some
    placeholders with the project board name and cursor for paging. *)
 let build_issue_query project_name cursor =
   let query_template = read_file_as_string issue_query_template_path in
-  let cursor_query =
-    let to_replace = Str.regexp "CURSOR" in
-    let replace_with =
-      match cursor with
-      | None -> "null" (* Get first batch *)
-      | Some crs -> "\\\"" ^ crs ^ "\\\"" (* Get subsequent batches *)
-    in
-    Str.global_replace to_replace replace_with query_template
+  (* List of pairs (part of the template to replace, value to replace it with). *)
+  let replacements =
+    [ ( Str.regexp "CURSOR"
+      , match cursor with
+        | None -> "null" (* Get first batch *)
+        | Some crs -> "\\\"" ^ crs ^ "\\\"" (* Get subsequent batches *) )
+    ; Str.regexp "PROJECTNAME", "\\\"" ^ project_name ^ "\\\""
+    ; Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
+    ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
+    ]
   in
-
-  let to_replace = Str.regexp "PROJECTNAME" in
-  let replace_with = "\\\"" ^ project_name ^ "\\\"" in
-  Str.global_replace to_replace replace_with cursor_query |> remove_line_breaks
+  replace_multiple replacements query_template |> remove_line_breaks
 ;;
 
 (* These are the main functions of this module, that would be called externally. *)
 
 let get_users () =
   let github_token = Config.get_github_token () in
-  let user_query = read_file_as_string user_query_template_path in
-  let body_json = run_github_query github_token user_query in
+  let query_template = read_file_as_string user_query_template_path in
+  let replacements =
+    [ Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
+    ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
+    ]
+  in
+  let query = replace_multiple replacements query_template in
+  let body_json = run_github_query github_token query in
   let users =
     body_json
-    |> Basic.Util.member "data"
-    |> Basic.Util.member "repository"
-    |> Basic.Util.member "assignableUsers"
-    |> Basic.Util.member "edges"
-    |> Basic.Util.convert_each (fun json ->
-         json |> Basic.Util.member "node" |> person_of_json)
+    |> member "data"
+    |> member "repository"
+    |> member "assignableUsers"
+    |> member "edges"
+    |> convert_each (fun json -> json |> member "node" |> person_of_json)
   in
   users
 ;;
@@ -224,7 +233,7 @@ let find_next_cursor issues =
        let cards = column.cards in
        let length = List.length cards in
        let last_cursor =
-         if length > 0 then List.last cards |> fun (_, c) -> Some c else None
+         if length > 0 then Batteries.List.last cards |> fun (_, c) -> Some c else None
        in
        length, last_cursor)
   |> List.fold_left

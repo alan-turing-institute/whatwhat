@@ -1,5 +1,4 @@
 module Raw = GithubRaw
-
 open Domain
 
 (* Whatwhat doesn't care about all projects: only those in the folowing stages:
@@ -8,7 +7,7 @@ open Domain
    - Active
  *)
 let is_valid_column col =
-  match (state_of_column col) with 
+  match state_of_column col with
   | State.FindingPeople -> true
   | State.AwaitingStart -> true
   | State.Active -> true
@@ -20,50 +19,41 @@ let get_users = Raw.get_users
 
 (* ---------------------------------------------------------------------- *)
 (* METADATA PARSING ERROR LOGGING *)
-type parseerror =
-  | DateOutOfBoundsError
+type parse_error =
   | DateParsingError
   | ExtraFieldError
   | FieldTypeError
   | FTETimeUnderSpecifiedError
   | FTETimeOverSpecifiedError
   | MissingCompulsoryFieldError
-  | MissingOptionalFieldError
   | NoMetadataError
-  (* | NullCompulsoryFieldError *)
   | YamlError
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
-let log_parseerror (what : parseerror) (number : int) msg =
-  let log_lvl =
-    match what with
-    | DateOutOfBoundsError -> Log.Error
+let log (error : parse_error) (number : int) msg =
+  let level =
+    match error with
     | DateParsingError -> Log.Error
     | ExtraFieldError -> Log.Error
     | FieldTypeError -> Log.Error
     | FTETimeUnderSpecifiedError -> Log.Error
     | FTETimeOverSpecifiedError -> Log.Error
     | MissingCompulsoryFieldError -> Log.Error
-    | MissingOptionalFieldError -> Log.Warning
     | NoMetadataError -> Log.Error
-    (* | NullCompulsoryFieldError -> Log.Error *)
     | YamlError -> Log.Error
   in
   let error_description =
-    match what with
-    | DateOutOfBoundsError -> "Date out of bounds: "
+    match error with
     | DateParsingError -> "Unparseable date field: "
     | ExtraFieldError -> "Unexpected field in metadata: "
     | FieldTypeError -> "Wrong YAML type for field: "
     | FTETimeUnderSpecifiedError -> "Neither FTE-months nor FTE-weeks specified"
     | FTETimeOverSpecifiedError -> "Both FTE-months and FTE-weeks specified"
     | MissingCompulsoryFieldError -> "Missing field: "
-    | MissingOptionalFieldError -> "Missing optional field (assuming null): "
     | NoMetadataError -> "No metadata block found in issue body."
-    (* | NullCompulsoryFieldError -> "Null or empty compulsory field: " *)
     | YamlError -> "Unable to parse metadata block as YAML: "
   in
-  Log.log log_lvl Log.GithubMetadata (Log.Project number) @@ error_description ^ msg
+  Log.log level Log.GithubMetadata (Log.Project number) @@ error_description ^ msg
 ;;
 
 (* ---------------------------------------------------------------------- *)
@@ -111,11 +101,11 @@ let read_metadata_value n yaml key =
       | _ -> Error ()
     in
     let result = List.fold_left acc_string_list (Ok (StringList [])) yaml_list in
-    if Result.is_error result then log_parseerror FieldTypeError n key;
+    if Result.is_error result then log FieldTypeError n key;
     result
   | Some value ->
     let key_value_string = key ^ ", " ^ Yaml.to_string_exn value in
-    log_parseerror FieldTypeError n key_value_string;
+    log FieldTypeError n key_value_string;
     Error ()
 ;;
 
@@ -125,7 +115,7 @@ let read_metadata_value n yaml key =
 
    If the field is not found or is null or malformed, either a warning or an error is
    logged explaining the issue.
- 
+
    The [yaml] block is assumed to be of dictionary type. *)
 let read_float_field n yaml key =
   let* value_result = read_metadata_value n yaml key in
@@ -133,7 +123,7 @@ let read_float_field n yaml key =
   | Float value -> Ok (Some value)
   | Null | Missing -> Ok None
   | _ ->
-    log_parseerror FieldTypeError n key;
+    log FieldTypeError n key;
     Error ()
 ;;
 
@@ -154,7 +144,7 @@ let read_string_list_field n yaml key =
   | StringList value -> Ok (Some value)
   | Null | Missing -> Ok None
   | _ ->
-    log_parseerror FieldTypeError n key;
+    log FieldTypeError n key;
     Error ()
 ;;
 
@@ -171,11 +161,11 @@ let read_date_field n yaml key =
     (match date with
      | Ok date -> Ok (Some date)
      | Error _ ->
-       log_parseerror DateParsingError n (key ^ ", " ^ value);
+       log DateParsingError n (key ^ ", " ^ value);
        Error ())
   | Null | Missing -> Ok None
   | _ ->
-    log_parseerror FieldTypeError n key;
+    log FieldTypeError n key;
     Error ()
 ;;
 
@@ -186,7 +176,7 @@ let enforce_compulsory_field n key value_opt =
   match value_opt with
   | Some value -> Ok value
   | None ->
-    log_parseerror MissingCompulsoryFieldError n key;
+    log MissingCompulsoryFieldError n key;
     Error ()
 ;;
 
@@ -214,7 +204,7 @@ let valid_keys =
 let check_extra_keys n yaml =
   let yaml_keys = Yaml.Util.keys_exn yaml |> StringSet.of_list in
   let extra_keys = StringSet.diff yaml_keys valid_keys in
-  StringSet.iter (log_parseerror ExtraFieldError n) extra_keys;
+  StringSet.iter (log ExtraFieldError n) extra_keys;
   if StringSet.is_empty extra_keys then Ok () else Error ()
 ;;
 
@@ -249,10 +239,10 @@ let metadata_of_yaml (n : int) (yaml : Yaml.value) =
     | Some weeks, None -> Ok (FTE_weeks weeks)
     | None, Some months -> Ok (FTE_months months)
     | None, None ->
-      log_parseerror FTETimeUnderSpecifiedError n "";
+      log FTETimeUnderSpecifiedError n "";
       Error ()
     | Some _, Some _ ->
-      log_parseerror FTETimeOverSpecifiedError n "";
+      log FTETimeOverSpecifiedError n "";
       Error ()
   in
   Ok
@@ -276,10 +266,10 @@ let metadata_of_yaml_string (n : int) (y : string) =
     (match yaml with
      | `O _ -> metadata_of_yaml n yaml
      | _ ->
-       let () = log_parseerror YamlError n "YAML block is not a dictionary" in
+       log YamlError n "YAML block is not a dictionary";
        Error ())
   | Error (`Msg err) ->
-    let () = log_parseerror YamlError n err in
+    log YamlError n err;
     Error ()
 ;;
 
@@ -292,8 +282,20 @@ let parse_metadata (n : int) (body : string) =
      | Ok mdata -> Some mdata, rest
      | Error () -> None, body)
   | _ ->
-    let () = log_parseerror NoMetadataError n "" in
+    log NoMetadataError n "";
     None, body
+;;
+
+let programme_regex =
+  Re.(seq [ start; str "Programme: "; group (rep1 any); stop ]) |> Re.compile
+;;
+
+let find_programme (issue : Raw.issue) =
+  let parse_label (label : string) =
+    let re_group = Re.exec_opt programme_regex label in
+    Option.bind re_group (fun g -> Re.Group.get_opt g 1)
+  in
+  List.find_map parse_label issue.labels
 ;;
 
 let validate_issue (issue : Raw.issue) =
@@ -306,7 +308,8 @@ let validate_issue (issue : Raw.issue) =
       { nmbr = issue.number
       ; name = issue.title
       ; state = state_of_column issue.column
-      ; plan = plan
+      ; programme = find_programme issue
+      ; plan
       }
 ;;
 
@@ -314,8 +317,8 @@ let get_project_issues (project_name : string) =
   let issues =
     Raw.get_project_issues project_name
     |> List.filter (fun (issue : Raw.issue) ->
-           try is_valid_column issue.column with
-             UnknownColumn msg -> failwith (msg ^ " for " ^ (string_of_int issue.number)))
+         try is_valid_column issue.column with
+         | UnknownColumn msg -> failwith (msg ^ " for " ^ string_of_int issue.number))
   in
   Printf.printf "Obtained %d Github issues\n" (List.length issues);
   List.filter_map validate_issue issues

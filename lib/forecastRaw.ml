@@ -16,7 +16,7 @@ let forecast_request ?(query = []) endpoint =
         ; "Authorization", "Bearer " ^ Config.get_forecast_token ()
         ]
     and uri =
-      Uri.with_query' (Uri.of_string ("https://api.forecastapp.com/" ^ endpoint)) query
+      Uri.with_query' (Uri.of_string (Config.get_forecast_url () ^ endpoint)) query
     in
     Client.get ~headers uri |> Lwt_main.run
   in
@@ -129,7 +129,7 @@ let rec get_assignments_inner
   (end_date : Date.t)
   =
   (* If we can't do the whole requested period in one Forecast API call, get as much as
-k    we can, recursively call for the rest, and merge the results into a Map to avoid
+     we can, recursively call for the rest, and merge the results into a Map to avoid
      duplicates. *)
   let max_end_date = Date.add start_date max_period in
   let batch_end_date = if max_end_date < end_date then max_end_date else end_date in

@@ -1,6 +1,6 @@
 {
   "query": "query {
-    repository(owner: \"alan-turing-institute\", name: \"Hut23\") {
+    repository(owner: REPO_OWNER, name: REPO_NAME) {
       projects(first: 1, search: PROJECTNAME) {
         edges {
           node {

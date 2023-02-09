@@ -12,7 +12,6 @@
  *)
 
 open Domain
-
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
 module StringMap = Map.Make (String) (* email => person *)
@@ -53,20 +52,15 @@ let log_assignment (lvl : Log.level) (a : Raw.assignment) msg =
   log_event lvl Log.RawForecastAssignment (msg ^ aid a)
 ;;
 
-(* ------------------------------------------------------------ 
-   Domain-specific data
- *)
+(* ------------------------------------------------------------ *)
+(* Domain-specific data *)
 
 (* Regex to match the `NNN` in `hut23-NNN` *)
 let hut23_code_re = Re.compile Re.(seq [ start; str "hut23-"; group (rep1 digit); stop ])
+let ignored_project_ids = Config.get_forecast_ignored_projects ()
 
-(* The Forecast internal id of a single, hard-coded project in Forecast called
-   "Time off", which we do not use *)
-let timeoff_project_id = 1684536
-
-(* ------------------------------------------------------------ 
-   Utilities for converting raw entities to nicer ones
- *)
+(* ------------------------------------------------------------  *)
+(* Utilities for converting raw entities to nicer ones *)
 
 (* Projects *)
 
@@ -83,12 +77,12 @@ let extract_project_number (project : Raw.project) =
     log_raw_project Log.Error project "Missing project code";
     None
   | Not_found ->
-    log_raw_project Log.Error project "Malformed project code";
+    log_raw_project Log.Error project @@ "Malformed project code: " ^ Option.get cd;
     None
 ;;
 
 let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
-  if p.archived || id = timeoff_project_id
+  if p.archived || List.mem id ignored_project_ids
   then None
   else (
     let nmbr = extract_project_number p in
@@ -128,10 +122,13 @@ let validate_person _ (p : Raw.person) : person option =
     | Some "" ->
       log_raw_person Log.Error p "Email is the empty string";
       None
-    | Some email -> Some { email;
-                          full_name = p.first_name ^ " " ^ p.last_name;
-                          github_handle = None;
-                          slack_handle = None })
+    | Some email ->
+      Some
+        { email
+        ; full_name = p.first_name ^ " " ^ p.last_name
+        ; github_handle = None
+        ; slack_handle = None
+        })
 ;;
 
 (* Allocations *)
@@ -163,9 +160,10 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
          ; person = person.email
          ; finance_code = Raw.IdMap.find_opt a.project_id fcs
          ; allocation =
-             [ { start_date = start_date;
-                 days = CalendarLib.Date.sub start_date end_date;
-                 rate = Rate (forecast_rate_to_fte_percent a.allocation) }
+             [ { start_date
+               ; days = CalendarLib.Date.sub start_date end_date
+               ; rate = Rate (forecast_rate_to_fte_percent a.allocation)
+               }
              ]
          }
      | _ ->
@@ -242,7 +240,7 @@ let make_people_map people_id =
 
 (* Make map number => project, with the slight complication that there may be
    two projects with the same issue number *)
-let make_project_map projects_id : (project IntMap.t) =
+let make_project_map projects_id : project IntMap.t =
   let add_project m (_, (p : project)) =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
@@ -275,9 +273,7 @@ let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.D
     List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
     |> collate_allocations
   in
-  (make_project_map projects_id,
-   make_people_map people_id,
-   assignments)
+  make_project_map projects_id, make_people_map people_id, assignments
 ;;
 
 let get_the_current_schedule days =
