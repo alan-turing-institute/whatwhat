@@ -83,11 +83,11 @@ let run_github_query_async
   ?(methd = "GET")
   ?(params = [])
   ?(body = "")
-  (github_token : string)
   uri
   =
   let open Cohttp in
   let open Cohttp_lwt_unix in
+  let github_token = Config.get_github_token () in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ github_token) in
   let header_obj =
     Header.init ()
@@ -113,10 +113,9 @@ let run_github_query
   ?(methd = "GET")
   ?(params = [])
   ?(body = "")
-  (github_token : string)
   uri
   =
-  run_github_query_async ~methd ~params ~body github_token uri |> Lwt_main.run
+  run_github_query_async ~methd ~params ~body uri |> Lwt_main.run
 ;;
 
 let read_file_as_string filepath =
@@ -129,10 +128,9 @@ let read_file_as_string filepath =
 let all_hut23_users =
   let github_graph_ql_endpoint = "https://api.github.com/graphql" in
   let user_query_template_path = "./queries/users.graphql" in
-  let github_token = Config.get_github_token () in
   let user_query = read_file_as_string user_query_template_path in
   let body_json =
-    run_github_query ~methd:"POST" ~body:user_query github_token github_graph_ql_endpoint
+    run_github_query ~methd:"POST" ~body:user_query github_graph_ql_endpoint
   in
   let open Yojson.Basic.Util in
   let users =
@@ -161,9 +159,8 @@ let get_issue_async ?col_name id =
     ^ string_of_int id
     ^ "/reactions"
   in
-  let github_token = Config.get_github_token () in
-  let* issue_json = run_github_query_async github_token issue_uri in
-  let* reactions_json = run_github_query_async github_token reactions_uri in
+  let* issue_json = run_github_query_async issue_uri in
+  let* reactions_json = run_github_query_async reactions_uri in
   let parse_reaction r =
     let rxn = r |> member "content" |> to_string in
     let psn = r |> member "user" |> member "login" |> to_string |> find_person_by_login in
@@ -240,8 +237,7 @@ let rec get_issue_numbers_in_column_async ?(page = 1) col =
       "https://api.github.com/projects/columns/" ^ string_of_int col.id ^ "/cards"
     in
     let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
-    let github_token = Config.get_github_token () in
-    let* cards = run_github_query_async ~params github_token uri in
+    let* cards = run_github_query_async ~params uri in
     let issue_numbers =
       cards
       |> Basic.Util.to_list
@@ -287,7 +283,6 @@ let get_project_issue_numbers_async
   ?(column_names = default_columns)
   (project_name : string)
   =
-  let github_token = Config.get_github_token () in
   let project_id =
     match project_name with
     | "Project Tracker" -> "621998"
@@ -295,7 +290,7 @@ let get_project_issue_numbers_async
     | _ -> failwith "unknown project name"
   in
   let uri = "https://api.github.com/projects/" ^ project_id ^ "/columns" in
-  let* columns = run_github_query_async github_token uri in
+  let* columns = run_github_query_async uri in
   let columns =
     columns
     |> Basic.Util.to_list

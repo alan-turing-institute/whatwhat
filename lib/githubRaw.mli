@@ -70,7 +70,6 @@ val run_github_query_async
   :  ?methd:string  (* ["GET"] and ["POST"] are supported. Unfortunately, [method] is an OCaml keyword. *)
   -> ?params:(string * string list) list  (* Request parameters *)
   -> ?body:string  (* Request body, used only for POST requests *)
-  -> string  (* GitHub authentication token *)
   -> string  (* URI *)
   -> Yojson.Basic.t Lwt.t
 
@@ -79,7 +78,6 @@ val run_github_query
   :  ?methd:string  (* ["GET"] or ["POST"] *)
   -> ?params:(string * string list) list  (* Request parameters *)
   -> ?body:string  (* Request body, used only for POST requests *)
-  -> string  (* GitHub authentication token *)
   -> string  (* URI *)
   -> Yojson.Basic.t
 
