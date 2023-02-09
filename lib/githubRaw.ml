@@ -2,11 +2,10 @@
  *)
 
 open Batteries
-open Cohttp
-open Cohttp_lwt_unix
 open Yojson
+open Lwt.Syntax
 
-exception QueryError of string
+(* exception QueryError of string *)
 
 type person =
   { login : string
@@ -58,51 +57,67 @@ type project_root = { projects : project list } [@@deriving show]
 
 (* Convenient bindings for functions we use repeatedly when parsing the JSON returned by
    the API. *)
-let member = Basic.Util.member
-let member_to_string (str : string) json = json |> member str |> Basic.Util.to_string
+let member_to_string (str : string) json =
+  json |> Basic.Util.member str |> Basic.Util.to_string
+;;
 
 let person_of_json json =
   { login = json |> member_to_string "login"
-  ; name = json |> member "name" |> Basic.Util.to_string_option
-  ; email = json |> member "email" |> Basic.Util.to_string_option
+  ; name = json |> Basic.Util.member "name" |> Basic.Util.to_string_option
+  ; email = json |> Basic.Util.member "email" |> Basic.Util.to_string_option
   }
 ;;
 
-(* ---------------------------------------------------------------------- *)
-(* QUERYING GITHUB *)
-(* See
-   https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#communicating-with-graphql
-*)
+(* ------- Generic functions for querying GitHub APIs ------- *)
 
-let github_graph_ql_endpoint = "https://api.github.com/graphql"
-
-(** Query the Github GraphQL API with the given authentication token and request body.
-    Return the body of the response as a JSON object, or raise a HttpError or a QueryError
-    if something goes wrong. *)
-let run_github_query (git_hub_token : string) request_body =
-  let auth_cred = Auth.credential_of_string ("Bearer " ^ git_hub_token) in
-  let header =
+(* unfortunately method is an OCaml keyword *)
+(* TODO: Check for errors in body JSON before returning; member returns `Null if
+   the field isn't found. The code below only works if an object is returned; it
+   fails if an array of objects is returned (e.g. when getting a list of issues
+   in a column *)
+(* let errors = Basic.Util.member "errors" body_json in *)
+(* match errors with *)
+(* | `Null -> Lwt.return body_json *)
+(* | _ -> raise @@ QueryError (Basic.to_string errors) *)
+let run_github_query_async
+  ?(methd = "GET")
+  ?(params = [])
+  ?(body = "")
+  (github_token : string)
+  uri
+  =
+  let open Cohttp in
+  let open Cohttp_lwt_unix in
+  let auth_cred = Auth.credential_of_string ("Bearer " ^ github_token) in
+  let header_obj =
     Header.init ()
     |> (fun header -> Header.add_authorization header auth_cred)
-    |> fun header -> Header.prepend_user_agent header "NowWhat"
+    |> fun header -> Header.prepend_user_agent header "Whatwhat"
   in
-  let request_body_obj = Cohttp_lwt.Body.of_string request_body in
-  let uri = Uri.of_string github_graph_ql_endpoint in
-  let response, response_body =
-    Client.post ~headers:header ~body:request_body_obj uri |> Lwt_main.run
+  let uri = Uri.add_query_params (Uri.of_string uri) params in
+  let* response, body =
+    match methd with
+    | "GET" -> Client.get ~headers:header_obj uri
+    | "POST" ->
+      let body_obj = Cohttp_lwt.Body.of_string body in
+      Client.post ~headers:header_obj ~body:body_obj uri
+    | _ -> failwith ("unsupported method " ^ methd)
   in
   let () = Utils.check_http_response response in
-  let response_body_json =
-    response_body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> Basic.from_string
-  in
-  let errors = Basic.Util.member "errors" response_body_json in
-  (* member returns `Null if the field isn't found *)
-  match errors with
-  | `Null -> response_body_json
-  | _ -> raise @@ QueryError (Basic.to_string errors)
+  let* body_string = Cohttp_lwt.Body.to_string body in
+  let body_json = Basic.from_string body_string in
+  Lwt.return body_json
 ;;
 
-let user_query_template_path = "./queries/users.graphql"
+let run_github_query
+  ?(methd = "GET")
+  ?(params = [])
+  ?(body = "")
+  (github_token : string)
+  uri
+  =
+  run_github_query_async ~methd ~params ~body github_token uri |> Lwt_main.run
+;;
 
 let read_file_as_string filepath =
   let channel = open_in filepath in
@@ -111,48 +126,29 @@ let read_file_as_string filepath =
   return_string
 ;;
 
-(* These are the main functions of this module, that would be called externally. *)
-
 let all_hut23_users =
+  let github_graph_ql_endpoint = "https://api.github.com/graphql" in
+  let user_query_template_path = "./queries/users.graphql" in
   let github_token = Config.get_github_token () in
   let user_query = read_file_as_string user_query_template_path in
-  let body_json = run_github_query github_token user_query in
+  let body_json =
+    run_github_query ~methd:"POST" ~body:user_query github_token github_graph_ql_endpoint
+  in
+  let open Yojson.Basic.Util in
   let users =
     body_json
-    |> Basic.Util.member "data"
-    |> Basic.Util.member "repository"
-    |> Basic.Util.member "assignableUsers"
-    |> Basic.Util.member "edges"
-    |> Basic.Util.convert_each (fun json ->
-         json |> Basic.Util.member "node" |> person_of_json)
+    |> member "data"
+    |> member "repository"
+    |> member "assignableUsers"
+    |> member "edges"
+    |> convert_each (fun json -> json |> member "node" |> person_of_json)
   in
   users
 ;;
 
-(* ------- Using REST API ------- *)
-
-let run_github_query_async ?(params = []) (github_token : string) uri =
-  let open Cohttp in
-  let open Cohttp_lwt_unix in
-  let auth_cred = Auth.credential_of_string ("Bearer " ^ github_token) in
-  let header =
-    Header.init ()
-    |> (fun header -> Header.add_authorization header auth_cred)
-    |> fun header -> Header.prepend_user_agent header "Whatwhat"
-  in
-  let uri = Uri.add_query_params (Uri.of_string uri) params in
-  let open Lwt.Infix in
-  Client.get ~headers:header uri
-  >|= snd
-  >>= Cohttp_lwt.Body.to_string
-  >|= Basic.from_string
-;;
-
-let run_github_query ?(params = []) (github_token : string) uri =
-  run_github_query_async ~params github_token uri |> Lwt_main.run
-;;
-
 let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_hut23_users
+
+(* ------- Queries using REST API ------- *)
 
 let get_issue_async ?col_name id =
   let ( let* ) = Lwt.bind in
@@ -205,7 +201,6 @@ let get_issues_async (idnames : (int * string) list) =
   idnames |> List.map (fun (i, col) -> get_issue_async ~col_name:col i) |> Lwt.all
 ;;
 
-
 (* Get a batch of issues, but with some throttling such that only
    max_concurrent_issues requests are fired off at any one time.
    Turns out that if you ask GitHub for >300 issues at a go, it complains
@@ -225,7 +220,6 @@ let rec get_issues_throttled (idnames : (int * string) list) =
   | [], [] -> Lwt.return []
   | xs, [] -> get_issues_async xs
   | xs, ys ->
-    let open Lwt.Syntax in
     let* first_batch = get_issues_async xs in
     let* the_rest = get_issues_throttled ys in
     Lwt.return (first_batch @ the_rest)
@@ -233,11 +227,11 @@ let rec get_issues_throttled (idnames : (int * string) list) =
 
 (* GitHub only allows for 100 items to be read from a column in a single
    request. *)
-let rec get_issue_numbers_in_column_async ?(page=1) col =
+let rec get_issue_numbers_in_column_async ?(page = 1) col =
   let batch_get page col =
     let get_issue_number card_json : int option =
       let open Yojson.Basic.Util in
-      (* TODO: more thorough error checking *)
+      (* TODO: could do with more thorough error checking *)
       match card_json |> member "content_url" |> to_string_option with
       | Some s -> Some (String.split_on_char '/' s |> List.rev |> List.hd |> int_of_string)
       | None -> None
@@ -245,20 +239,23 @@ let rec get_issue_numbers_in_column_async ?(page=1) col =
     let uri =
       "https://api.github.com/projects/columns/" ^ string_of_int col.id ^ "/cards"
     in
-    let params = [ "per_page", [ "100" ] ; "page", [string_of_int page]] in
+    let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
     let github_token = Config.get_github_token () in
-    let open Lwt.Infix in
-    run_github_query_async ~params github_token uri
-    >|= Basic.Util.to_list
-    >|= List.filter_map get_issue_number
-    >|= List.map (fun i -> i, col.name)
+    let* cards = run_github_query_async ~params github_token uri in
+    let issue_numbers =
+      cards
+      |> Basic.Util.to_list
+      |> List.filter_map get_issue_number
+      |> List.map (fun i -> i, col.name)
+    in
+    Lwt.return issue_numbers
   in
-  let open Lwt.Syntax in
   let* first_batch = batch_get page col in
   if List.length first_batch = 100
-    then let* next_batch = get_issue_numbers_in_column_async ~page:(page + 1) col in
-         Lwt.return (first_batch @ next_batch)
-    else Lwt.return first_batch
+  then
+    let* next_batch = get_issue_numbers_in_column_async ~page:(page + 1) col in
+    Lwt.return (first_batch @ next_batch)
+  else Lwt.return first_batch
 ;;
 
 (* column -> (int, string) list *)
@@ -275,27 +272,25 @@ let parse_column (column_json : Basic.t) : rest_column =
 ;;
 
 let default_columns : string list =
-  [ "Rejected"
-  ; "Cancelled"
-  ; "Done"
-  ; "Completion review"
-  ; "Active"
+  (* ; "Rejected" *)
+  (* ; "Cancelled" *)
+  (* ; "Done" *)
+  (* ; "Completion review" *)
+  [ "Active"
   ; "Awaiting start"
   ; "Finding people"
   ; "Awaiting go/no-go"
-  ; "Project appraisal"
-  ; "Extra info needed"
-  ; "Proposal"
-  ; "Suggested"
   ]
+  (* ; "Project appraisal" *)
+  (* ; "Extra info needed" *)
+  (* ; "Proposal" *)
+  (* ; "Suggested" *)
 ;;
 
 (* TODO: don't hardcode the project id; they can be gotten via
     https://api.github.com/repos/alan-turing-institute/Hut23/projects *)
 (* string -> () *)
-let get_project_issues_async ?(column_names=default_columns) (project_name : string) =
-  let open Lwt.Syntax in
-  let open Lwt.Infix in
+let get_project_issues_async ?(column_names = default_columns) (project_name : string) =
   let github_token = Config.get_github_token () in
   let project_id =
     match project_name with
@@ -311,11 +306,12 @@ let get_project_issues_async ?(column_names=default_columns) (project_name : str
     |> List.map parse_column
     |> List.filter (fun (c : rest_column) -> List.mem c.name column_names)
   in
-  print_endline ("found " ^ string_of_int (List.length columns) ^ " columns");
-  let* issue_numbers =
-    columns |> List.map get_issue_numbers_in_column_async |> Lwt.all >|= List.flatten
+  (* print_endline ("found " ^ string_of_int (List.length columns) ^ " columns"); *)
+  let* issue_numbers' =
+    columns |> List.map get_issue_numbers_in_column_async |> Lwt.all
   in
-  print_endline ("found " ^ string_of_int (List.length issue_numbers) ^ " issues");
+  let issue_numbers = List.flatten issue_numbers' in
+  (* print_endline ("found " ^ string_of_int (List.length issue_numbers) ^ " issues"); *)
   get_issues_throttled issue_numbers
 ;;
 

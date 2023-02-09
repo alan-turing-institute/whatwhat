@@ -5,7 +5,6 @@ let trim s =
   String.sub s 0 (min l 20)
 
 let () =
-  print_endline "Using REST API:";
   let open GithubRaw in
   let issues = get_project_issues "Project Tracker" in
   issues |> List.sort (fun (i1 : issue) i2 -> compare i1.number i2.number)

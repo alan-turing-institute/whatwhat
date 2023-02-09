@@ -47,26 +47,27 @@ type project =
 
 type project_root = { projects : project list } [@@deriving show]
 
-
 (** Return the list of issues in a project board, given the name of the board. *)
 val get_project_issues : string -> issue list
 
 (** Return all the users in the Alan Turing Institute Github organisation. *)
 val all_hut23_users : person list
 
-
 val run_github_query_async
-  :  ?params:(string * string list) list
+  :  ?methd:string
+  -> ?params:(string * string list) list
+  -> ?body:string
   -> string
   -> string
   -> Yojson.Basic.t Lwt.t
 
 val run_github_query
-  :  ?params:(string * string list) list
+  :  ?methd:string
+  -> ?params:(string * string list) list
+  -> ?body:string
   -> string
   -> string
   -> Yojson.Basic.t
 
 val get_issue : ?col_name:string -> int -> issue
-
 val get_issue_numbers_in_column : rest_column -> (int * string) list
