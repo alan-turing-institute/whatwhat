@@ -1,5 +1,5 @@
-(* Queries Github API and traverse_of_interests the GraphQL results. Validation is done in github.ml
- *)
+(* Queries Github API and traverse_of_interests the GraphQL results. Validation
+   is done in github.ml *)
 
 open Batteries
 open Yojson
