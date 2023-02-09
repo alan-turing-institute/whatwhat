@@ -67,9 +67,8 @@ type project =
 type project_root = { projects : project list } [@@deriving show]
 
 (** This is a list of all users who can be assigned to issues in the
-    {{: https://github.com/alan-turing-institute/Hut23} Hut23
-    repository}, which essentially means anybody who can view the repository. *)
-val all_hut23_users : person list
+    repository, which essentially means anybody who can view the repository. *)
+val all_users : person list
 
 (** Run a GitHub query, returning a promise for the body JSON. The [body]
     parameter here is the request body, which is used only for POST requests.
@@ -105,36 +104,18 @@ val get_issue : ?col_name:string -> int -> issue
     an updated value in the [column] field.
 
     If the [project_issue_numbers] parameter is not passed, this function
-    searches the 'Project Tracker' project for the given issue using the
-    {!get_project_issue_numbers} function. Note that this also only searches in
-    {!default_columns}. So if you want to locate an issue in another column, you
-    should call {!get_project_issue_numbers} yourself and pass it a list of
-    columns you're interested in (or [None] to search in all columns).
+    additionally searches the project for the given issue using
+    {!get_project_issue_numbers}.
     *)
 val populate_column_name : ?project_issue_numbers:(int * string) list -> issue -> issue
 
-(** Get a list of all issue numbers in a given column of a project. Each issue
-    number is paired with the name of the column. *)
+(** Get a list of all issue numbers in the project. Each issue number is paired
+    with the name of the column. *)
 val get_issue_numbers_in_column : rest_column -> (int * string) list
 
-(** [Some [ "Active"; "Awaiting start"; "Finding people"; "Awaiting go/no-go" ]] *)
-val default_columns : string list option
+(** Get a list of all issue numbers in the project. The issue number is paired
+    with the name of the column. *)
+val get_project_issue_numbers : unit -> (int * string) list
 
-(** Get a list of all issue numbers in a given project. The issue number is
-    paired with the name of the column.
-
-    By default, [column_names] is set to {!default_columns}. This parameter is
-    used to restrict the columns which are searched in. To search in {e all}
-    columns, use [~column_names:None]. *)
-val get_project_issue_numbers
-  :  ?column_names:string list option
-  -> string
-  -> (int * string) list
-
-(** Get a list of all issues in a given project. The [column_names] parameter
-    can be used to only query specific columns of a project.
-
-    By default, [column_names] is set to {!default_columns}. This parameter is
-    used to restrict the columns which are searched in. To search in {e all}
-    columns, use [~column_names:None]. *)
-val get_project_issues : ?column_names:string list option -> string -> issue list
+(** Get a list of all issues in the project. *)
+val get_project_issues : unit -> issue list

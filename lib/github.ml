@@ -15,7 +15,7 @@ let is_valid_column col =
 ;;
 
 (* Re-exporting for convenience of modules that import this one. *)
-let all_hut23_users = Raw.all_hut23_users
+let all_users = Raw.all_users
 
 (* ---------------------------------------------------------------------- *)
 (* METADATA PARSING ERROR LOGGING *)
@@ -313,9 +313,9 @@ let validate_issue (issue : Raw.issue) =
       }
 ;;
 
-let get_project_issues (project_name : string) =
+let get_project_issues () =
   let issues =
-    Raw.get_project_issues project_name
+    Raw.get_project_issues ()
     |> List.filter (fun (issue : Raw.issue) ->
          try is_valid_column issue.column with
          | UnknownColumn msg -> failwith (msg ^ " for " ^ string_of_int issue.number))

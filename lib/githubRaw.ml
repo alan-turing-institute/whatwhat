@@ -118,7 +118,7 @@ let read_file_as_string filepath =
   return_string
 ;;
 
-let all_hut23_users =
+let all_users =
   let user_query_template_path = "./queries/users.graphql" in
   let query_template = read_file_as_string user_query_template_path in
   let replacements =
@@ -145,7 +145,7 @@ let all_hut23_users =
   |> convert_each (fun json -> json |> member "node" |> person_of_json)
 ;;
 
-let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_hut23_users
+let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_users
 
 (* ------- Queries using REST API ------- *)
 
@@ -268,16 +268,9 @@ let parse_column (column_json : Basic.t) : rest_column =
   { name; id; issues = [] }
 ;;
 
-let default_columns : string list option =
-  Some [ "Active"; "Awaiting start"; "Finding people"; "Awaiting go/no-go" ]
-;;
-
-let get_project_issue_numbers_async
-  ?(column_names = default_columns)
-  (project_name : string)
-  =
+let get_project_issue_numbers_async () =
   let project_id =
-    match project_name with
+    match Config.get_github_project_name () with
     | "Project Tracker" -> "621998"
     | "NowWhat Test Project" -> "14539393"
     | _ -> failwith "unknown project name"
@@ -286,7 +279,7 @@ let get_project_issue_numbers_async
   let* columns = run_github_query_async uri in
   let columns = columns |> Basic.Util.to_list |> List.map parse_column in
   let filtered_columns =
-    match column_names with
+    match Config.get_github_project_columns () with
     | Some names ->
       columns |> List.filter (fun (c : rest_column) -> List.mem c.name names)
     | None -> columns
@@ -297,18 +290,16 @@ let get_project_issue_numbers_async
   Lwt.return (List.flatten issue_numbers')
 ;;
 
-let get_project_issue_numbers ?(column_names = default_columns) (project_name : string) =
-  get_project_issue_numbers_async ~column_names project_name |> Lwt_main.run
-;;
+let get_project_issue_numbers () = get_project_issue_numbers_async () |> Lwt_main.run
 
 (* TODO: don't hardcode the project id; they can be gotten via
     https://api.github.com/repos/alan-turing-institute/Hut23/projects *)
-let get_project_issues_async ?(column_names = default_columns) (project_name : string) =
-  let* issue_numbers = get_project_issue_numbers_async ~column_names project_name in
+let get_project_issues_async () =
+  let* issue_numbers = get_project_issue_numbers_async () in
   get_issues_throttled issue_numbers
 ;;
 
-(* This almost completely gives the same output as GithubRaw.get_project_issues,
+(* This almost completely gives the same output as the previous GraphQL query,
    but in a rather shorter time.
    There are a couple of differences:
      1. The issue status (open/closed) is in caps in GithubRaw but small letters
@@ -319,9 +310,7 @@ let get_project_issues_async ?(column_names = default_columns) (project_name : s
      3. This function removes issue assignments and reactions for people who are
         no longer in the Hut23 repo.
    *)
-let get_project_issues ?(column_names = default_columns) (project_name : string) =
-  get_project_issues_async ~column_names project_name |> Lwt_main.run
-;;
+let get_project_issues () = get_project_issues_async () |> Lwt_main.run
 
 let populate_column_name ?project_issue_numbers issue =
   match issue.column with
@@ -329,7 +318,7 @@ let populate_column_name ?project_issue_numbers issue =
   | None ->
     let project_data =
       match project_issue_numbers with
-      | None -> get_project_issue_numbers "Project Tracker"
+      | None -> get_project_issue_numbers ()
       | Some x -> x
     in
     let col_name = List.assoc_opt issue.number project_data in

@@ -63,12 +63,8 @@ let test_person_name (name : string) (i : Raw.issue) =
 ;;
 
 (* Get the issue summary: number, title, state, column*)
-let issue_summary project_columns lookup_term =
-  let column_issues =
-    Raw.get_project_issues
-      ~column_names:project_columns
-      (Config.get_github_project_name ())
-  in
+let issue_summary lookup_term =
+  let column_issues = Raw.get_project_issues () in
 
   let issues_subset =
     if Str.string_match (Str.regexp "[0-9]+") lookup_term 0
@@ -232,12 +228,8 @@ let get_person_reaction_n (i : Raw.issue) (name : string) =
   List.length reactions
 ;;
 
-let person_summary project_columns (name : string) =
-  let column_issues =
-    Raw.get_project_issues
-      ~column_names:project_columns
-      (Config.get_github_project_name ())
-  in
+let person_summary (name : string) =
+  let column_issues = Raw.get_project_issues () in
 
   let issues_subset =
     column_issues
@@ -295,9 +287,7 @@ let person_summary project_columns (name : string) =
 ;;
 
 let individuals_reactions target =
-  let bl, hl, table_body, difference =
-    person_summary (Config.get_github_project_columns ()) target
-  in
+  let bl, hl, table_body, difference = person_summary target in
 
   (* print the person's reactions *)
   print_endline
@@ -321,7 +311,7 @@ let individuals_reactions target =
 ;;
 
 let issues_reactions target =
-  let issue = issue_summary (Config.get_github_project_columns ()) target in
+  let issue = issue_summary target in
 
   print_endline "";
   print_issue issue;
