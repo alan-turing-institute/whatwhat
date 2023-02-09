@@ -3,9 +3,12 @@
     It throws exceptions if the data is too broken for even this parsing, but
     doesn't otherwise check for consistency or quality of what it receives. *)
 
+(** This module only supports GET and POST requests. *)
+type http_method = GET | POST
+
 (** A [person] is a GitHub user: they are identified by their login username, a
     real name, and an email. The latter two are obtained from their public
-    profile (not commits) and may be absent. *)
+    profile (not their commits) and may be absent. *)
 type person =
   { login : string
   ; name : string option
@@ -65,20 +68,24 @@ type project_root = { projects : project list } [@@deriving show]
     repository}, which essentially means anybody who can view the repository. *)
 val all_hut23_users : person list
 
-(** Run a GitHub query, returning a promise for the body JSON. *)
+(** Run a GitHub query, returning a promise for the body JSON. The [body]
+    parameter here is the request body, which is used only for POST requests.
+    The final mandatory [string] parameter is the URI.
+    *)
 val run_github_query_async
-  :  ?methd:string  (* ["GET"] and ["POST"] are supported. Unfortunately, [method] is an OCaml keyword. *)
-  -> ?params:(string * string list) list  (* Request parameters *)
-  -> ?body:string  (* Request body, used only for POST requests *)
-  -> string  (* URI *)
+  :  ?methd:http_method
+  -> ?params:(string * string list) list
+  -> ?body:string
+  -> string
   -> Yojson.Basic.t Lwt.t
 
-(** Run a GitHub query, returning the body JSON directly. *)
+(** Run a GitHub query, returning the body JSON directly. All arguments are the
+    same as in {!run_github_query_async}. *)
 val run_github_query
-  :  ?methd:string  (* ["GET"] or ["POST"] *)
-  -> ?params:(string * string list) list  (* Request parameters *)
-  -> ?body:string  (* Request body, used only for POST requests *)
-  -> string  (* URI *)
+  :  ?methd:http_method
+  -> ?params:(string * string list) list
+  -> ?body:string
+  -> string
   -> Yojson.Basic.t
 
 (** Get details and reactions for a GitHub issue. The [col_name] parameter

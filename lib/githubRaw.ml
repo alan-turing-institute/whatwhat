@@ -7,6 +7,10 @@ open Lwt.Syntax
 
 (* exception QueryError of string *)
 
+type http_method =
+  | GET
+  | POST
+
 type person =
   { login : string
   ; name : string option
@@ -79,12 +83,7 @@ let person_of_json json =
 (* match errors with *)
 (* | `Null -> Lwt.return body_json *)
 (* | _ -> raise @@ QueryError (Basic.to_string errors) *)
-let run_github_query_async
-  ?(methd = "GET")
-  ?(params = [])
-  ?(body = "")
-  uri
-  =
+let run_github_query_async ?(methd = GET) ?(params = []) ?(body = "") uri =
   let open Cohttp in
   let open Cohttp_lwt_unix in
   let github_token = Config.get_github_token () in
@@ -97,11 +96,10 @@ let run_github_query_async
   let uri = Uri.add_query_params (Uri.of_string uri) params in
   let* response, body =
     match methd with
-    | "GET" -> Client.get ~headers:header_obj uri
-    | "POST" ->
+    | GET -> Client.get ~headers:header_obj uri
+    | POST ->
       let body_obj = Cohttp_lwt.Body.of_string body in
       Client.post ~headers:header_obj ~body:body_obj uri
-    | _ -> failwith ("unsupported method " ^ methd)
   in
   let () = Utils.check_http_response response in
   let* body_string = Cohttp_lwt.Body.to_string body in
@@ -109,12 +107,7 @@ let run_github_query_async
   Lwt.return body_json
 ;;
 
-let run_github_query
-  ?(methd = "GET")
-  ?(params = [])
-  ?(body = "")
-  uri
-  =
+let run_github_query ?(methd = GET) ?(params = []) ?(body = "") uri =
   run_github_query_async ~methd ~params ~body uri |> Lwt_main.run
 ;;
 
@@ -130,7 +123,7 @@ let all_hut23_users =
   let user_query_template_path = "./queries/users.graphql" in
   let user_query = read_file_as_string user_query_template_path in
   let body_json =
-    run_github_query ~methd:"POST" ~body:user_query github_graph_ql_endpoint
+    run_github_query ~methd:POST ~body:user_query github_graph_ql_endpoint
   in
   let open Yojson.Basic.Util in
   let users =
