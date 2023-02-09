@@ -4,7 +4,9 @@
     doesn't otherwise check for consistency or quality of what it receives. *)
 
 (** This module only supports GET and POST requests. *)
-type http_method = GET | POST
+type http_method =
+  | GET
+  | POST
 
 (** A [person] is a GitHub user: they are identified by their login username, a
     real name, and an email. The latter two are obtained from their public
@@ -24,18 +26,19 @@ type issue =
   { number : int
   ; title : string
   ; body : string
-  ; state : string  (** "open" or "closed" *)
+  ; state : string (** "open" or "closed" *)
   ; assignees : person list
   ; reactions : (string * person) list
   ; labels : string list
-  ; column : string option  (** The name of a project column the issue is in *)
+  ; column : string option (** The name of a project column the issue is in *)
   }
 [@@deriving show]
 
-(** A column of a project on GitHub. This data type is used for data from
-    the GraphQL API. *)
 (* TODO: Determine if we really need this. All columns should be castable
    into rest_columns. *)
+
+(** A column of a project on GitHub. This data type is used for data from
+    the GraphQL API. *)
 type column =
   { name : string
   ; cards : (issue * string) list
@@ -48,7 +51,7 @@ type column =
 type rest_column =
   { name : string
   ; id : int
-  ; issues : (issue * string) list  (* The [string] here is the column name. *)
+  ; issues : (issue * string) list (* The [string] here is the column name. *)
   }
 [@@deriving show]
 
@@ -123,7 +126,10 @@ val default_columns : string list option
     By default, [column_names] is set to {!default_columns}. This parameter is
     used to restrict the columns which are searched in. To search in {e all}
     columns, use [~column_names:None]. *)
-val get_project_issue_numbers : ?column_names:string list option -> string -> (int * string) list
+val get_project_issue_numbers
+  :  ?column_names:string list option
+  -> string
+  -> (int * string) list
 
 (** Get a list of all issues in a given project. The [column_names] parameter
     can be used to only query specific columns of a project.

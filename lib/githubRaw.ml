@@ -135,16 +135,14 @@ let all_hut23_users =
   let query = replace_multiple replacements query_template in
 
   let github_graph_ql_endpoint = "https://api.github.com/graphql" in
-  let body_json =
-    run_github_query ~methd:POST ~body:query github_graph_ql_endpoint
-  in
+  let body_json = run_github_query ~methd:POST ~body:query github_graph_ql_endpoint in
   let open Yojson.Basic.Util in
   body_json
-    |> member "data"
-    |> member "repository"
-    |> member "assignableUsers"
-    |> member "edges"
-    |> convert_each (fun json -> json |> member "node" |> person_of_json)
+  |> member "data"
+  |> member "repository"
+  |> member "assignableUsers"
+  |> member "edges"
+  |> convert_each (fun json -> json |> member "node" |> person_of_json)
 ;;
 
 let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_hut23_users

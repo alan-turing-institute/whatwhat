@@ -5,7 +5,7 @@
     are filtered to either a specific person or issue. These reactions are then 
     returned in a table.    
  *)
- 
+
 module Raw = GithubRaw
 
 (** [print_issue issue] prints the [issue] summary. *)
@@ -35,7 +35,11 @@ val test_person_name : string -> Raw.issue -> Raw.issue option
 val issue_summary : string list option -> string -> Raw.issue
 
 (** The types of emoji reactions we care about. **)
-type emoji = LAUGH | THUMBS_UP | THUMBS_DOWN | OTHER
+type emoji =
+  | LAUGH
+  | THUMBS_UP
+  | THUMBS_DOWN
+  | OTHER
 
 (** [refactor_emoji] turns emoji strings into emoji. *)
 val refactor_emoji : string -> emoji
@@ -82,8 +86,10 @@ val get_person_reaction : Raw.issue -> string -> string list
 val get_person_reaction_n : Raw.issue -> string -> int
 
 (** Return strings required to build table summarising a person's reactions *)
-val person_summary :
-  string list option -> string -> string * string * string list * string list
+val person_summary
+  :  string list option
+  -> string
+  -> string * string * string list * string list
 
 (** Print the table of reactions for user: [target] *)
 val individuals_reactions : string -> unit

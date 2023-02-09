@@ -48,7 +48,6 @@ let string_list_opt_of_json = function
   | _ -> None
 ;;
 
-
 let int_list_opt_of_json = function
   | `List value ->
     let int_opts = Yojson.Basic.Util.convert_each int_opt_of_json (`List value) in
@@ -100,7 +99,8 @@ let load_settings () : t =
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
   ; github_url = find_setting string_opt_of_json "githubUrl" config_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
-  ; github_project_columns = find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
+  ; github_project_columns =
+      find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_ignored_projects =
       find_setting int_list_opt_of_json "forecastIgnoredProjects" config_json_opt
@@ -120,7 +120,6 @@ let get_github_project_name () =
 ;;
 
 let get_github_project_columns () = settings.github_project_columns
-;;
 
 let get_github_repo_name () =
   match settings.github_repo_name with

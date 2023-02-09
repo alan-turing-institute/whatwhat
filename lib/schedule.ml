@@ -353,9 +353,10 @@ let get_the_schedule () =
   in
   let fc_projects, fc_people, fc_assignments =
     let fcpp, fcpr, fcas = Forecast.get_the_schedule start_date end_date in
-    (fcpp |> Forecast.IntMap.bindings |> List.map snd,
-     fcpr |> Forecast.StringMap.bindings |> List.map snd,
-     fcas) in
+    ( fcpp |> Forecast.IntMap.bindings |> List.map snd
+    , fcpr |> Forecast.StringMap.bindings |> List.map snd
+    , fcas )
+  in
   let gh_issues = Github.get_project_issues "Project Tracker" in
   let gh_people = Github.all_hut23_users in
   let people = get_people_list fc_people gh_people in

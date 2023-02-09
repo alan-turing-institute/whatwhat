@@ -16,7 +16,7 @@ type notify_target =
   | NoTarget
   | Github
   | Slack
-  | All(** *)
+  | All (** *)
 
 val dump_the_log : unit -> unit
 val dump_metadata_events : unit -> unit
