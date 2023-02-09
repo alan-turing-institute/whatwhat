@@ -326,6 +326,6 @@ let get_project_issues_async ?(column_names = default_columns) (project_name : s
      3. This function removes issue assignments and reactions for people who are
         no longer in the Hut23 repo.
    *)
-let get_project_issues (project_name : string) =
-  get_project_issues_async project_name |> Lwt_main.run
+let get_project_issues ?(column_names = default_columns) (project_name : string) =
+  get_project_issues_async ~column_names project_name |> Lwt_main.run
 ;;

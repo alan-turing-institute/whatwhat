@@ -8,10 +8,6 @@
  
 module Raw = GithubRaw
 
-(** [project_column_issues] returns all issues in a specific project board and 
-    column *)
-val project_column_issues : string -> string list -> Raw.issue list
-
 (** [print_issue issue] prints the [issue] summary. *)
 val print_issue : Raw.issue -> unit
 

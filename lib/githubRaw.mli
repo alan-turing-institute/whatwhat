@@ -48,7 +48,7 @@ type project =
 type project_root = { projects : project list } [@@deriving show]
 
 (** Return the list of issues in a project board, given the name of the board. *)
-val get_project_issues : string -> issue list
+val get_project_issues : ?column_names:string list -> string -> issue list
 
 (** Return all the users in the Alan Turing Institute Github organisation. *)
 val all_hut23_users : person list
