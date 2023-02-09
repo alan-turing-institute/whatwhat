@@ -276,21 +276,17 @@ let default_columns : string list =
   (* ; "Cancelled" *)
   (* ; "Done" *)
   (* ; "Completion review" *)
-  [ "Active"
-  ; "Awaiting start"
-  ; "Finding people"
-  ; "Awaiting go/no-go"
-  ]
   (* ; "Project appraisal" *)
   (* ; "Extra info needed" *)
   (* ; "Proposal" *)
   (* ; "Suggested" *)
+  [ "Active"; "Awaiting start"; "Finding people"; "Awaiting go/no-go" ]
 ;;
 
-(* TODO: don't hardcode the project id; they can be gotten via
-    https://api.github.com/repos/alan-turing-institute/Hut23/projects *)
-(* string -> () *)
-let get_project_issues_async ?(column_names = default_columns) (project_name : string) =
+let get_project_issue_numbers_async
+  ?(column_names = default_columns)
+  (project_name : string)
+  =
   let github_token = Config.get_github_token () in
   let project_id =
     match project_name with
@@ -310,8 +306,17 @@ let get_project_issues_async ?(column_names = default_columns) (project_name : s
   let* issue_numbers' =
     columns |> List.map get_issue_numbers_in_column_async |> Lwt.all
   in
-  let issue_numbers = List.flatten issue_numbers' in
-  (* print_endline ("found " ^ string_of_int (List.length issue_numbers) ^ " issues"); *)
+  Lwt.return (List.flatten issue_numbers')
+;;
+
+let get_project_issue_numbers ?(column_names = default_columns) (project_name : string) =
+  get_project_issue_numbers_async ~column_names project_name |> Lwt_main.run
+;;
+
+(* TODO: don't hardcode the project id; they can be gotten via
+    https://api.github.com/repos/alan-turing-institute/Hut23/projects *)
+let get_project_issues_async ?(column_names = default_columns) (project_name : string) =
+  let* issue_numbers = get_project_issue_numbers_async ~column_names project_name in
   get_issues_throttled issue_numbers
 ;;
 
@@ -328,4 +333,17 @@ let get_project_issues_async ?(column_names = default_columns) (project_name : s
    *)
 let get_project_issues ?(column_names = default_columns) (project_name : string) =
   get_project_issues_async ~column_names project_name |> Lwt_main.run
+;;
+
+let populate_column_name ?project_issue_numbers issue =
+  match issue.column with
+  | Some _ -> issue
+  | None ->
+    let project_data =
+      match project_issue_numbers with
+      | None -> get_project_issue_numbers "Project Tracker"
+      | Some x -> x
+    in
+    let col_name = List.assoc_opt issue.number project_data in
+    { issue with column = col_name }
 ;;
