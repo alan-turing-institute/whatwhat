@@ -57,31 +57,65 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
 
 ### 3. Setting up whatwhat development environment
 
-#### Project setup (existing project)
+- Project setup (existing project)
 
-1. In `whatwhat/`...
+    1. In `whatwhat/`...
 
-2. I think ... `opam switch create .` (Then `eval $(opam env)`)
+    2. I think ... `opam switch create .` (Then `eval $(opam env)`)
 
-#### You will need a secrets file with authentication tokens
+- You will need a secrets file with authentication tokens and a config file with details of the Forecast and GitHub projects you want to work with.
 
-Put this in `~/.config/nowwhat/secrets.json` (note the different name!): 
-```json
-{
-    "githubToken"    : "<yours here>",
-    "githubBotToken" : "<get from the Shared Drive>",
-    "forecastId"     : "<check the URL when you connect to Forecast>",
-    "forecastToken"  : "<yours here>",
-    "slackToken"     : "<get from the Shared Drive>"
-}
-```
+    Put this in `~/.config/nowwhat/secrets.json` (note the different name!): 
+    ```json
+    {
+        "githubToken"    : "<yours here>",
+        "githubBotToken" : "<get from the Shared Drive>",
+        "forecastId"     : "<check the URL when you connect to Forecast>",
+        "forecastToken"  : "<yours here>",
+        "slackToken"     : "<get from the Shared Drive>"
+    }
+    ```
 
-#### Building and running
+    And this in `~/.config/nowwhat/config.json`: 
+    ```json
+    {
+        "forecastId": "<check the URL when you connect to Forecast>",
+        "forecastIgnoredProjects": "<comma-separated list of project IDs to ignore>",
+        "forecastUrl": "https://api.forecastapp.com/",
+        "githubProjectName": "<name of the GitHub project board>",
+        "githubProjectColumns": "<comma-separated list of column names to include>",
+        "githubRepoOwner": "<owner of the GitHub repo>",
+        "githubRepoName": "<name of the GitHub repo>",
+        "githubUrl": "<URL of the GitHub API>"
+    }
+    ```
 
-1. To build: `dune build`
-2. To build the docs: `dune build @doc`
-3. To run: `dune exec whatwhat`
-4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
+- Building and running
+
+    1. To build: `dune build`
+    2. To build the docs: `dune build @doc`
+    3. To run: `dune exec whatwhat`
+    4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
+    5. For help with the arguments see `dune exec -- whatwhat --help`
+
+
+-  Viewing the documentation
+
+    - With opam
+        ```sh
+        opam build .
+        opam install .
+
+        odig odoc
+        odig doc whatwhat
+        ```
+
+    - with dune
+        ```sh
+        dune clean 
+        dune build @doc
+        open _build/default/_doc/_html/index.html
+        ```
 
 ---
 
@@ -89,29 +123,22 @@ Put this in `~/.config/nowwhat/secrets.json` (note the different name!):
 
 #### Official
 
-Main website: https://ocaml.org/
-
-[Installation instructions from the official website](https://ocaml.org/docs/up-and-running)
+- Main website: https://ocaml.org/
+- [Installation instructions from the official website](https://ocaml.org/docs/up-and-running)
 
 #### Learning and getting started
 
-[Merlin: set up for Emacs and VIM](https://ocaml.github.io/merlin/)
-
-[OCamlverse](https://ocamlverse.github.io/) is a community wiki
-
-[Instructions from Real World OCaml](https://dev.realworldocaml.org/install.html)
-
-[OCaml discourse](https://discuss.ocaml.org/)
-
-[OCaml PRO](https://ocamlpro.com/)
+- [Merlin: set up for Emacs and VIM](https://ocaml.github.io/merlin/)
+- [OCamlverse](https://ocamlverse.github.io/) is a community wiki
+- [Instructions from Real World OCaml](https://dev.realworldocaml.org/install.html)
+- [OCaml discourse](https://discuss.ocaml.org/)
+- [OCaml PRO](https://ocamlpro.com/)
 
 #### Books and documentation
 
-[OCaml Programming: Correct + Efficient + Beautiful](https://cs3110.github.io/textbook/cover.html) (A nice textbook with accompanying lecture series.)
-
-[Real World OCaml (Jane Street)](https://dev.realworldocaml.org/index.html)
-
-[Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
+- [OCaml Programming: Correct + Efficient + Beautiful](https://cs3110.github.io/textbook/cover.html) (A nice textbook with accompanying lecture series.)
+- [Real World OCaml (Jane Street)](https://dev.realworldocaml.org/index.html)
+- [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
 
 ---
 

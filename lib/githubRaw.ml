@@ -112,29 +112,39 @@ let run_github_query ?(methd = GET) ?(params = []) ?(body = "") uri =
 ;;
 
 let read_file_as_string filepath =
-  let channel = open_in filepath in
+  let channel = Batteries.open_in filepath in
   let return_string = channel |> BatIO.lines_of |> BatEnum.fold ( ^ ) "" in
-  let () = close_in channel in
+  let () = Batteries.close_in channel in
   return_string
 ;;
 
 let all_hut23_users =
-  let github_graph_ql_endpoint = "https://api.github.com/graphql" in
   let user_query_template_path = "./queries/users.graphql" in
-  let user_query = read_file_as_string user_query_template_path in
+  let query_template = read_file_as_string user_query_template_path in
+  let replacements =
+    [ Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
+    ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
+    ]
+  in
+  let replace_multiple replacements str =
+    let folder query (to_replace, replace_with) =
+      Str.global_replace to_replace replace_with query
+    in
+    List.fold_left folder str replacements
+  in
+  let query = replace_multiple replacements query_template in
+
+  let github_graph_ql_endpoint = "https://api.github.com/graphql" in
   let body_json =
-    run_github_query ~methd:POST ~body:user_query github_graph_ql_endpoint
+    run_github_query ~methd:POST ~body:query github_graph_ql_endpoint
   in
   let open Yojson.Basic.Util in
-  let users =
-    body_json
+  body_json
     |> member "data"
     |> member "repository"
     |> member "assignableUsers"
     |> member "edges"
     |> convert_each (fun json -> json |> member "node" |> person_of_json)
-  in
-  users
 ;;
 
 let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_hut23_users

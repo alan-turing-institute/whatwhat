@@ -4,7 +4,8 @@ module Raw = GithubRaw
 let print_issue (i : Raw.issue) = 
   print_endline (" ");
   print_endline ("Issue number: " ^ string_of_int i.number ^ 
-  " (https://github.com/alan-turing-institute/Hut23/issues/" ^ 
+  " (https://github.com/" ^ Config.get_github_repo_owner () ^ "/" ^
+  Config.get_github_repo_name () ^ "/issues/" ^ 
   string_of_int i.number ^ ")");
   print_endline ("Issue title: " ^ i.title) ;
   print_endline ("State: " ^ i.state);
@@ -53,14 +54,14 @@ let test_person_name (name : string) (i : Raw.issue)  =
 ;;
 
 (* Get the issue summary: number, title, state, column*)
-let issue_summary (project_columns) (lookup_term) = 
-  let column_issues = Raw.get_project_issues ~column_names:project_columns "Project Tracker" in 
+let issue_summary project_columns lookup_term = 
+  let column_issues = Raw.get_project_issues ~column_names:project_columns (Config.get_github_project_name ()) in
 
   let issues_subset = 
     if Str.string_match (Str.regexp "[0-9]+") lookup_term 0 
       then 
         column_issues
-          |> List.map (fun x -> test_issue_number ( int_of_string lookup_term ) (x))
+          |> List.map (fun x -> test_issue_number (int_of_string lookup_term) (x))
           |> List.filter (fun x -> x <> None) 
           |> List.map (fun x -> Option.get x) 
       else
@@ -153,9 +154,9 @@ let header_line (max_name_length : int) (max_emoji_length : int) =
 
 (* Get the reactions *)
 (* 
-  TODO: collapse people with multiple reactions (example: Joe Palmer issue 1216) 
-  This probably involved counting the reactions instead
-  then refactoring the table according to the counts. Is that the best method?
+  TODO: collapse people with multiple reactions (example: issue 1216) 
+  This probably involves counting the reactions instead
+  then refactoring the table according to the counts. 
 *)
 let get_reaction_table (issue : Raw.issue) = 
   (* Get issue reactions then sort by most love -> least love, 
@@ -192,6 +193,7 @@ let get_person_reaction (i : Raw.issue) (name : string) =
   i.reactions 
     |> List.filter (fun (_a, b) -> get_name b = name)  
     |> List.map (fun x -> (fun (a, _b) -> a) x)
+
 ;;
 
 let get_person_reaction_n (i : Raw.issue) (name : string) = 
@@ -199,17 +201,15 @@ let get_person_reaction_n (i : Raw.issue) (name : string) =
   (* Get only the reactions of the person *)
   let reactions = i.reactions 
     |> List.filter (fun (_a, b) -> get_name b = name)  
-    |> List.map (fun x -> (fun (a, _b) -> a) x) in
-    
+    |> List.map (fun x -> (fun (a, _b) -> a) x) in    
 
   List.length reactions
 ;;
 
-let person_summary (project_columns) (name : string)= 
-  let column_issues = Raw.get_project_issues ~column_names:project_columns "Project Tracker" in 
+let person_summary project_columns (name : string)= 
+  let column_issues = Raw.get_project_issues ~column_names:project_columns (Config.get_github_project_name ()) in
 
-  let issues_subset = 
-    column_issues
+  let issues_subset = column_issues
       |> List.map (fun x -> test_person_name ( name ) (x))
       |> List.filter (fun x -> x <> None) 
       |> List.map (fun x -> Option.get x) in
@@ -230,8 +230,9 @@ let person_summary (project_columns) (name : string)=
 
   (* Create list of project reactions *)    
   let persons_reactions = issues_subset 
-  |> List.map (fun x -> get_person_reaction x name) |> List.flatten in
-  (* This line reapeats the project name to create long format tables in cases 
+    |> List.map (fun x -> get_person_reaction x name) 
+    |> List.flatten in
+  (* This line repeats the project name to create long format tables in cases 
      where someone reacts multiple times on the same issue *)
   let project_names = 
     List.map2 (fun x y -> Batteries.List.make(get_person_reaction_n x name) (y)) 
@@ -257,7 +258,8 @@ let person_summary (project_columns) (name : string)=
 
 
 let individuals_reactions target = 
-  let bl, hl, table_body, difference = person_summary (Some ["Finding people"; "Awaiting start"; "Active"]) target in
+  let bl, hl, table_body, difference =
+    person_summary (Config.get_github_project_columns ()) target in
 
   (* print the person's reactions *)
   print_endline ("\n" ^ target ^ " has reacted to " ^ 
@@ -278,7 +280,7 @@ let individuals_reactions target =
 
 let issues_reactions target = 
   let issue = 
-    issue_summary (Some ["Finding people"; "Awaiting start"; "Active"]) target in
+    issue_summary (Config.get_github_project_columns ()) target in
   
   print_endline "";
   print_issue(issue) ;
