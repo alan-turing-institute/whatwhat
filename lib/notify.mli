@@ -12,11 +12,11 @@
 module IntMap : module type of Map.Make (Int)
 
 (** Where notifications should be posted. The default is NoTarget. *)
-type target =
+type notify_target =
   | NoTarget
   | Github
   | Slack
-  | All (** *)
+  | All(** *)
 
 val dump_the_log : unit -> unit
 val dump_metadata_events : unit -> unit
