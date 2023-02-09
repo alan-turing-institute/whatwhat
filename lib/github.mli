@@ -50,7 +50,7 @@ type parseerror =
 (* We reexport the Raw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)
 
-type person = GithubTypes.person =
+type person = GithubRaw.person =
   { login : string
   ; name : string option
   ; email : string option
@@ -63,4 +63,4 @@ val show_person : person -> string
 val get_project_issues : string -> Domain.project list
 
 (** Return all the users in the Alan Turing Institute Github organisation. *)
-val get_users : unit -> person list
+val all_hut23_users : person list

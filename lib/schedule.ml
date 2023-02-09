@@ -160,7 +160,7 @@ let get_the_schedule () =
      fcpr |> Forecast.StringMap.bindings |> List.map snd,
      fcas) in
   let gh_issues = Github.get_project_issues "Project Tracker" in
-  let gh_people = Github.get_users () in
+  let gh_people = Github.all_hut23_users in
   let people = get_people_list fc_people gh_people in
   let projects = merge_projects fc_projects gh_issues in
   people, projects, assignments

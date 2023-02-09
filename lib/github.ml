@@ -16,7 +16,7 @@ let is_valid_column col =
 ;;
 
 (* Re-exporting for convenience of modules that import this one. *)
-let get_users = Raw.get_users
+let all_hut23_users = Raw.all_hut23_users
 
 (* ---------------------------------------------------------------------- *)
 (* METADATA PARSING ERROR LOGGING *)
@@ -69,7 +69,7 @@ let log_parseerror (what : parseerror) (number : int) msg =
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
 
-type person = GithubTypes.person =
+type person = GithubRaw.person =
   { login : string
   ; name : string option
   ; email : string option
@@ -296,7 +296,7 @@ let parse_metadata (n : int) (body : string) =
     None, body
 ;;
 
-let validate_issue (issue : GithubTypes.issue) =
+let validate_issue (issue : GithubRaw.issue) =
   (* GithubRaw returns the issue body as well, but we ignore for now *)
   let metadata, _ = parse_metadata issue.number issue.body in
   match metadata with
@@ -313,7 +313,7 @@ let validate_issue (issue : GithubTypes.issue) =
 let get_project_issues (project_name : string) =
   let issues =
     Raw.get_project_issues project_name
-    |> List.filter (fun (issue : GithubTypes.issue) ->
+    |> List.filter (fun (issue : GithubRaw.issue) ->
            try is_valid_column issue.column with
              UnknownColumn msg -> failwith (msg ^ " for " ^ (string_of_int issue.number)))
   in
