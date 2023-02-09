@@ -83,6 +83,7 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
         "forecastIgnoredProjects": "<comma-separated list of project IDs to ignore>",
         "forecastUrl": "https://api.forecastapp.com/",
         "githubProjectName": "<name of the GitHub project board>",
+        "githubProjectColumns": "<comma-separated list of column names to include>",
         "githubRepoOwner": "<owner of the GitHub repo>",
         "githubRepoName": "<name of the GitHub repo>",
         "githubUrl": "<URL of the GitHub API>"
@@ -123,27 +124,20 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
 #### Official
 
 - Main website: https://ocaml.org/
-
 - [Installation instructions from the official website](https://ocaml.org/docs/up-and-running)
 
 #### Learning and getting started
 
 - [Merlin: set up for Emacs and VIM](https://ocaml.github.io/merlin/)
-
 - [OCamlverse](https://ocamlverse.github.io/) is a community wiki
-
 - [Instructions from Real World OCaml](https://dev.realworldocaml.org/install.html)
-
 - [OCaml discourse](https://discuss.ocaml.org/)
-
 - [OCaml PRO](https://ocamlpro.com/)
 
 #### Books and documentation
 
 - [OCaml Programming: Correct + Efficient + Beautiful](https://cs3110.github.io/textbook/cover.html) (A nice textbook with accompanying lecture series.)
-
 - [Real World OCaml (Jane Street)](https://dev.realworldocaml.org/index.html)
-
 - [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
 
 ---
