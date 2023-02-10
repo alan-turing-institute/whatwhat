@@ -15,7 +15,9 @@ let print_issue (i : Raw.issue) =
     ^ ")");
   print_endline ("Issue title: " ^ i.title);
   print_endline ("State: " ^ i.state);
-  print_endline ("Column: " ^ Option.get i.column)
+  match i.column with
+  | Some col -> print_endline ("Column: " ^ col);
+  | None -> ()
 ;;
 
 (* filter list by issue number *)
@@ -64,17 +66,13 @@ let test_person_name (name : string) (i : Raw.issue) =
 
 (* Get the issue summary: number, title, state, column*)
 let issue_summary lookup_term =
-  let column_issues = Raw.get_project_issues () in
 
   let issues_subset =
     if Str.string_match (Str.regexp "[0-9]+") lookup_term 0
     then
-      column_issues
-      |> List.map (fun x -> test_issue_number (int_of_string lookup_term) x)
-      |> List.filter (fun x -> x <> None)
-      |> List.map (fun x -> Option.get x)
+      [GithubRaw.get_issue (int_of_string lookup_term) |> GithubRaw.populate_column_name]
     else
-      column_issues
+      Raw.get_project_issues ()
       |> List.map (fun x -> test_issue_title lookup_term x)
       |> List.filter (fun x -> x <> None)
       |> List.map (fun x -> Option.get x)

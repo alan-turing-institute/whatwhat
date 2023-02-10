@@ -149,29 +149,62 @@ let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_us
 
 (* ------- Queries using REST API ------- *)
 
+(* Like column cards, we can only fetch 100 reactions at a time. This function
+   therefore fetches the first page of reactions (which can contain up to 100
+   results) and then fetches a second page if 100 results were returned. *)
+let rec get_issue_reactions_async ?(page = 1) id =
+  let batch_get page id =
+    let uri =
+      String.concat
+        "/"
+        [ "https://api.github.com/repos"
+        ; Config.get_github_repo_owner ()
+        ; Config.get_github_repo_name ()
+        ; "issues"
+        ; string_of_int id
+        ; "reactions"
+        ]
+    in
+    let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
+    let* reactions_json = run_github_query_async ~params uri in
+    let open Yojson.Basic.Util in
+    let parse_reaction r =
+      let login = r |> member "user" |> member "login" in
+      (* Deleted users have no login *)
+      if login = `Null then None else
+      let rxn = r |> member "content" |> to_string in
+      let psn = login |> to_string |> find_person_by_login in
+      match rxn, psn with
+      | p, Some q -> Some (p, q)
+      | p, None -> Some (p, {login = login |> to_string; name = None; email = None})
+    in
+    let reactions =
+      reactions_json |> Basic.Util.to_list |> List.filter_map parse_reaction
+    in
+    Lwt.return reactions
+  in
+  let* first_batch = batch_get page id in
+  if List.length first_batch = 100
+  then
+    let* next_batch = get_issue_reactions_async ~page:(page + 1) id in
+    Lwt.return (first_batch @ next_batch)
+  else Lwt.return first_batch
+
 let get_issue_async ?col_name id =
   let ( let* ) = Lwt.bind in
   let open Yojson.Basic.Util in
   let issue_uri =
-    "https://api.github.com/repos/alan-turing-institute/Hut23/issues/" ^ string_of_int id
-  in
-  let reactions_uri =
-    "https://api.github.com/repos/alan-turing-institute/Hut23/issues/"
-    ^ string_of_int id
-    ^ "/reactions"
+    String.concat
+      "/"
+      [ "https://api.github.com/repos"
+      ; Config.get_github_repo_owner ()
+      ; Config.get_github_repo_name ()
+      ; "issues"
+      ; string_of_int id
+      ]
   in
   let* issue_json = run_github_query_async issue_uri in
-  let* reactions_json = run_github_query_async reactions_uri in
-  let parse_reaction r =
-    let rxn = r |> member "content" |> to_string in
-    let psn = r |> member "user" |> member "login" |> to_string |> find_person_by_login in
-    match rxn, psn with
-    | p, Some q -> Some (p, q)
-    | _, _ -> None
-  in
-  let reactions =
-    reactions_json |> Basic.Util.to_list |> List.filter_map parse_reaction
-  in
+  let* reactions = get_issue_reactions_async id in
   Lwt.return
     { number = id
     ; title = issue_json |> member "title" |> to_string
@@ -183,7 +216,7 @@ let get_issue_async ?col_name id =
         |> to_list
         |> List.filter_map (fun a ->
              a |> member "login" |> to_string |> find_person_by_login)
-    ; reactions
+    ; reactions = reactions
     ; labels =
         issue_json
         |> member "labels"
@@ -268,6 +301,8 @@ let parse_column (column_json : Basic.t) : rest_column =
   { name; id; issues = [] }
 ;;
 
+(* TODO: don't hardcode the project id; they can be gotten via
+    https://api.github.com/repos/alan-turing-institute/Hut23/projects *)
 let get_project_issue_numbers_async () =
   let project_id =
     match Config.get_github_project_name () with
@@ -292,8 +327,6 @@ let get_project_issue_numbers_async () =
 
 let get_project_issue_numbers () = get_project_issue_numbers_async () |> Lwt_main.run
 
-(* TODO: don't hardcode the project id; they can be gotten via
-    https://api.github.com/repos/alan-turing-institute/Hut23/projects *)
 let get_project_issues_async () =
   let* issue_numbers = get_project_issue_numbers_async () in
   get_issues_throttled issue_numbers
