@@ -1,19 +1,6 @@
 module Raw = GithubRaw
 open Domain
 
-(* Whatwhat doesn't care about all projects: only those in the folowing stages:
-   - Finding people
-   - Awaiting start
-   - Active
- *)
-let is_valid_column col =
-  match state_of_column col with
-  | State.FindingPeople -> true
-  | State.AwaitingStart -> true
-  | State.Active -> true
-  | _ -> false
-;;
-
 (* Re-exporting for convenience of modules that import this one. *)
 let all_users = Raw.all_users
 
@@ -314,12 +301,7 @@ let validate_issue (issue : Raw.issue) =
 ;;
 
 let get_project_issues () =
-  let issues =
-    Raw.get_project_issues ()
-    |> List.filter (fun (issue : Raw.issue) ->
-         try is_valid_column issue.column with
-         | UnknownColumn msg -> failwith (msg ^ " for " ^ string_of_int issue.number))
-  in
+  let issues = Raw.get_project_issues () in
   Printf.printf "Obtained %d Github issues\n" (List.length issues);
   List.filter_map validate_issue issues
 ;;

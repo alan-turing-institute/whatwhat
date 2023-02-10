@@ -23,6 +23,7 @@ module IntMap = Map.Make (Int)
 
 type notify_target =
   | NoTarget
+  | Print
   | Github
   | Slack
   | All

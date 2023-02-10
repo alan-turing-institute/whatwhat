@@ -18,10 +18,7 @@ type person =
   }
 [@@deriving show]
 
-(** An [issue] is a GitHub issue on the
-    {{: https://github.com/alan-turing-institute/Hut23/issues} Hut23
-    repository}.
-    *)
+(** An [issue] is a GitHub issue on the repository being queried. *)
 type issue =
   { number : int
   ; title : string
@@ -34,21 +31,9 @@ type issue =
   }
 [@@deriving show]
 
-(* TODO: Determine if we really need this. All columns should be castable
-   into rest_columns. *)
-
-(** A column of a project on GitHub. This data type is used for data from
-    the GraphQL API. *)
-type column =
-  { name : string
-  ; cards : (issue * string) list
-      (* The string is a cursor, would be nice to have a type alias for it. *)
-  }
-[@@deriving show]
-
 (** A column of a project on GitHub. This data type is used for data from the
     REST API. *)
-type rest_column =
+type column =
   { name : string
   ; id : int
   ; issues : (issue * string) list (* The [string] here is the column name. *)
@@ -111,7 +96,7 @@ val populate_column_name : ?project_issue_numbers:(int * string) list -> issue -
 
 (** Get a list of all issue numbers in the project. Each issue number is paired
     with the name of the column. *)
-val get_issue_numbers_in_column : rest_column -> (int * string) list
+val get_issue_numbers_in_column : column -> (int * string) list
 
 (** Get a list of all issue numbers in the project. The issue number is paired
     with the name of the column. *)

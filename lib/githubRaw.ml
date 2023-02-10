@@ -30,16 +30,7 @@ type issue =
   }
 [@@deriving show]
 
-(* This is from the graphQL API *)
 type column =
-  { name : string
-  ; cards : (issue * string) list
-      (* The string is a cursor, would be nice to have a type alias for it. *)
-  }
-[@@deriving show]
-
-(* This is from the REST API *)
-type rest_column =
   { name : string
   ; id : int
   ; issues : (issue * string) list
@@ -171,12 +162,14 @@ let rec get_issue_reactions_async ?(page = 1) id =
     let parse_reaction r =
       let login = r |> member "user" |> member "login" in
       (* Deleted users have no login *)
-      if login = `Null then None else
-      let rxn = r |> member "content" |> to_string in
-      let psn = login |> to_string |> find_person_by_login in
-      match rxn, psn with
-      | p, Some q -> Some (p, q)
-      | p, None -> Some (p, {login = login |> to_string; name = None; email = None})
+      if login = `Null
+      then None
+      else (
+        let rxn = r |> member "content" |> to_string in
+        let psn = login |> to_string |> find_person_by_login in
+        match rxn, psn with
+        | p, Some q -> Some (p, q)
+        | p, None -> Some (p, { login = login |> to_string; name = None; email = None }))
     in
     let reactions =
       reactions_json |> Basic.Util.to_list |> List.filter_map parse_reaction
@@ -189,6 +182,7 @@ let rec get_issue_reactions_async ?(page = 1) id =
     let* next_batch = get_issue_reactions_async ~page:(page + 1) id in
     Lwt.return (first_batch @ next_batch)
   else Lwt.return first_batch
+;;
 
 let get_issue_async ?col_name id =
   let ( let* ) = Lwt.bind in
@@ -216,7 +210,7 @@ let get_issue_async ?col_name id =
         |> to_list
         |> List.filter_map (fun a ->
              a |> member "login" |> to_string |> find_person_by_login)
-    ; reactions = reactions
+    ; reactions
     ; labels =
         issue_json
         |> member "labels"
@@ -294,7 +288,7 @@ let get_issue_numbers_in_column col =
   get_issue_numbers_in_column_async col |> Lwt_main.run
 ;;
 
-let parse_column (column_json : Basic.t) : rest_column =
+let parse_column (column_json : Basic.t) : column =
   let open Yojson.Basic.Util in
   let name = column_json |> member "name" |> to_string in
   let id = column_json |> member "id" |> to_int in
@@ -302,7 +296,7 @@ let parse_column (column_json : Basic.t) : rest_column =
 ;;
 
 (* TODO: don't hardcode the project id; they can be gotten via
-    https://api.github.com/repos/alan-turing-institute/Hut23/projects *)
+    https://api.github.com/repos/OWNER/REPO/projects *)
 let get_project_issue_numbers_async () =
   let project_id =
     match Config.get_github_project_name () with
@@ -316,7 +310,7 @@ let get_project_issue_numbers_async () =
   let filtered_columns =
     match Config.get_github_project_columns () with
     | Some names ->
-      columns |> List.filter (fun (c : rest_column) -> List.mem c.name names)
+      columns |> List.filter (fun (c : column) -> List.mem c.name names)
     | None -> columns
   in
   let* issue_numbers' =
@@ -332,17 +326,6 @@ let get_project_issues_async () =
   get_issues_throttled issue_numbers
 ;;
 
-(* This almost completely gives the same output as the previous GraphQL query,
-   but in a rather shorter time.
-   There are a couple of differences:
-     1. The issue status (open/closed) is in caps in GithubRaw but small letters
-        here. This has to do with GitHub's REST and GraphQL APIs returning
-        different values.
-     2. The emoji string identifiers are also slightly different (for example,
-        GraphQL gives "THUMBS_UP", REST gives "+1").
-     3. This function removes issue assignments and reactions for people who are
-        no longer in the Hut23 repo.
-   *)
 let get_project_issues () = get_project_issues_async () |> Lwt_main.run
 
 let populate_column_name ?project_issue_numbers issue =

@@ -14,7 +14,7 @@ let whatwhat notify person issue =
   then (
     let people, projects, assignments = Schedule.get_the_schedule () in
     print_endline "Whatwhat downloaded:";
-    Printf.printf " %d people; " (List.length people);
+    Printf.printf "%d people; " (List.length people);
     Printf.printf "%d projects; and " (List.length projects);
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
@@ -24,7 +24,8 @@ let whatwhat notify person issue =
       print_endline "CATCH: this would post reports to github."
       (*To post to github replace CATCH string with 
        Notify.post_metadata_reports ()*)
-    else Notify.print_metadata_reports ())
+    else if notify = Notify.Print
+    then Notify.print_metadata_reports ())
   else print_endline "No notifications requested.";
 
   (* query person's reactions*)
@@ -49,11 +50,12 @@ let notify =
       ; "slack", Notify.Slack
       ; "all", Notify.All
       ; "none", Notify.NoTarget
+      ; "print", Notify.Print
       ]
   in
   let doc =
     "Where to send notifications.\n\
-    \           $(docv) may be $(b,github), $(b,slack), $(b,all), or $(b,none)."
+    \           $(docv) may be $(b,print), $(b,github), $(b,slack), $(b,all), or $(b,none)."
   in
 
   Arg.(value & opt tgs Notify.NoTarget & info [ "n"; "notify" ] ~docv:"NOTIFY" ~doc)
