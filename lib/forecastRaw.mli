@@ -49,23 +49,10 @@ type assignment =
   ; notes : string option
   }
 
-val get_clients : unit -> client list
 val show_client : client -> string
-val get_projects : unit -> project list
 val show_project : project -> string
-val get_people : unit -> person list
 val show_person : person -> string
-val get_placeholders : unit -> placeholder list
 val show_placeholder : placeholder -> string
-
-(** Return all assignments which overlap a given date range. The range is from
-    [start_date] to [end_date], inclusive, and all overlapping assignments are 
-    returned in full. (In particular, any given returned [assignment] 
-    may start earlier than [start_date] and end later than [end_date].)
-
-    The end date may not be more than 180 days after start date. *)
-val get_assignments : Date.t -> Date.t -> assignment list
-
 val show_assignment : assignment -> string
 
 val get_the_schedule
