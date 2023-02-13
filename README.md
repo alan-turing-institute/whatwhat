@@ -93,29 +93,10 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
 - Building and running
 
     1. To build: `dune build`
-    2. To build the docs: `dune build @doc`
+    2. To build the docs: see the [wiki](https://github.com/alan-turing-institute/whatwhat/wiki/Documentation)
     3. To run: `dune exec whatwhat`
     4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
     5. For help with the arguments see `dune exec -- whatwhat --help`
-
-
--  Viewing the documentation
-
-    - With opam
-        ```sh
-        opam build .
-        opam install .
-
-        odig odoc
-        odig doc whatwhat
-        ```
-
-    - with dune
-        ```sh
-        dune clean 
-        dune build @doc
-        open _build/default/_doc/_html/index.html
-        ```
 
 ---
 
