@@ -6,13 +6,11 @@ let project_column_issues (project_board : string) (project_columns) =
 
   (* function to check the column is in list*)
   let test_column (colnames) (i : Raw.issue)  = 
-    if (List.mem (Option.get i.column) colnames) then Some i else None in
+  match i.column with
+  | Some c -> if List.mem c colnames then Some i else None
+  | None -> failwith ("issue " ^ string_of_int i.number ^ " had no column") in
 
-
-  all_issues
-    |> List.map (fun x -> test_column project_columns x)
-    |> List.filter (fun x -> x <> None) 
-    |> List.map (fun x -> Option.get x)
+  all_issues |> List.filter_map (fun x -> test_column project_columns x)
 ;;
 
 (* Function for printing issue summary*)
@@ -58,9 +56,8 @@ let get_title (i : Raw.issue) = i.title;;
 (* check if this issue contain reactions from name*)
 let test_person_name (name : string) (i : Raw.issue)  = 
   let all_names = i.reactions 
-    |> List.map (fun x -> (fun (_a, b) -> b) x) 
-    |> List.map (fun x -> get_name x) 
-    |> List.map (fun x -> strip (String.lowercase_ascii x)) in
+    |> List.map (fun r -> r |> snd |> get_name |> 
+    String.lowercase_ascii |> strip) in
 
   let formatted_name = strip (String.lowercase_ascii name) in
 
@@ -76,15 +73,9 @@ let issue_summary (project_columns) (lookup_term) =
   let issues_subset = 
     if Str.string_match (Str.regexp "[0-9]+") lookup_term 0 
       then 
-        column_issues
-          |> List.map (fun x -> test_issue_number (int_of_string lookup_term) (x))
-          |> List.filter (fun x -> x <> None) 
-          |> List.map (fun x -> Option.get x) 
+        column_issues |> List.filter_map (fun x -> test_issue_number (int_of_string lookup_term) (x))
       else
-        column_issues
-          |> List.map (fun x -> test_issue_title ( lookup_term ) (x)) 
-          |> List.filter (fun x -> x <> None) 
-          |> List.map (fun x -> Option.get x) 
+        column_issues |> List.filter_map (fun x -> test_issue_title ( lookup_term ) (x))
     in
 
   if List.length issues_subset = 0 then
@@ -130,14 +121,10 @@ let compare_names a c =
 (* Refactor the emojis for table *)
 let get_outcome (emoji : string) = 
   match emoji with
-  | "LAUGH" -> "|" ^ occupied_cell ^ "|" ^ empty_cell ^ "|" ^ 
-  empty_cell ^ "|" ^ empty_cell ^ "|"
-  | "THUMBS_UP" -> "|" ^ empty_cell ^ "|" ^ occupied_cell ^ "|" ^ 
-  empty_cell ^ "|" ^ empty_cell ^ "|"
-  | "THUMBS_DOWN" -> "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^
-  occupied_cell ^ "|" ^ empty_cell ^ "|"
-  | _ -> "|" ^ empty_cell ^ "|" ^ empty_cell ^ "|" ^ 
-  empty_cell ^ "|" ^ occupied_cell ^ "|"
+  | "LAUGH" -> String.concat "|" [""; occupied_cell; empty_cell; empty_cell; empty_cell; ""]
+  | "THUMBS_UP" -> String.concat "|" [""; empty_cell; occupied_cell; empty_cell; empty_cell; ""]
+  | "THUMBS_DOWN" -> String.concat "|" [""; empty_cell; empty_cell; occupied_cell; empty_cell; ""] 
+  | _ -> String.concat "|" [""; empty_cell; empty_cell; empty_cell; occupied_cell; ""]
 ;;
 
 
@@ -182,10 +169,8 @@ let get_reaction_table (issue : Raw.issue) =
     |> List.sort (fun (a, _b) (c, _d) -> compare_emojis a c) in
 
   (* Get all emoji reactions and names *)
-  let all_emoji = List.map (fun x -> (fun (a, _b) -> a) x) issue_reactions in
-  let all_names = issue_reactions in
-  let all_names =  List.map (fun x -> (fun (_a, b) -> b) x) all_names in
-  let all_names = List.map (fun x -> get_name x) all_names in
+  let all_emoji, all_names = List.split issue_reactions in
+  let all_names = List.map get_name all_names in
 
   (* Find the longest name for cell size *)
   let max_name_length = 
@@ -208,7 +193,7 @@ let get_person_reaction (i : Raw.issue) (name : string) =
   (* Get only the reactions of the person *)
   i.reactions 
     |> List.filter (fun (_a, b) -> get_name b = name)  
-    |> List.map (fun x -> (fun (a, _b) -> a) x)
+    |> List.map fst
 
 ;;
 
@@ -217,7 +202,7 @@ let get_person_reaction_n (i : Raw.issue) (name : string) =
   (* Get only the reactions of the person *)
   let reactions = i.reactions 
     |> List.filter (fun (_a, b) -> get_name b = name)  
-    |> List.map (fun x -> (fun (a, _b) -> a) x) in    
+    |> List.map fst in    
 
   List.length reactions
 ;;
@@ -227,9 +212,7 @@ let person_summary (project_columns) (name : string)=
   project_columns in 
 
   let issues_subset = column_issues
-      |> List.map (fun x -> test_person_name ( name ) (x))
-      |> List.filter (fun x -> x <> None) 
-      |> List.map (fun x -> Option.get x) in
+      |> List.filter_map (fun x -> test_person_name ( name ) (x)) in
 
   (* Print outputs*)
   if List.length issues_subset = 0 then
