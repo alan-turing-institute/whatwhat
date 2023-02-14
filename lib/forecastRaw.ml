@@ -17,7 +17,7 @@ let forecast_request_async ?(query = []) endpoint =
       ]
   in
   let uri =
-    Uri.with_query' (Uri.of_string (Config.get_forecast_url () ^ endpoint)) query
+    Uri.with_query' (Uri.of_string (Config.get_forecast_url () ^ "/" ^ endpoint)) query
   in
   let* response = Client.get ~headers uri in
   let* body_string = response |> snd |> Body.to_string in

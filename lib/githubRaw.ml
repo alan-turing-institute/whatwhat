@@ -125,7 +125,7 @@ let all_users =
   in
   let query = replace_multiple replacements query_template in
 
-  let github_graph_ql_endpoint = "https://api.github.com/graphql" in
+  let github_graph_ql_endpoint = Config.get_github_url () ^ "/graphql" in
   let body_json = run_github_query ~methd:POST ~body:query github_graph_ql_endpoint in
   let open Yojson.Basic.Util in
   body_json
@@ -148,7 +148,8 @@ let rec get_issue_reactions_async ?(page = 1) id =
     let uri =
       String.concat
         "/"
-        [ "https://api.github.com/repos"
+        [ Config.get_github_url ()
+        ; "repos"
         ; Config.get_github_repo_owner ()
         ; Config.get_github_repo_name ()
         ; "issues"
@@ -190,7 +191,8 @@ let get_issue_async ?col_name id =
   let issue_uri =
     String.concat
       "/"
-      [ "https://api.github.com/repos"
+      [ Config.get_github_url ()
+      ; "repos"
       ; Config.get_github_repo_owner ()
       ; Config.get_github_repo_name ()
       ; "issues"
@@ -262,7 +264,12 @@ let rec get_issue_numbers_in_column_async ?(page = 1) col =
       | None -> None
     in
     let uri =
-      "https://api.github.com/projects/columns/" ^ string_of_int col.id ^ "/cards"
+      String.concat "/"
+      [ Config.get_github_url ()
+      ; "projects"
+      ; "columns"
+      ; string_of_int col.id
+      ; "cards"]
     in
     let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
     let* cards = run_github_query_async ~params uri in
@@ -304,7 +311,7 @@ let get_project_issue_numbers_async () =
     | "NowWhat Test Project" -> "14539393"
     | _ -> failwith "unknown project name"
   in
-  let uri = "https://api.github.com/projects/" ^ project_id ^ "/columns" in
+  let uri = String.concat "/" [Config.get_github_url (); "projects" ; project_id ; "columns"] in
   let* columns = run_github_query_async uri in
   let columns = columns |> Basic.Util.to_list |> List.map parse_column in
   let filtered_columns =

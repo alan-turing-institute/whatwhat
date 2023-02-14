@@ -80,12 +80,12 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
     {
         "forecastId": "<check the URL when you connect to Forecast>",
         "forecastIgnoredProjects": "<comma-separated list of project IDs to ignore>",
-        "forecastUrl": "https://api.forecastapp.com/",
+        "forecastUrl": "https://api.forecastapp.com",
         "githubProjectName": "<name of the GitHub project board>",
         "githubProjectColumns": "<comma-separated list of column names to include>",
         "githubRepoOwner": "<owner of the GitHub repo>",
         "githubRepoName": "<name of the GitHub repo>",
-        "githubUrl": "<URL of the GitHub API>"
+        "githubUrl": "https://api.github.com"
     }
     ```
 
