@@ -3,6 +3,7 @@
    into the same record type `t`. *)
 type t =
   { github_project_name : string option
+  ; github_project_columns : string list option
   ; github_repo_name : string option
   ; github_repo_owner : string option
   ; github_token : string option
@@ -33,6 +34,20 @@ let int_opt_of_json = function
   | `Int value -> Some value
   | _ -> None
 ;;
+
+let string_list_opt_of_json = function
+  | `List value ->
+    let string_opts = Yojson.Basic.Util.convert_each string_opt_of_json (`List value) in
+    (* Fold a list of options to an option of list. *)
+    let folder x y =
+      match x, y with
+      | Some acc, Some value -> Some (value :: acc)
+      | _ -> None
+    in
+    List.fold_left folder (Some []) string_opts
+  | _ -> None
+;;
+
 
 let int_list_opt_of_json = function
   | `List value ->
@@ -85,6 +100,7 @@ let load_settings () : t =
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
   ; github_url = find_setting string_opt_of_json "githubUrl" config_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
+  ; github_project_columns = find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_ignored_projects =
       find_setting int_list_opt_of_json "forecastIgnoredProjects" config_json_opt
@@ -101,6 +117,12 @@ let get_github_project_name () =
   match settings.github_project_name with
   | Some value -> value
   | None -> raise (MissingConfig "githubProjectName")
+;;
+
+let get_github_project_columns () =
+  match settings.github_project_columns with
+  | Some value -> value
+  | None -> raise (MissingConfig "githubProjectColumns")
 ;;
 
 let get_github_repo_name () =

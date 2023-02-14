@@ -3,3 +3,7 @@ _build
 _opam
 whatwhat.opam
 *.swp
+.DS_Store
+.vscode/settings.json
+
+doc
