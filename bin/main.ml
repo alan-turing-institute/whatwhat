@@ -55,7 +55,8 @@ let notify =
   in
   let doc =
     "Where to send notifications.\n\
-    \           $(docv) may be $(b,print), $(b,github), $(b,slack), $(b,all), or $(b,none)."
+    \           $(docv) may be $(b,print), $(b,github), $(b,slack), $(b,all), or \
+     $(b,none)."
   in
 
   Arg.(value & opt tgs Notify.NoTarget & info [ "n"; "notify" ] ~docv:"NOTIFY" ~doc)

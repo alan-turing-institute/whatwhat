@@ -36,7 +36,7 @@ type person =
   ; roles : string list
   ; archived : bool
   }
- 
+
 (** A placeholder on Forecast, which fulfils the same role as a person but isn't
     actually a person. *)
 type placeholder =
@@ -50,11 +50,12 @@ type placeholder =
 type assignment =
   { id : int
   ; project_id : int
-  ; person_id : int option       (** The assignment may be to either a real person or a placeholder.*)
+  ; person_id : int option
+      (** The assignment may be to either a real person or a placeholder.*)
   ; placeholder_id : int option
   ; start_date : string
   ; end_date : string
-  ; allocation : int  (** This is measured in seconds per day. *)
+  ; allocation : int (** This is measured in seconds per day. *)
   ; notes : string option
   }
 

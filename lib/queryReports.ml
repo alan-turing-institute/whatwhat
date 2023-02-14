@@ -16,7 +16,7 @@ let print_issue (i : Raw.issue) =
   print_endline ("Issue title: " ^ i.title);
   print_endline ("State: " ^ i.state);
   match i.column with
-  | Some col -> print_endline ("Column: " ^ col);
+  | Some col -> print_endline ("Column: " ^ col)
   | None -> ()
 ;;
 
@@ -50,10 +50,11 @@ let get_name (single_person : Raw.person) =
 let get_title (i : Raw.issue) = i.title
 
 (* check if this issue contain reactions from name*)
-let test_person_name (name : string) (i : Raw.issue)  = 
-  let all_names = i.reactions 
-    |> List.map (fun r -> r |> snd |> get_name |> 
-    String.lowercase_ascii |> strip) in
+let test_person_name (name : string) (i : Raw.issue) =
+  let all_names =
+    i.reactions
+    |> List.map (fun r -> r |> snd |> get_name |> String.lowercase_ascii |> strip)
+  in
 
   let formatted_name = strip (String.lowercase_ascii name) in
 
@@ -63,13 +64,15 @@ let test_person_name (name : string) (i : Raw.issue)  =
 
 (* Get the issue summary: number, title, state, column*)
 let issue_summary lookup_term =
-  let issues_subset = 
-    if Str.string_match (Str.regexp "[0-9]+") lookup_term 0 
-      then 
-        [GithubRaw.get_issue (int_of_string lookup_term) |> GithubRaw.populate_column_name]
-      else
-        Raw.get_project_issues () |> List.filter_map (fun x -> test_issue_title lookup_term x)
-    in
+  let issues_subset =
+    if Str.string_match (Str.regexp "[0-9]+") lookup_term 0
+    then
+      [ GithubRaw.get_issue (int_of_string lookup_term) |> GithubRaw.populate_column_name
+      ]
+    else
+      Raw.get_project_issues ()
+      |> List.filter_map (fun x -> test_issue_title lookup_term x)
+  in
 
   if List.length issues_subset = 0
   then
@@ -119,12 +122,16 @@ let compare_names a c =
 ;;
 
 (* Refactor the emojis for table *)
-let get_outcome (emoji : emoji) = 
+let get_outcome (emoji : emoji) =
   match emoji with
-  | LAUGH -> String.concat "|" [""; occupied_cell; empty_cell; empty_cell; empty_cell; ""]
-  | THUMBS_UP -> String.concat "|" [""; empty_cell; occupied_cell; empty_cell; empty_cell; ""]
-  | THUMBS_DOWN -> String.concat "|" [""; empty_cell; empty_cell; occupied_cell; empty_cell; ""] 
-  | OTHER -> String.concat "|" [""; empty_cell; empty_cell; empty_cell; occupied_cell; ""]
+  | LAUGH ->
+    String.concat "|" [ ""; occupied_cell; empty_cell; empty_cell; empty_cell; "" ]
+  | THUMBS_UP ->
+    String.concat "|" [ ""; empty_cell; occupied_cell; empty_cell; empty_cell; "" ]
+  | THUMBS_DOWN ->
+    String.concat "|" [ ""; empty_cell; empty_cell; occupied_cell; empty_cell; "" ]
+  | OTHER ->
+    String.concat "|" [ ""; empty_cell; empty_cell; empty_cell; occupied_cell; "" ]
 ;;
 
 (* Create string of cells for table body *)
@@ -198,24 +205,25 @@ let get_reaction_table (issue : Raw.issue) =
 
 let get_person_reaction (i : Raw.issue) (name : string) =
   (* Get only the reactions of the person *)
-  i.reactions 
-    |> List.filter (fun (_a, b) -> get_name b = name)  
-    |> List.map (fun r -> r |> fst |> refactor_emoji)
+  i.reactions
+  |> List.filter (fun (_a, b) -> get_name b = name)
+  |> List.map (fun r -> r |> fst |> refactor_emoji)
 ;;
 
 let get_person_reaction_n (i : Raw.issue) (name : string) =
   (* Get only the reactions of the person *)
-  let reactions = i.reactions 
-    |> List.filter (fun (_a, b) -> get_name b = name)  
-    |> List.map fst in    
+  let reactions =
+    i.reactions |> List.filter (fun (_a, b) -> get_name b = name) |> List.map fst
+  in
   List.length reactions
 ;;
 
 let person_summary (name : string) =
   let column_issues = Raw.get_project_issues () in
 
-  let issues_subset = column_issues
-      |> List.filter_map (fun x -> test_person_name ( name ) (x)) in
+  let issues_subset =
+    column_issues |> List.filter_map (fun x -> test_person_name name x)
+  in
 
   (* Print outputs*)
   if List.length issues_subset = 0

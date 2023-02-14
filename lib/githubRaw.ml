@@ -264,12 +264,9 @@ let rec get_issue_numbers_in_column_async ?(page = 1) col =
       | None -> None
     in
     let uri =
-      String.concat "/"
-      [ Config.get_github_url ()
-      ; "projects"
-      ; "columns"
-      ; string_of_int col.id
-      ; "cards"]
+      String.concat
+        "/"
+        [ Config.get_github_url (); "projects"; "columns"; string_of_int col.id; "cards" ]
     in
     let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
     let* cards = run_github_query_async ~params uri in
@@ -311,13 +308,14 @@ let get_project_issue_numbers_async () =
     | "NowWhat Test Project" -> "14539393"
     | _ -> failwith "unknown project name"
   in
-  let uri = String.concat "/" [Config.get_github_url (); "projects" ; project_id ; "columns"] in
+  let uri =
+    String.concat "/" [ Config.get_github_url (); "projects"; project_id; "columns" ]
+  in
   let* columns = run_github_query_async uri in
   let columns = columns |> Basic.Util.to_list |> List.map parse_column in
   let filtered_columns =
     match Config.get_github_project_columns () with
-    | Some names ->
-      columns |> List.filter (fun (c : column) -> List.mem c.name names)
+    | Some names -> columns |> List.filter (fun (c : column) -> List.mem c.name names)
     | None -> columns
   in
   let* issue_numbers' =
