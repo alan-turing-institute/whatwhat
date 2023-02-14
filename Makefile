@@ -3,6 +3,10 @@ install:
 	dune build @install
 	dune install
 
+install-deps:
+	dune build 2>&1 || opam install . --deps-only
+	dune build
+
 odigdoc: install
 	odig doc -u whatwhat
 
