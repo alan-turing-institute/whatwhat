@@ -352,7 +352,7 @@ let get_the_schedule () =
       (CalendarLib.Date.Period.lmake ~year:1 ())
   in
   let fc_projects, fc_people, fc_assignments =
-    let fcpp, fcpr, fcas = Forecast.get_the_schedule start_date end_date in
+    let fcpp, fcpr, fcas = Forecast.get_the_schedule ~start_date ~end_date in
     ( fcpp |> Forecast.IntMap.bindings |> List.map snd
     , fcpr |> Forecast.StringMap.bindings |> List.map snd
     , fcas )

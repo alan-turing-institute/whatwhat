@@ -262,8 +262,8 @@ let make_project_map projects_id : project IntMap.t =
 (* ------------------------------------------------------------ *)
 (* Interface *)
 
-let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.Date.t) =
-  let clnts, peopl, _, projs, asnts = Raw.get_the_schedule start_date end_date in
+let get_the_schedule ~start_date ~end_date =
+  let clnts, peopl, _, projs, asnts = Raw.get_the_schedule ~start_date ~end_date in
 
   (* A things_id is a map from raw Forecast ids to the thing *)
   let projects_id = IntMap.filter_map (validate_project clnts) projs in
@@ -279,5 +279,5 @@ let get_the_schedule (start_date : CalendarLib.Date.t) (end_date : CalendarLib.D
 let get_the_current_schedule days =
   let start_date = CalendarLib.Date.today () in
   let end_date = CalendarLib.Date.add start_date (CalendarLib.Date.Period.day days) in
-  get_the_schedule start_date end_date
+  get_the_schedule ~start_date ~end_date
 ;;

@@ -178,7 +178,7 @@ let get_assignments_async (start_date : Date.t) (end_date : Date.t) =
 
 (* ---------------------------------------------------------------------- *)
 
-let get_the_schedule_async (start_date : Date.t) (end_date : Date.t) =
+let get_the_schedule_async ~start_date ~end_date =
   let open Lwt.Syntax in
   let make_map identify xs = List.map identify xs |> List.to_seq |> IdMap.of_seq in
 
@@ -196,6 +196,6 @@ let get_the_schedule_async (start_date : Date.t) (end_date : Date.t) =
     , assignments )
 ;;
 
-let get_the_schedule start_date end_date =
-  get_the_schedule_async start_date end_date |> Lwt_main.run
+let get_the_schedule ~start_date ~end_date =
+  get_the_schedule_async ~start_date ~end_date |> Lwt_main.run
 ;;
