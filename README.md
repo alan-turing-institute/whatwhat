@@ -70,7 +70,6 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
     {
         "githubToken"    : "<yours here>",
         "githubBotToken" : "<get from the Shared Drive>",
-        "forecastId"     : "<check the URL when you connect to Forecast>",
         "forecastToken"  : "<yours here>",
         "slackToken"     : "<get from the Shared Drive>"
     }

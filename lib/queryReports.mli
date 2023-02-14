@@ -63,7 +63,7 @@ val compare_emojis : string -> string -> int
 val compare_names : Raw.person -> Raw.person -> int
 
 (** [get_outcome] converts the emoji responses to the approriate table format *)
-val get_outcome : string -> string
+val get_outcome : emoji -> string
 
 (** Creates string of responses cells for the table body. *)
 val body_list : int -> string -> string -> string
@@ -80,7 +80,7 @@ val header_line : int -> int -> string
 val get_reaction_table : Raw.issue -> string * string * string list
 
 (** Subset an issue's reactions to only those by [name] *)
-val get_person_reaction : Raw.issue -> string -> string list
+val get_person_reaction : Raw.issue -> string -> emoji list
 
 (** Return the number of reactions by [name] *)
 val get_person_reaction_n : Raw.issue -> string -> int
