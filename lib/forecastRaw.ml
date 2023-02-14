@@ -197,5 +197,9 @@ let get_the_schedule_async ~start_date ~end_date =
 ;;
 
 let get_the_schedule ~start_date ~end_date =
-  get_the_schedule_async ~start_date ~end_date |> Lwt_main.run
+  (* print_endline "### ForecastRaw.get_the_schedule"; *)
+  let (a, b, c, d, e) = get_the_schedule_async ~start_date ~end_date |> Lwt_main.run
+  in
+  (* e |> List.iter (fun a -> a |> show_assignment |> print_endline); *)
+  (a, b, c, d, e)
 ;;

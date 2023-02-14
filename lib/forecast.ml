@@ -161,7 +161,7 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
          ; finance_code = Raw.IdMap.find_opt a.project_id fcs
          ; allocation =
              [ { start_date
-               ; days = CalendarLib.Date.sub start_date end_date
+               ; days = CalendarLib.Date.sub end_date start_date
                ; rate = Rate (forecast_rate_to_fte_percent a.allocation)
                }
              ]
