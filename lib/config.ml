@@ -19,8 +19,8 @@ type t =
 exception MissingSecret of string
 exception MissingConfig of string
 
-let secrets_path = XDGBaseDir.default.config_home ^ "/nowwhat/secrets.json"
-let config_path = XDGBaseDir.default.config_home ^ "/nowwhat/config.json"
+let secrets_path = XDGBaseDir.default.config_home ^ "/whatwhat/secrets.json"
+let config_path = XDGBaseDir.default.config_home ^ "/whatwhat/config.json"
 let ( >>= ) = Option.bind
 
 (* These JSON parsers are more lenient than the ones in Yojson.Basic.Util: They return
