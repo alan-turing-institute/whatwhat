@@ -363,5 +363,6 @@ let get_the_schedule () =
   let projects = merge_projects fc_projects gh_issues in
   let assignments = check_assignments people projects fc_assignments in
   check_projects projects assignments;
+
   people, projects, assignments
 ;;

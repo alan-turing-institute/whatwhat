@@ -80,10 +80,30 @@ let dump_metadata_events () =
    Reporting
  *)
 
-(* Produce reports for project with issue number nmbr and a list of events
-   (for that project!)
- *)
-let format_metadata_report (events : Log.event list) : string =
+let format_metadata_report_print (number : int) (events : Log.event list) =
+  let open ANSITerminal in
+  let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
+  let error_msgs =
+    List.map (fun ev -> sprintf [ Foreground Red ] "Error: " ^ ev.Log.message) errors
+  in
+  let warning_msgs =
+    List.map
+      (fun ev -> sprintf [ Foreground Yellow ] "Warning: " ^ ev.Log.message)
+      warnings
+  in
+
+  let header = sprintf [ Bold ] "Issue %-5d" number in
+  let indent = String.make 13 ' ' in
+  let messages =
+    (* Don't indent the first message. *)
+    match error_msgs @ warning_msgs with
+    | x :: xs -> x :: List.map (fun s -> indent ^ s) xs
+    | y -> y
+  in
+  header, messages
+;;
+
+let format_metadata_report_github (events : Log.event list) : string =
   let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
   let error_msgs = List.map (fun ev -> ev.Log.message) errors in
   let warning_msgs = List.map (fun ev -> ev.Log.message) warnings in
@@ -113,25 +133,24 @@ let format_metadata_report (events : Log.event list) : string =
   Buffer.contents buf
 ;;
 
-(* Create a markdown report on the problems found when parsing project metadata from GitHub *)
-let make_metadata_reports log =
-  log |> extract_metadata_events |> IntMap.map format_metadata_report |> IntMap.to_seq
-;;
-
 let print_metadata_reports () =
-  let the_log = Log.get_the_log () in
-  let metadata_reports = make_metadata_reports the_log in
-  print_endline "The following problems occured when parsing project metadata:\n";
-  Seq.iter
-    (fun (nmbr, report) ->
-      Printf.printf "Project hut23-%d\n" nmbr;
-      print_endline report)
-    metadata_reports
+  Log.get_the_log ()
+  |> extract_metadata_events
+  |> IntMap.mapi format_metadata_report_print
+  |> IntMap.bindings
+  |> List.map snd
+  |> List.iter (fun (header, msgs) ->
+       print_string header;
+       List.iter print_endline msgs)
 ;;
 
-let post_metadata_reports () =
-  let the_log = Log.get_the_log () in
-  let metadata_reports = make_metadata_reports the_log in
+let post_metadata_reports_github () =
+  let metadata_reports =
+    Log.get_the_log ()
+    |> extract_metadata_events
+    |> IntMap.map format_metadata_report_github
+    |> IntMap.to_seq
+  in
   Printf.printf
     "Posting metadata reports to the following %d projects:\n"
     (Seq.length metadata_reports);

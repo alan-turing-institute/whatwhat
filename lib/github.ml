@@ -302,6 +302,5 @@ let validate_issue (issue : Raw.issue) =
 
 let get_project_issues () =
   let issues = Raw.get_project_issues () in
-  Printf.printf "Obtained %d Github issues\n" (List.length issues);
   List.filter_map validate_issue issues
 ;;
