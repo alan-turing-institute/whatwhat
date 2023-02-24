@@ -7,3 +7,4 @@ whatwhat.opam
 .vscode/settings.json
 
 doc
+*.csv

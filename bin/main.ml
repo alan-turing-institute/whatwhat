@@ -11,7 +11,7 @@ open Whatwhat
 
 
 
-let whatwhat notify person issue=
+(* let whatwhat notify person issue=
 
 
   (* notification reports*)
@@ -76,6 +76,7 @@ let issue =
   Arg.(value & opt string "none" & info [ "i"; "issue" ] ~docv:"ISSUE" ~doc)
 ;;
 
+
 let cmd =
   Cmd.v
     (Cmd.info "whatwhat" ~doc:"Report current project status")
@@ -83,4 +84,11 @@ let cmd =
 ;;
 
 let main () = exit (Cmd.eval cmd)
-let () = main ()
+let () = main () *)
+
+
+let whatwhat2 () = 
+  Usernames.match_usernames 
+;;
+
+whatwhat2 ();; 
