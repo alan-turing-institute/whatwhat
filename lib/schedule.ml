@@ -357,11 +357,13 @@ let get_the_schedule () =
     , fcpr |> Forecast.StringMap.bindings |> List.map snd
     , fcas )
   in
+  fc_assignments |> List.length |> print_int;
   let gh_issues = Github.get_project_issues () in
   let gh_people = Github.all_users in
   let people = get_people_list fc_people gh_people in
   let projects = merge_projects fc_projects gh_issues in
   let assignments = check_assignments people projects fc_assignments in
   check_projects projects assignments;
+
   people, projects, assignments
 ;;

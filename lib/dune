@@ -10,7 +10,8 @@
   re
   tls
   batteries
-  yaml)
+  yaml
+  ANSITerminal)
  (preprocess
   (pps ppx_deriving.show ppx_yojson_conv)))
 

@@ -1,3 +1,9 @@
+run:
+	./_build/default/bin/main.exe
+
+print:
+	./_build/default/bin/main.exe --notify print
+
 install:
 	dune build
 	dune build @install

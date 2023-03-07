@@ -128,6 +128,10 @@ type assignment =
   ; allocation : allocation
   }
 
+val show_project : project -> string
+val show_allocation : simple_allocation -> string
+val show_assignment : assignment -> string
+
 type schedule =
   { projects : project IntMap.t
   ; people : person StringMap.t

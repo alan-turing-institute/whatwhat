@@ -31,6 +31,7 @@
   yaml
   ppx_yojson_conv
   ppx_deriving
+  ANSITerminal
   )
  (tags
   (topics "REG")))

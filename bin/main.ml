@@ -9,15 +9,15 @@
 open Whatwhat
 
 let whatwhat notify person issue =
+  let people, projects, assignments = Schedule.get_the_schedule () in
+  print_endline "Whatwhat downloaded:";
+  Printf.printf "%d people; " (List.length people);
+  Printf.printf "%d projects; and " (List.length projects);
+  Printf.printf "%d assignments\n\n" (List.length assignments);
+
   (* notification reports*)
   if notify <> Notify.NoTarget
   then (
-    let people, projects, assignments = Schedule.get_the_schedule () in
-    print_endline "Whatwhat downloaded:";
-    Printf.printf "%d people; " (List.length people);
-    Printf.printf "%d projects; and " (List.length projects);
-    Printf.printf "%d assignments\n\n" (List.length assignments);
-
     (* Emit errors and warnings *)
     if notify = Notify.All || notify = Notify.Github
     then
