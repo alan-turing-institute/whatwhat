@@ -34,17 +34,14 @@
  *)
 
 (** Errors and warnings for logging problems with the issue metadata. *)
-type parseerror =
-  | DateOutOfBoundsError
+type parse_error =
   | DateParsingError
   | ExtraFieldError
   | FieldTypeError
   | FTETimeUnderSpecifiedError
   | FTETimeOverSpecifiedError
   | MissingCompulsoryFieldError
-  | MissingOptionalFieldError
   | NoMetadataError
-  (* | NullCompulsoryFieldError *)
   | YamlError
 
 (* We reexport the Raw.person type so that no other module ever has a need to import
@@ -55,12 +52,13 @@ type person = GithubRaw.person =
   ; name : string option
   ; email : string option
   }
-val show_person : person -> string
+
 (** A type for Github users. *)
+val show_person : person -> string
 
 (** Given a project board name, return a list of projects, one for each issue on the
     board. *)
-val get_project_issues : string -> Domain.project list
+val get_project_issues : unit -> Domain.project list
 
 (** Return all the users in the Alan Turing Institute Github organisation. *)
-val get_users : unit -> person list
+val all_users : person list

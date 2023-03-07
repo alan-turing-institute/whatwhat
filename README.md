@@ -38,7 +38,7 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
     This creates `~/.ocaml`, which contains all your local libraries and
     binaries. `opam` doesn't write anywhere else apart from `/tmp`.
 
-   ```eval `opam env` ```
+    `eval $(opam env)`
 
 3. `opam install dune utop merlin odig` 
 
@@ -57,31 +57,22 @@ Post a comment to each GitHub issue in the Project Tracker where a problem was d
 
 ### 3. Setting up whatwhat development environment
 
-#### Project setup (existing project)
-
-1. In `whatwhat/`...
-
-2. I think ... `opam switch create .` (Then `eval $(opam env)`)
-
-#### You will need a secrets file with authentication tokens
-
-Put this in `~/.config/nowwhat/secrets.json` (note the different name!): 
-```json
-{
-    "githubToken"    : "<yours here>",
-    "githubBotToken" : "<get from the Shared Drive>",
-    "forecastId"     : "<check the URL when you connect to Forecast>",
-    "forecastToken"  : "<yours here>",
-    "slackToken"     : "<get from the Shared Drive>"
-}
+```
+cd whatwhat
+opam switch create .
+eval $(opam env)
 ```
 
-#### Building and running
+To run `whatwhat`, you will need a secrets file with authentication tokens, and a config file with details of the Forecast and GitHub projects you want to work with.
+For instructions on setting this up, see the [Secrets and config file wiki page](https://github.com/alan-turing-institute/whatwhat/wiki/Secrets-and-config-file).
 
-1. To build: `dune build`
-2. To build the docs: `dune build @doc`
-3. To run: `dune exec whatwhat`
-4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
+Then, follow these instructions:
+
+    1. To build: `dune build`
+    2. To build the docs: see the [Documentation wiki page](https://github.com/alan-turing-institute/whatwhat/wiki/Documentation)
+    3. To run: `dune exec whatwhat`
+    4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
+    5. For help with the arguments see `dune exec -- whatwhat --help`
 
 ---
 
@@ -89,29 +80,22 @@ Put this in `~/.config/nowwhat/secrets.json` (note the different name!):
 
 #### Official
 
-Main website: https://ocaml.org/
-
-[Installation instructions from the official website](https://ocaml.org/docs/up-and-running)
+- Main website: https://ocaml.org/
+- [Installation instructions from the official website](https://ocaml.org/docs/up-and-running)
 
 #### Learning and getting started
 
-[Merlin: set up for Emacs and VIM](https://ocaml.github.io/merlin/)
-
-[OCamlverse](https://ocamlverse.github.io/) is a community wiki
-
-[Instructions from Real World OCaml](https://dev.realworldocaml.org/install.html)
-
-[OCaml discourse](https://discuss.ocaml.org/)
-
-[OCaml PRO](https://ocamlpro.com/)
+- [Merlin: set up for Emacs and VIM](https://ocaml.github.io/merlin/)
+- [OCamlverse](https://ocamlverse.github.io/) is a community wiki
+- [Instructions from Real World OCaml](https://dev.realworldocaml.org/install.html)
+- [OCaml discourse](https://discuss.ocaml.org/)
+- [OCaml PRO](https://ocamlpro.com/)
 
 #### Books and documentation
 
-[OCaml Programming: Correct + Efficient + Beautiful](https://cs3110.github.io/textbook/cover.html) (A nice textbook with accompanying lecture series.)
-
-[Real World OCaml (Jane Street)](https://dev.realworldocaml.org/index.html)
-
-[Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
+- [OCaml Programming: Correct + Efficient + Beautiful](https://cs3110.github.io/textbook/cover.html) (A nice textbook with accompanying lecture series.)
+- [Real World OCaml (Jane Street)](https://dev.realworldocaml.org/index.html)
+- [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
 
 ---
 
@@ -128,5 +112,4 @@ Main website: https://ocaml.org/
 `odig` :: Tool for reading local documentation
 
 `ocamldoc` :: A format for documentation, and the old documentation generator.
-
 
