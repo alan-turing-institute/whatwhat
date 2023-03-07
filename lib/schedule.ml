@@ -352,13 +352,13 @@ let get_the_schedule () =
       (CalendarLib.Date.Period.lmake ~year:1 ())
   in
   let fc_projects, fc_people, fc_assignments =
-    let fcpp, fcpr, fcas = Forecast.get_the_schedule start_date end_date in
+    let fcpp, fcpr, fcas = Forecast.get_the_schedule ~start_date ~end_date in
     ( fcpp |> Forecast.IntMap.bindings |> List.map snd
     , fcpr |> Forecast.StringMap.bindings |> List.map snd
     , fcas )
   in
-  let gh_issues = Github.get_project_issues @@ Config.get_github_project_name () in
-  let gh_people = Github.get_users () in
+  let gh_issues = Github.get_project_issues () in
+  let gh_people = Github.all_users in
   let people = get_people_list fc_people gh_people in
   let projects = merge_projects fc_projects gh_issues in
   let assignments = check_assignments people projects fc_assignments in

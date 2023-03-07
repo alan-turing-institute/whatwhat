@@ -19,8 +19,8 @@ type t =
 exception MissingSecret of string
 exception MissingConfig of string
 
-let secrets_path = XDGBaseDir.default.config_home ^ "/nowwhat/secrets.json"
-let config_path = XDGBaseDir.default.config_home ^ "/nowwhat/config.json"
+let secrets_path = XDGBaseDir.default.config_home ^ "/whatwhat/secrets.json"
+let config_path = XDGBaseDir.default.config_home ^ "/whatwhat/config.json"
 let ( >>= ) = Option.bind
 
 (* These JSON parsers are more lenient than the ones in Yojson.Basic.Util: They return
@@ -47,7 +47,6 @@ let string_list_opt_of_json = function
     List.fold_left folder (Some []) string_opts
   | _ -> None
 ;;
-
 
 let int_list_opt_of_json = function
   | `List value ->
@@ -100,7 +99,8 @@ let load_settings () : t =
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
   ; github_url = find_setting string_opt_of_json "githubUrl" config_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
-  ; github_project_columns = find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
+  ; github_project_columns =
+      find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_ignored_projects =
       find_setting int_list_opt_of_json "forecastIgnoredProjects" config_json_opt
@@ -119,11 +119,7 @@ let get_github_project_name () =
   | None -> raise (MissingConfig "githubProjectName")
 ;;
 
-let get_github_project_columns () =
-  match settings.github_project_columns with
-  | Some value -> value
-  | None -> raise (MissingConfig "githubProjectColumns")
-;;
+let get_github_project_columns () = settings.github_project_columns
 
 let get_github_repo_name () =
   match settings.github_repo_name with

@@ -12,8 +12,8 @@ type project =
   }
 
 val get_the_schedule
-  :  Date.t
-  -> Date.t
+  :  start_date:Date.t
+  -> end_date:Date.t
   -> project IntMap.t * Domain.person StringMap.t * Domain.assignment list
 
 val get_the_current_schedule

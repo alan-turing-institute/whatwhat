@@ -5,12 +5,8 @@
     are filtered to either a specific person or issue. These reactions are then 
     returned in a table.    
  *)
- 
-module Raw = GithubRaw
 
-(** [project_column_issues] returns all issues in a specific project board and 
-    column *)
-val project_column_issues : string -> string list -> Raw.issue list
+module Raw = GithubRaw
 
 (** [print_issue issue] prints the [issue] summary. *)
 val print_issue : Raw.issue -> unit
@@ -36,12 +32,17 @@ val get_title : Raw.issue -> string
 val test_person_name : string -> Raw.issue -> Raw.issue option
 
 (** [issue_summary] returns the issue summary: number, title, state, column. *)
-val issue_summary : string list -> string -> Raw.issue
+val issue_summary : string -> Raw.issue
 
-(** [efactor_emoji] turns emoji reactions into int: 
-    Laugh=0, thumbsup=1, thumbsdown=2, any other=3.
-*)
-val refactor_emoji : string -> int
+(** The types of emoji reactions we care about. **)
+type emoji =
+  | LAUGH
+  | THUMBS_UP
+  | THUMBS_DOWN
+  | OTHER
+
+(** [refactor_emoji] turns emoji strings into emoji. *)
+val refactor_emoji : string -> emoji
 
 (** The number of characters in the longest emoji string. *)
 val max_emoji_length : int
@@ -62,7 +63,7 @@ val compare_emojis : string -> string -> int
 val compare_names : Raw.person -> Raw.person -> int
 
 (** [get_outcome] converts the emoji responses to the approriate table format *)
-val get_outcome : string -> string
+val get_outcome : emoji -> string
 
 (** Creates string of responses cells for the table body. *)
 val body_list : int -> string -> string -> string
@@ -79,14 +80,13 @@ val header_line : int -> int -> string
 val get_reaction_table : Raw.issue -> string * string * string list
 
 (** Subset an issue's reactions to only those by [name] *)
-val get_person_reaction : Raw.issue -> string -> string list
+val get_person_reaction : Raw.issue -> string -> emoji list
 
 (** Return the number of reactions by [name] *)
 val get_person_reaction_n : Raw.issue -> string -> int
 
 (** Return strings required to build table summarising a person's reactions *)
-val person_summary :
-  string list -> string -> string * string * string list * string list
+val person_summary : string -> string * string * string list * string list
 
 (** Print the table of reactions for user: [target] *)
 val individuals_reactions : string -> unit

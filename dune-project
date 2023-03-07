@@ -9,6 +9,8 @@
 
 (authors "Hut 23")
 
+(maintainers "Hut 23")
+
 (license MIT)
 
 ; (documentation https://url/to/documentation)
@@ -17,7 +19,19 @@
  (name whatwhat)
  (synopsis "A reimagining of nowwhat")
  (description "Project scheduling")
- (depends ocaml dune)
+ (depends
+  xdg-basedir
+  yojson
+  lwt
+  cohttp-lwt-unix
+  calendar
+  re
+  tls
+  batteries
+  yaml
+  ppx_yojson_conv
+  ppx_deriving
+  )
  (tags
   (topics "REG")))
 
