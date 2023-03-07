@@ -1,11 +1,8 @@
 (* Queries Github API and traverse_of_interests the GraphQL results. Validation
    is done in github.ml *)
 
-open Batteries
 open Yojson
 open Lwt.Syntax
-
-(* exception QueryError of string *)
 
 type http_method =
   | GET
@@ -102,16 +99,8 @@ let run_github_query ?(methd = GET) ?(params = []) ?(body = "") uri =
   run_github_query_async ~methd ~params ~body uri |> Lwt_main.run
 ;;
 
-let read_file_as_string filepath =
-  let channel = Batteries.open_in filepath in
-  let return_string = channel |> BatIO.lines_of |> BatEnum.fold ( ^ ) "" in
-  let () = Batteries.close_in channel in
-  return_string
-;;
-
 let all_users =
-  let user_query_template_path = "./queries/users.graphql" in
-  let query_template = read_file_as_string user_query_template_path in
+  let query_template = {|{ "query": "query { repository(owner: REPO_OWNER, name: REPO_NAME) { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |} in
   let replacements =
     [ Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
     ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
