@@ -68,11 +68,11 @@ For instructions on setting this up, see the [Secrets and config file wiki page]
 
 Then, follow these instructions:
 
-    1. To build: `dune build`
-    2. To build the docs: see the [Documentation wiki page](https://github.com/alan-turing-institute/whatwhat/wiki/Documentation)
-    3. To run: `dune exec whatwhat`
-    4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
-    5. For help with the arguments see `dune exec -- whatwhat --help`
+1. To build: `dune build`
+2. To build the docs: see the [Documentation wiki page](https://github.com/alan-turing-institute/whatwhat/wiki/Documentation)
+3. To run: `dune exec whatwhat`
+4. To run with command-line arguments: `dune exec -- whatwhat <flags>`
+5. For help with the arguments see `dune exec -- whatwhat --help`
 
 ---
 
