@@ -100,7 +100,9 @@ let run_github_query ?(methd = GET) ?(params = []) ?(body = "") uri =
 ;;
 
 let all_users =
-  let query_template = {|{ "query": "query { repository(owner: REPO_OWNER, name: REPO_NAME) { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |} in
+  let query_template =
+    {|{ "query": "query { repository(owner: REPO_OWNER, name: REPO_NAME) { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
+  in
   let replacements =
     [ Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
     ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""

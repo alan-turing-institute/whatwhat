@@ -46,7 +46,8 @@ module State = struct
     | Cancelled
     | Rejected
 
-  let show_t t = match t with
+  let show_t t =
+    match t with
     | Suggested -> "Suggested"
     | Proposal -> "Proposal"
     | ExtraInfoNeeded -> "ExtraInfoNeeded"
@@ -59,6 +60,7 @@ module State = struct
     | Done -> "Done"
     | Cancelled -> "Cancelled"
     | Rejected -> "Rejected"
+  ;;
 end
 
 exception UnknownColumn of string
@@ -107,32 +109,35 @@ type assignment =
 
 let show_project_plan plan =
   let dts = CalendarLib.Printer.Date.to_string in
-  String.concat "" [
-    "{**Domain.project_plan**";
-    "\n";
-    "Budget: "; plan.budget |> show_resource;
-    "Finance codes: [";
-    String.concat ";" plan.finance_codes;
-    "]";
-    "\n";
-    "Latest start date: ";
-    dts plan.latest_start_date;
-    "\n";
-    "Earliest start date: ";
-    (match plan.earliest_start_date with
-    | Some x -> "Some " ^ dts x
-    | None -> "None");
-    "\n";
-    "Latest end date: ";
-    (match plan.latest_end_date with
-    | Some x -> "Some " ^ dts x
-    | None -> "None");
-    "\n";
-    Printf.sprintf "Nominal FTE percent: %f\n" plan.nominal_fte_percent;
-    Printf.sprintf "Maximum FTE percent: %f\n" plan.max_fte_percent;
-    Printf.sprintf "Minimum FTE percent: %f\n" plan.min_fte_percent;
-    "}";
-  ]
+  String.concat
+    ""
+    [ "{**Domain.project_plan**"
+    ; "\n"
+    ; "Budget: "
+    ; plan.budget |> show_resource
+    ; "Finance codes: ["
+    ; String.concat ";" plan.finance_codes
+    ; "]"
+    ; "\n"
+    ; "Latest start date: "
+    ; dts plan.latest_start_date
+    ; "\n"
+    ; "Earliest start date: "
+    ; (match plan.earliest_start_date with
+       | Some x -> "Some " ^ dts x
+       | None -> "None")
+    ; "\n"
+    ; "Latest end date: "
+    ; (match plan.latest_end_date with
+       | Some x -> "Some " ^ dts x
+       | None -> "None")
+    ; "\n"
+    ; Printf.sprintf "Nominal FTE percent: %f\n" plan.nominal_fte_percent
+    ; Printf.sprintf "Maximum FTE percent: %f\n" plan.max_fte_percent
+    ; Printf.sprintf "Minimum FTE percent: %f\n" plan.min_fte_percent
+    ; "}"
+    ]
+;;
 
 (* type project = *)
 (*   { nmbr : int  *)
@@ -142,21 +147,23 @@ let show_project_plan plan =
 (*   ; plan : project_plan *)
 (*   } *)
 let show_project proj =
-  String.concat "" [
-    "{**Domain.project**\n";
-    Printf.sprintf "GitHub issue number: %d\n" proj.nmbr;
-    Printf.sprintf "Name: %s\n" proj.name;
-    Printf.sprintf "State: %s\n" (State.show_t proj.state);
-    "Programme: ";
-    (match proj.programme with
-    | Some x -> "Some " ^ x
-    | None -> "None");
-    "\n";
-    "Project plan: ";
-    show_project_plan proj.plan;
-    "\n";
-    "}"
-  ]
+  String.concat
+    ""
+    [ "{**Domain.project**\n"
+    ; Printf.sprintf "GitHub issue number: %d\n" proj.nmbr
+    ; Printf.sprintf "Name: %s\n" proj.name
+    ; Printf.sprintf "State: %s\n" (State.show_t proj.state)
+    ; "Programme: "
+    ; (match proj.programme with
+       | Some x -> "Some " ^ x
+       | None -> "None")
+    ; "\n"
+    ; "Project plan: "
+    ; show_project_plan proj.plan
+    ; "\n"
+    ; "}"
+    ]
+;;
 
 let show_allocation alloc =
   let days = CalendarLib.Date.Period.nb_days alloc.days in

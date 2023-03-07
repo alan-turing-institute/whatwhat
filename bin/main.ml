@@ -18,8 +18,8 @@ let whatwhat notify person issue =
   (* notification reports*)
   if notify <> Notify.NoTarget
   then (
-    (* Emit errors and warnings *)
-    if notify = Notify.All || notify = Notify.Github
+    if (* Emit errors and warnings *)
+       notify = Notify.All || notify = Notify.Github
     then
       print_endline "CATCH: this would post reports to github."
       (*To post to github replace CATCH string with 
