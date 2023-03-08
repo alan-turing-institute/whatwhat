@@ -29,6 +29,7 @@
   tls
   batteries
   yaml
+  csv
   ppx_yojson_conv
   ppx_deriving
   ANSITerminal
