@@ -46,13 +46,14 @@ type placeholder =
   ; archived : bool
   }
 
+(** A person or a placeholder. *)
+type entity = Person of int | Placeholder of int
+
 (** An [assignment] refers to a period where a person is placed on a project. *)
 type assignment =
   { id : int
   ; project_id : int
-  ; person_id : int option
-      (** The assignment may be to either a real person or a placeholder.*)
-  ; placeholder_id : int option
+  ; entity: entity
   ; start_date : string
   ; end_date : string
   ; allocation : int (** This is measured in seconds per day. *)

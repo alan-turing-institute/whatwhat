@@ -101,19 +101,50 @@ let get_placeholders_async () =
     |> List.map (fun x -> placeholder_of_yojson (x : Basic.t :> Safe.t)))
 ;;
 
+(* A person or a placeholder. *)
+type entity = Person of int | Placeholder of int
+[@@deriving show, of_yojson]
+
 (* ---------------------------------------------------------------------- *)
 
-type assignment =
+type assignment_schema =
   { id : int
   ; project_id : int
-  ; person_id : int option
-  ; placeholder_id : int option
+  ; person_id: int option
+  ; placeholder_id: int option
   ; start_date : string
   ; end_date : string
   ; allocation : int
   ; notes : string option
   }
-[@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
+[@@deriving of_yojson] [@@yojson.allow_extra_fields]
+
+type assignment =
+  { id : int
+  ; project_id : int
+  ; entity : entity
+  ; start_date : string
+  ; end_date : string
+  ; allocation : int
+  ; notes : string option
+  }
+[@@deriving show]
+
+let merge_person_placeholder a =
+  let entity = match a.person_id, a.placeholder_id with
+  | Some p, None -> Person p
+  | None, Some p -> Placeholder p
+  | Some _, Some _ -> failwith (Printf.sprintf "assignment %d had both person and placeholder" a.id)
+  | None, None -> failwith (Printf.sprintf "assignment %d had no entity" a.id)
+  in
+  { id = a.id
+  ; project_id = a.project_id
+  ; entity = entity
+  ; start_date = a.start_date
+  ; end_date = a.end_date
+  ; allocation = a.allocation
+  ; notes = a.notes
+  }
 
 module IntMap = Map.Make (Int)
 
@@ -129,7 +160,7 @@ let parse_combined_assignment_json (bs : Basic.t list) =
   let parse_one_assignment b =
     b
     |> Yojson.Basic.Util.to_list
-    |> List.map (fun x -> assignment_of_yojson (x : Basic.t :> Safe.t))
+    |> List.map (fun x -> (x : Basic.t :> Safe.t) |> assignment_schema_of_yojson |> merge_person_placeholder)
   in
   bs
   |> List.map (fun s ->
@@ -197,8 +228,5 @@ let get_the_schedule_async ~start_date ~end_date =
 ;;
 
 let get_the_schedule ~start_date ~end_date =
-  (* print_endline "### ForecastRaw.get_the_schedule"; *)
-  let a, b, c, d, e = get_the_schedule_async ~start_date ~end_date |> Lwt_main.run in
-  (* e |> List.iter (fun a -> a |> show_assignment |> print_endline); *)
-  a, b, c, d, e
+  get_the_schedule_async ~start_date ~end_date |> Lwt_main.run
 ;;

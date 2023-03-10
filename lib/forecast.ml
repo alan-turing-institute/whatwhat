@@ -145,11 +145,11 @@ let forecast_rate_to_fte_percent n = float_of_int n /. float_of_int (60 * 60 * 8
    allocations.
    *)
 let validate_assignment fcs people projects (a : Raw.assignment) =
-  match a.person_id with
+  match a.entity with
   (* If there is no person_id, this assignment is to a Placeholder and we ignore it *)
-  | None -> None
-  | Some person_id ->
-    let person_opt = IntMap.find_opt person_id people in
+  | Placeholder _  -> None
+  | Person id      ->
+    let person_opt = IntMap.find_opt id people in
     let project_opt = IntMap.find_opt a.project_id projects in
     let start_date_opt = Utils.date_of_string a.start_date in
     let end_date_opt = Utils.date_of_string a.end_date in

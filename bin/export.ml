@@ -49,11 +49,13 @@ let default_end_date =
 
 let export start_date_in end_date_in output_file =
   let start_date = match start_date_in with
-  | None -> default_start_date
-  | Some s -> parse_date s in
+  | None     -> default_start_date
+  | Some "_" -> default_start_date
+  | Some s   -> parse_date s in
   let end_date = match end_date_in with
-  | None -> default_end_date
-  | Some s -> parse_date s in
+  | None     -> default_end_date
+  | Some "_" -> default_end_date
+  | Some s   -> parse_date s in
 
   print_endline @@ "Exporting Forecast data";
   print_endline @@ "-----------------------";
