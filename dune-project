@@ -33,6 +33,7 @@
   ppx_yojson_conv
   ppx_deriving
   ANSITerminal
+  ounit2
   )
  (tags
   (topics "REG")))
