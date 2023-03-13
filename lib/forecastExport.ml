@@ -87,13 +87,24 @@ let export_schedule ~start_date ~end_date =
     ; "Roles"
     ]
   in
+  let compare_assignments (a1: assignment) (a2: assignment) =
+    (* Sort first by client, then by project *)
+    let c1 = match a1.project.client with
+    | Some c -> c.name
+    | None -> "" in
+    let c2 = match a2.project.client with
+    | Some c -> c.name
+    | None -> "" in
+    let client_ordering = compare c1 c2 in
+    if client_ordering = 0
+    then compare a1.project.name a2.project.name
+    else client_ordering
+  in
   let data =
     assignments |> List.filter is_active
+    |> List.stable_sort (fun (a1: assignment) a2 -> compare a1.project.name a2.project.name)
+    |> List.stable_sort compare_assignments
     |> List.map (make_assignment_output weeks)
-    (* Sort on project *)
-    |> List.stable_sort (fun a b -> compare (List.nth a 1) (List.nth b 1))
-    (* Sort on client *)
-    |> List.stable_sort (fun a b -> compare (List.nth a 0) (List.nth b 0))
   in
   header :: data
 ;;
