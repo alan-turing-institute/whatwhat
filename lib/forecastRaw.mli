@@ -14,8 +14,7 @@ type client =
   ; archived : bool
   }
 
-(** A project on Forecast. *)
-type project =
+type project_schema =
   { id : int
   ; harvest_id : int option
   ; client_id : int option
@@ -23,6 +22,20 @@ type project =
   ; code : string option
   ; tags : string list
   ; notes : string option
+  ; color : string
+  ; archived : bool
+  }
+
+(** A project on Forecast. *)
+type project =
+  { id : int
+  ; harvest_id : int option
+  ; client : client option
+  ; name : string
+  ; code : string option
+  ; tags : string list
+  ; notes : string option
+  ; color : string
   ; archived : bool
   }
 
@@ -47,12 +60,18 @@ type placeholder =
   }
 
 (** A person or a placeholder. *)
-type entity = Person of int | Placeholder of int
+type entity = Person of person | Placeholder of placeholder
+
+(** Get the name, roles, id, or archived status of an entity. *)
+val get_entity_name : entity -> string
+val get_entity_roles : entity -> string list
+val get_entity_id : entity -> int
+val get_entity_archived : entity -> bool
 
 (** An [assignment] refers to a period where a person is placed on a project. *)
 type assignment =
   { id : int
-  ; project_id : int
+  ; project : project
   ; entity: entity
   ; start_date : string
   ; end_date : string

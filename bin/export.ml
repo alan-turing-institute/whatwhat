@@ -20,16 +20,16 @@ let export start_date_in end_date_in output_file =
 
   if start_date >= end_date then failwith "Start date cannot be before end date!" else ();
 
-  (* default output file *)
-  let out =
+  let csv = ForecastExport.export_schedule ~start_date ~end_date in
+
+  match output_file with
+  | None    -> Csv.print csv;
+  | Some "" -> 
       let start_str = CalendarLib.Printer.Date.sprint "%Y-%m-%d" start_date in
       let end_str = CalendarLib.Printer.Date.sprint "%Y-%m-%d" end_date in
-      "forecast-team-export-from-" ^ start_str ^ "-to-" ^ end_str ^ ".csv"
-  in
-
-  (* TODO: probably better to get this function to return a string, and we dump
-     it based on the value of [out].*)
-  ForecastExport.export_schedule ~start_date ~end_date out;
+      let default_output_file = "forecast-team-export-from-" ^ start_str ^ "-to-" ^ end_str ^ ".csv" in
+      Csv.save default_output_file csv;
+  | Some fname -> Csv.save fname csv;
 ;;
 
 let start_date_arg =

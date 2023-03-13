@@ -81,12 +81,12 @@ let extract_project_number (project : Raw.project) =
     None
 ;;
 
-let validate_project (clients : Raw.client Raw.IdMap.t) id (p : Raw.project) =
-  if p.archived || List.mem id ignored_project_ids
+let validate_project id (p : Raw.project) =
+  if p.archived || List.mem id ignored_project_ids || Option.is_none p.client
   then None
   else (
     let nmbr = extract_project_number p in
-    let client = Raw.IdMap.find (Option.get p.client_id) clients in
+    let client = Option.get p.client in
     let+ nmbr = nmbr in
     { number = nmbr; name = p.name; programme = client.name })
 ;;
@@ -144,21 +144,22 @@ let forecast_rate_to_fte_percent n = float_of_int n /. float_of_int (60 * 60 * 8
    Raw.assignment, each with a single allocation. We will later merge these, collating the
    allocations.
    *)
-let validate_assignment fcs people projects (a : Raw.assignment) =
+let validate_assignment fcs (a : Raw.assignment) =
+  let log_func = log_assignment Log.Error a in
   match a.entity with
-  (* If there is no person_id, this assignment is to a Placeholder and we ignore it *)
-  | Placeholder _  -> None
-  | Person id      ->
-    let person_opt = IntMap.find_opt id people in
-    let project_opt = IntMap.find_opt a.project_id projects in
+  (* We ignore assignments to placeholders here. *)
+  | Placeholder _ ->
+    log_func "Deleting an assignment to a placeholder";
+    None
+  | Person person ->
     let start_date_opt = Utils.date_of_string a.start_date in
     let end_date_opt = Utils.date_of_string a.end_date in
-    (match person_opt, project_opt, start_date_opt, end_date_opt with
-     | Some person, Some project, Ok start_date, Ok end_date ->
+    (match person.email, start_date_opt, end_date_opt with
+     | Some email, Ok start_date, Ok end_date ->
        Some
-         { project = project.number
-         ; person = person.email
-         ; finance_code = Raw.IdMap.find_opt a.project_id fcs
+         { project = a.project.id
+         ; person = email
+         ; finance_code = Raw.IdMap.find_opt a.project.id fcs
          ; allocation =
              [ { start_date
                ; days = CalendarLib.Date.sub end_date start_date
@@ -167,23 +168,12 @@ let validate_assignment fcs people projects (a : Raw.assignment) =
              ]
          }
      | _ ->
-       let log_func = log_assignment Log.Error a in
-       let () =
-         if person_opt = None
-         then log_func "Deleting an assignment because of missing person"
-       in
-       let () =
-         if project_opt = None
-         then log_func "Deleting an assignment because of a missing project"
-       in
-       let () =
-         if start_date_opt = Error ()
-         then log_func ("Unable to parse assignment start_date " ^ a.start_date)
-       in
-       let () =
-         if end_date_opt = Error ()
-         then log_func ("Unable to parse assignment end_date " ^ a.end_date)
-       in
+       if person.email = None
+       then log_func "Deleting an assignment because a person had no email";
+       if start_date_opt = Error ()
+       then log_func ("Unable to parse assignment start_date " ^ a.start_date);
+       if end_date_opt = Error ()
+       then log_func ("Unable to parse assignment end_date " ^ a.end_date);
        None)
 ;;
 
@@ -263,14 +253,14 @@ let make_project_map projects_id : project IntMap.t =
 (* Interface *)
 
 let get_the_schedule ~start_date ~end_date =
-  let clnts, peopl, _, projs, asnts = Raw.get_the_schedule ~start_date ~end_date in
+  let _, peopl, _, projs, asnts = Raw.get_the_schedule ~start_date ~end_date in
 
   (* A things_id is a map from raw Forecast ids to the thing *)
-  let projects_id = IntMap.filter_map (validate_project clnts) projs in
+  let projects_id = IntMap.filter_map validate_project projs in
   let fcs_id = Raw.IdMap.filter_map (extract_finance_code projects_id) projs in
   let people_id = IntMap.filter_map validate_person peopl in
   let assignments =
-    List.filter_map (validate_assignment fcs_id people_id projects_id) asnts
+    List.filter_map (validate_assignment fcs_id) asnts
     |> collate_allocations
   in
   make_project_map projects_id, make_people_map people_id, assignments
