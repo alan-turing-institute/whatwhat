@@ -3,9 +3,3 @@
  (name main)
  (modules Main)
  (libraries whatwhat cmdliner))
-
-(executable
- (public_name wwexp)
- (name export)
- (modules Export)
- (libraries whatwhat cmdliner))
