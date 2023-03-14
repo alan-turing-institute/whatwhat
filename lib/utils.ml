@@ -97,3 +97,51 @@ let default_end_date ?relative_to () =
   in
   rem one_day_over (Period.day 1)
 ;;
+
+(** Group adjacent elements of a list together using a predicate *)
+let group_by (p : 'a -> 'a -> bool) (xs : 'a list) : 'a list list =
+  let acc x grps =
+    match grps with
+    | [] -> [ [ x ] ]
+    | grp :: rest ->
+      if p x (List.hd grp) then (x :: grp) :: rest else [ x ] :: grp :: rest
+  in
+  List.fold_right acc xs []
+;;
+
+(** Sum a list *)
+let rec sum (xs : float list) : float =
+  match xs with
+  | [] -> 0.
+  | y :: ys -> y +. sum ys
+;;
+
+(** Roll a date back to a Monday. Leaves Mondays untouched. *)
+let rollback_week (d : CalendarLib.Date.t) : CalendarLib.Date.t =
+  let open CalendarLib.Date in
+  match day_of_week d with
+  | Mon -> d
+  | Tue -> rem d (Period.day 1)
+  | Wed -> rem d (Period.day 2)
+  | Thu -> rem d (Period.day 3)
+  | Fri -> rem d (Period.day 4)
+  | Sat -> rem d (Period.day 5)
+  | Sun -> rem d (Period.day 6)
+;;
+
+(** Roll a date forward to a Friday. Leaves Fridays untouched.
+    If [with_weekend] is [true], then rolls forward to Sundays. *)
+let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : CalendarLib.Date.t =
+  let open CalendarLib.Date in
+  let days_to_friday, days_to_sunday =
+    match day_of_week d with
+    | Mon -> 4, 6
+    | Tue -> 3, 5
+    | Wed -> 2, 4
+    | Thu -> 1, 3
+    | Fri -> 0, 2
+    | Sat -> 6, 1
+    | Sun -> 5, 0
+  in
+  let days_to_add = if with_weekend then days_to_sunday else days_to_friday in
+  add d (Period.day days_to_add)

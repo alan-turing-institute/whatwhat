@@ -50,6 +50,9 @@ type person =
   ; archived : bool
   }
 
+(** Get the name of a person *)
+val make_name : person -> string
+
 (** A placeholder on Forecast, which fulfils the same role as a person but isn't
     actually a person. *)
 type placeholder =

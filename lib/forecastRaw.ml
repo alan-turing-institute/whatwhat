@@ -95,6 +95,9 @@ let get_people_async () =
     |> make_map (function ({ id; _ } as p : person) -> id, p))
 ;;
 
+let make_name person =
+  person.first_name ^ " " ^ person.last_name
+
 (* ---------------------------------------------------------------------- *)
 
 type placeholder =
@@ -123,8 +126,8 @@ type entity =
 
 let get_entity_name e =
   match e with
-  | Person p -> p.first_name ^ " " ^ p.last_name
-  | Placeholder p -> p.name
+  | Person p -> make_name p
+  | Placeholder p -> "Placeholder: " ^ p.name
 ;;
 
 let get_entity_roles e =
