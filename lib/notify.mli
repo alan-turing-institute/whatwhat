@@ -23,7 +23,7 @@ val dump_metadata_events : unit -> unit
 val extract_metadata_events : Log.event Seq.t -> Log.event list IntMap.t
 
 (** Print a more concise form of metadata reports. *)
-val print_metadata_reports : unit -> unit
+val print_metadata_reports : bool -> unit
 
 (** Format metadata reports in a suitable manner for posting to GitHub. *)
 val format_metadata_report_github : Log.event list -> string

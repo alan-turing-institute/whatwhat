@@ -79,19 +79,18 @@ let dump_metadata_events () =
    Reporting
  *)
 
-let format_metadata_report_print (number : int) (events : Log.event list) =
+let format_metadata_report_print (color: bool) (number : int) (events : Log.event list) =
   let open ANSITerminal in
   let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
   let error_msgs =
-    List.map (fun ev -> Log.make_display_message ~color:true ev) errors
+    List.map (fun ev -> Log.make_display_message ~color ev) errors
   in
   let warning_msgs =
-    List.map
-      (fun ev -> sprintf [ Foreground Yellow ] "Warning: " ^ ev.Log.message)
-      warnings
+    List.map (fun ev -> Log.make_display_message ~color ev) warnings
   in
 
-  let header = sprintf [ Bold ] "Issue %-5d" number in
+  let header_style = if color then [ Bold ] else [] in
+  let header = sprintf header_style "Issue %-5d" number in
   let indent = fun n s -> (String.make n ' ') ^ s in
   let messages =
     (* Don't indent the first message. *)
@@ -132,10 +131,10 @@ let format_metadata_report_github (events : Log.event list) : string =
   Buffer.contents buf
 ;;
 
-let print_metadata_reports () =
+let print_metadata_reports color =
   Log.get_the_log ()
   |> extract_metadata_events
-  |> IntMap.mapi format_metadata_report_print
+  |> IntMap.mapi (format_metadata_report_print color)
   |> IntMap.bindings
   |> List.map snd
   |> List.iter (fun (header, msgs) ->
