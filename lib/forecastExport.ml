@@ -1,13 +1,6 @@
 open ForecastRaw
 module DateMap = Map.Make (CalendarLib.Date)
 
-type assignment_output =
-  { client : ForecastRaw.client
-  ; project : ForecastRaw.project
-  ; entity : ForecastRaw.entity
-  ; hours_per_week : float DateMap.t
-  }
-
 (** [ndays_of_week_in d start_date end_date] counts the number of weekdays in
     the week commencing [d] between [start_date] and [end_date].
     [d] must be a Monday. *)
