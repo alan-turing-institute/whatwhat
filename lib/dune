@@ -17,4 +17,5 @@
   (pps ppx_deriving.show ppx_yojson_conv)))
 
 (documentation
- (package whatwhat))
+ (package whatwhat)
+ (mld_files index reporting))

@@ -14,7 +14,6 @@ module IntMap : module type of Map.Make (Int)
 (** Where notifications should be posted. The default is NoTarget. *)
 type notify_target =
   | NoTarget
-  | Print
   | Github
   | Slack
   | All

@@ -32,24 +32,24 @@ let ( let+ ) o f = Option.map f o
 (* ------------------------------------------------------------ *)
 (* Logging for errors and warnings *)
 
-let log_event lvl ent msg = Log.log lvl Log.Forecast ent msg
+let log_event lvl code ent msg = Log.log lvl code Log.Forecast ent msg
 
-let log_raw_project (lvl : Log.level) (rp : Raw.project) msg =
-  log_event lvl (Log.RawForecastProject rp.name) msg
+let log_raw_project (lvl : Log.level) code (rp : Raw.project) msg =
+  log_event lvl code (Log.RawForecastProject rp.name) msg
 ;;
 
-let log_project (lvl : Log.level) (p : project) msg =
-  log_event lvl (Log.Project p.number) msg
+let log_project (lvl : Log.level) code (p : project) msg =
+  log_event lvl code (Log.Project p.number) msg
 ;;
 
-let log_raw_person (lvl : Log.level) (p : Raw.person) msg =
+let log_raw_person (lvl : Log.level) code (p : Raw.person) msg =
   let name = p.first_name ^ " " ^ p.last_name in
-  log_event lvl (Log.RawForecastPerson name) msg
+  log_event lvl code (Log.RawForecastPerson name) msg
 ;;
 
-let log_assignment (lvl : Log.level) (a : Raw.assignment) msg =
+let log_assignment (lvl : Log.level) code (a : Raw.assignment) msg =
   let aid (a : Raw.assignment) = "(" ^ string_of_int a.id ^ ")" in
-  log_event lvl Log.RawForecastAssignment (msg ^ aid a)
+  log_event lvl code Log.RawForecastAssignment (msg ^ aid a)
 ;;
 
 (* ------------------------------------------------------------ *)
@@ -74,10 +74,10 @@ let extract_project_number (project : Raw.project) =
       |> int_of_string)
   with
   | Invalid_argument _ ->
-    log_raw_project Log.Error project "Missing project code";
+    log_raw_project Log.Error 1001 project "Missing project code";
     None
   | Not_found ->
-    log_raw_project Log.Error project @@ "Malformed project code: " ^ Option.get cd;
+    log_raw_project Log.Error 1002 project @@ "Malformed project code: " ^ Option.get cd;
     None
 ;;
 
@@ -92,18 +92,19 @@ let validate_project id (p : Raw.project) =
 ;;
 
 let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
-  let log_appropriate_project_warning (rp : Raw.project) msg =
+  let log_appropriate_project_warning code (rp : Raw.project) msg =
     match IntMap.find_opt rp.id projects with
-    | None -> log_raw_project Log.Warning rp msg
-    | Some p -> log_project Log.Warning p msg
+    | None -> log_raw_project Log.Warning code rp msg
+    | Some p -> log_project Log.Warning code p msg
   in
   match rp.tags with
   | [] ->
-    log_appropriate_project_warning rp "Missing Finance Code";
+    log_appropriate_project_warning 1001 rp "Missing Finance Code";
     None
   | fc :: [] -> Some fc
   | fc :: _ ->
     log_appropriate_project_warning
+      1002
       rp
       "More than one potential Finance code (using the first tag)";
     Some fc
@@ -117,10 +118,10 @@ let validate_person _ (p : Raw.person) : person option =
   else (
     match p.email with
     | None ->
-      log_raw_person Log.Error p "Missing email";
+      log_raw_person Log.Error 1003 p "Missing email";
       None
     | Some "" ->
-      log_raw_person Log.Error p "Email is the empty string";
+      log_raw_person Log.Error 1004 p "Email is empty";
       None
     | Some email ->
       Some
@@ -145,11 +146,11 @@ let forecast_rate_to_fte_percent n = float_of_int n /. float_of_int (60 * 60 * 8
    allocations.
    *)
 let validate_assignment fcs (a : Raw.assignment) =
-  let log_func = log_assignment Log.Error a in
+  let log_func = fun code msg -> log_assignment Log.Error code a msg in
   match a.entity with
   (* We ignore assignments to placeholders here. *)
   | Placeholder _ ->
-    log_func "Deleting an assignment to a placeholder";
+    log_func 9999 "Deleting an assignment to a placeholder";
     None
   | Person person ->
     let start_date_opt = Utils.date_of_string a.start_date in
@@ -169,11 +170,12 @@ let validate_assignment fcs (a : Raw.assignment) =
          }
      | _ ->
        if person.email = None
-       then log_func "Deleting an assignment because a person had no email";
+       (* TODO: why is this being checked twice? *)
+       then log_func 1003 "Deleting an assignment because a person had no email";
        if start_date_opt = Error ()
-       then log_func ("Unable to parse assignment start_date " ^ a.start_date);
+       then failwith ("F1008 Unable to parse assignment start_date " ^ a.start_date);
        if end_date_opt = Error ()
-       then log_func ("Unable to parse assignment end_date " ^ a.end_date);
+       then failwith ("F1009 Unable to parse assignment end_date " ^ a.end_date);
        None)
 ;;
 
@@ -239,6 +241,7 @@ let make_project_map projects_id : project IntMap.t =
       then
         log_project
           Log.Warning
+          1003
           p
           "A project with the same number as this has a different name";
       (* TODO Might we want to have an else-clause that would also warn if

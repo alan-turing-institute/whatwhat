@@ -100,17 +100,17 @@ let ww_main notify person issue =
   Printf.printf "%d assignments\n\n" (List.length assignments);
 
   (* notification reports*)
-  if notify <> Notify.NoTarget
-  then (
-    if (* Emit errors and warnings *)
-       notify = Notify.All || notify = Notify.Github
-    then
-      print_endline "CATCH: this would post reports to github."
-      (*To post to github replace CATCH string with 
-       Notify.post_metadata_reports ()*)
-    else if notify = Notify.Print
-    then Notify.print_metadata_reports ())
-  else print_endline "No notifications requested.";
+  Notify.print_metadata_reports ();
+  match notify with
+  | Notify.NoTarget ->
+      print_endline "No notifications requested.";
+  | Notify.Github ->
+      print_endline "CATCH: this would post reports to GitHub.";
+      (* Notify.post_metadata_reports () *)
+  | Notify.Slack -> 
+      print_endline "CATCH: this would post reports to Slack.";
+  | Notify.All ->
+      print_endline "CATCH: this would post reports to everywhere!";
 
   (* query person's reactions*)
   if person <> "none"
@@ -131,7 +131,6 @@ let notify_arg =
       ; "slack", Notify.Slack
       ; "all", Notify.All
       ; "none", Notify.NoTarget
-      ; "print", Notify.Print
       ]
   in
   let doc =

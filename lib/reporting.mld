@@ -2,10 +2,10 @@
 
 {1 Caveat}
 
-The following is what {i ought} to happen. As of 2022-09-28, it is not what
-actually does happen.
+The following is what {i ought} to happen. As of 2023-03-15, it is not yet what
+actually happens.
 
-{1 Background}
+{1 Overview}
 
 {!Whatwhat} retrieves and integrates data from two sources: GitHub and
 Forecast. These systems have been repurposed by us in order to manage our
@@ -14,53 +14,84 @@ not necessarily faithfully represented by the data models of these
 systems. Thus, errors, omissions, and inconsistencies may occur.
 
 We classify problems into {i errors} and {i warnings}:
-- An {i error} occurs when the data retrieved from the data sources, while valid
-  in the domain model of the data source, is not valid in the domain model of
-  whatwhat and cannot be represented as a type returned by the library. When an
-  error occures the entity causing the error is typically ignored thereafter
-  (which may cause subsequent errors or warnings).
-- A {i warning} occurs when a valid representation is possible but is in some
-  way or other problematic. Warnings should result in nudges for people to fix
-  the problem.
+- A {i fatal error} (F-code) is one where the data retrieved is not valid in
+  the domain model of the data source. This usually means that data retrieved
+  was malformed in some way. In such a situation, whatwhat will halt execution
+  immediately.
+- An {i error} (E-code) occurs when the data retrieved from the data sources,
+  while valid in the domain model of the data source, is not valid in the
+  domain model of whatwhat and cannot be represented as a type returned by the
+  library. When an error occurs, the entity causing the error is typically
+  ignored thereafter, which may lead to subsequent errors or warnings.
+- A {i warning} (W-code) occurs when a valid representation is possible but is
+  in some way or other problematic. Warnings should result in nudges for people
+  to fix the problem.
+- An {i information message} (I-code) is used for commentary on potential
+  problems.
   
-It is conceivable the JSON returned by the APIs of GitHub or Forecast may not
-parse as expected: that is a fatal error and whatwhat will throw an exception
-and halt.
-
-(We may later include {i notifications}, which are user-requested commentary on
-potential problems.)
-
-Errors and warnings are passed to the logging system whose job is to communicate
-them to the appropriate place. Errors and warnings may arise in two places:
-  + When reading the data from either GitHub or Forecast;
+All of these are passed to the logging system, whose job is to then communicate
+them to the appropriate target. Errors and warnings may arise in three places:
+  + When reading the data from Forecast;
+  + When reading the data from GitHub;
   + When combining the data from these two sources.
 
 
 {1 Reading data from Forecast}
 
-Forecast is authoritative for people and allocations so the most likely sources of
-errors are projects. 
+All error codes under this section should begin with the number 1.
+
+Forecast is authoritative for people and allocations, so the most likely
+sources of errors are projects. 
+
+{2 Fatal errors}
+
+- {b F1001} Data could not be obtained from Forecast API at all.
+- {b F1002} Data obtained from Forecast API was not valid JSON.
+- {b F1003} A project's client ID, if present, is not found in the list of
+  clients. (The API for Forecast gives the 'ID' of the client, which is an
+  integer; this must be matched against the list of clients obtained from a
+  separate request. If a project has a client that is not in that list,
+  something has gone very wrong. Note that an empty client ID is possible, and
+  is recorded as E0006.)
+- {b F1004} An assignment's project ID is not found in the list of projects.
+- {b F1005} An assignment was assigned to neither a person nor a placeholder.
+- {b F1006} An assignment was assigned to both a person and a placeholder.
+- {b F1007} An assignment's entity (the person or placeholder the assignment is
+  to) could not be found in the list of people or placeholders.
+- {b F1008} An assignment's start date could not be parsed.
+- {b F1009} An assignment's end date could not be parsed.
 
 {2 Errors}
 
-- The project code field (which ought to hold the hut23 issue
-  number) is null.
-- The project code is not of the correct format, e.g., "[hut23-999]".
-- The person email field is null.
-- The assignment person does not match a person (probably because we have
-  deleted it).
-- The assignment project does not match a project (probably because we
+- {b E1001} The project code field (which ought to hold the issue number X in
+  the format "hut23-X") is null.
+- {b E1002} The project code is not null but does not have the correct format.
+- {b E1003} The person email field is null.
+- {b E1004} The person email field is not a valid email.
+- {b E1005} The assignment person does not match a person (probably because we
   have deleted it).
+- {b E1006} The assignment project does not match a project (probably because we
+  have deleted it).
+- {b E1007} The project has no client on Forecast. This occurs naturally with
+  the built-in 'Time Off' project. To suppress this error, this project should
+  be added to the 'ignoredForecastProjects' configuration variable.
 
 {2 Warnings}
 
-- The project tags field (which ought to hold the Finance code) is empty; 
-- The project tags field has more than one entry.
-- Two projects exist with the same project code but a different name (in
-  general, it is okay to have two projects with the same code becuase they refer
-  to the same real-world project).
+- {b W1001} The project tags field (which ought to hold the finance code) is
+  empty. 
+- {b W1002} The project tags field has more than one entry.
+- {b W1003} Two projects exist with the same project code but a different name
+  (in general, it is okay to have two projects with the same code because they
+  refer to the same real-world project).
+
+
+
+
 
 {1 Reading data from GitHub}
+
+All error codes under this section should begin with the number 2.
 
 GitHub is authoritative for projects but the YAML metadata block is not part of
 the GitHub data model so leaves a lot of room for trouble. 
@@ -95,50 +126,67 @@ and the YAML data block has the following fields:
 
 {2 Errors}
 
-A malformed YAML block halts parsing of entire block. Possible reasons for error are:
-{ul 
-  {- A non-optional metadata block cannot be found}
-  {- A field cannot be parsed, because: 
-  {ul {- its name is not in the accepted list; or}
-      {- the format of the value is not valid.}}} 
-  {- The same field is specified twice}
-  {- there is no [FTE-months] or [FTE-weeks]} 
-  {- both [FTE-months] and [FTE-weeks] are specified}}
+A malformed YAML block halts parsing of the entire block. Possible reasons for
+error are:
+
+- {b E2001} A metadata block cannot be found at all.
+- {b E2002} A metadata block was found, but is not valid YAML.
+- {b E2003} A metadata field cannot be parsed because its name is not in the
+  list of accepted fields above.
+- {b E2004} A metadata field cannot be parsed because its value is invalid
+  (e.g. the wrong type).
+- {b E2005} A metadata field is specified more than once.
+- {b E2006} Neither [FTE-months] nor [FTE-weeks] are given.
+- {b E2007} Both [FTE-months] and [FTE-weeks] are given.
+- {b E2008} Another non-optional metadata field is not present.
+- {b E2009} An unexpected metadata field is present.
 
 {2 Warnings}
 
-- A field that can be null is missing
-- A field that can be null has a missing value
+- {b W2001} A field that can be null is null.
+
+
+
+
 
 {1 Combining data}
 
-Even if both the GitHub and the Forecast data appear to satisfy the domain model
-we may still have problems when they are combined. 
+All error codes under this section should begin with the number 3.
+
+Even if both the GitHub and the Forecast data appear to satisfy the domain
+model, we may still have problems when they are combined.
 
 {2 Errors}
 
-- A project on Forecast has a Hut23 code that is not present in the list of
-  projects from GitHub.
-- A project on Forecast has a Finance Code that is not in the list of Finance
-  Codes from the metadata. (What do we do when the project Finance Code is
-  "UNKNOWN FINANCE CODE"? Do we issue an error or a warning? If a warning, does
-  that mean we need to make "UNKNOWN FINANCE CODE" a possible code for every project?)
+- {b E3001} A project on Forecast has a Hut23 issue number that is not present in
+  the GitHub project tracker.
+- {b E3002} A project on Forecast has a finance code that is not contained in the
+  list of finance codes in the GitHub metadata.
+
+(TODO: What do we do when the project Finance Code is "UNKNOWN FINANCE CODE"? Do we
+issue an error or a warning? If a warning, does that mean we need to make
+"UNKNOWN FINANCE CODE" a possible code for every project?)
 
 {2 Warnings}
 
-Warnings occur when the import of the allocations in Forecast doesn't match
-what's implied by the metadata.
+Warnings occur when the allocations in Forecast do not match what is implied by
+the GitHub metadata.
 
-- A project is in "Looking for people" or later, but has no matching Forecast project
-- There are allocations to a project beyond its latest end date
-- There are allocations to a project before its earliest start date
-- The total resource allocated exceeds the FTE-weeks
-- The run-rate resource at any time is lower than min-FTE-percent or higher than
-max-FTE-percent.
-- An individual has an allocation that is greater than 100%
-- The project is in "active" but there are no present allocations; or there are
-present allocations but the project is no "active".
-- The project is past its latest start date but is not "active"
+- {b W3001} A project is in "Looking for people" or later, but has no matching
+  Forecast project.
+- {b W3002} There are allocations to a project beyond its latest end date.
+- {b W3003} There are allocations to a project before its earliest start date.
+- {b W3004} The total resource allocated exceeds the FTE-weeks or FTE-months.
+- {b W3005} The run-rate resource at any time is lower than min-FTE-percent or
+  higher than max-FTE-percent.
+- {b W3006} An individual has an allocation that is greater than 100%.
+- {b W3007} The project is in the "Active" column but there are no present
+  allocations on Forecast.
+- {b W3008} There are allocations to a project but the project is not in the
+  "Active" column.
+- {b W3009} The project is past its latest start date but is not in the
+  "Active" column.
+- {b W3010} A Forecast user could not be matched to a user on GitHub.
 
 
 {1 Reporting}

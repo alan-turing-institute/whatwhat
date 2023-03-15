@@ -18,16 +18,16 @@ type parse_error =
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log (error : parse_error) (number : int) msg =
-  let level =
+  let level, code =
     match error with
-    | DateParsingError -> Log.Error
-    | ExtraFieldError -> Log.Error
-    | FieldTypeError -> Log.Error
-    | FTETimeUnderSpecifiedError -> Log.Error
-    | FTETimeOverSpecifiedError -> Log.Error
-    | MissingCompulsoryFieldError -> Log.Error
-    | NoMetadataError -> Log.Error
-    | YamlError -> Log.Error
+    | DateParsingError -> Log.Error, 2004
+    | ExtraFieldError -> Log.Error, 2009
+    | FieldTypeError -> Log.Error, 2004
+    | FTETimeUnderSpecifiedError -> Log.Error, 2006
+    | FTETimeOverSpecifiedError -> Log.Error, 2007
+    | MissingCompulsoryFieldError -> Log.Error, 2008
+    | NoMetadataError -> Log.Error, 2001
+    | YamlError -> Log.Error, 2002
   in
   let error_description =
     match error with
@@ -40,7 +40,7 @@ let log (error : parse_error) (number : int) msg =
     | NoMetadataError -> "No metadata block found in issue body."
     | YamlError -> "Unable to parse metadata block as YAML: "
   in
-  Log.log level Log.GithubMetadata (Log.Project number) @@ error_description ^ msg
+  Log.log level code Log.GithubMetadata (Log.Project number) @@ error_description ^ msg
 ;;
 
 (* ---------------------------------------------------------------------- *)

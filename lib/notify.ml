@@ -2,7 +2,7 @@
     
    
 
-    The plan is to emit a GitHub comment of the following form:
+    The plan is to emit a GitHub comment of the following form:;
     {v
     Hi there, this is WhatWhat Bot. I'm a bot. Beep boop!
 
@@ -23,7 +23,6 @@ module IntMap = Map.Make (Int)
 
 type notify_target =
   | NoTarget
-  | Print
   | Github
   | Slack
   | All
@@ -84,7 +83,7 @@ let format_metadata_report_print (number : int) (events : Log.event list) =
   let open ANSITerminal in
   let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
   let error_msgs =
-    List.map (fun ev -> sprintf [ Foreground Red ] "Error: " ^ ev.Log.message) errors
+    List.map (fun ev -> Log.make_display_message ~color:true ev) errors
   in
   let warning_msgs =
     List.map
@@ -93,11 +92,11 @@ let format_metadata_report_print (number : int) (events : Log.event list) =
   in
 
   let header = sprintf [ Bold ] "Issue %-5d" number in
-  let indent = String.make 13 ' ' in
+  let indent = fun n s -> (String.make n ' ') ^ s in
   let messages =
     (* Don't indent the first message. *)
     match error_msgs @ warning_msgs with
-    | x :: xs -> x :: List.map (fun s -> indent ^ s) xs
+    | x :: xs -> x :: List.map (indent 13) xs
     | y -> y
   in
   header, messages
