@@ -1,3 +1,4 @@
 (tests
- (names gh)
- (libraries whatwhat))
+ (names utils)
+ (libraries whatwhat
+            ounit2))

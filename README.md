@@ -18,14 +18,20 @@ A reimagining of `nowwhat` in OCaml.
 command-line arguments.)
 
 ```sh
-whathat
+whatwhat
 ```
 Currently, report errors found when parsing the github metadata.
 
 ```sh
-whathat --target=github
+whatwhat --target=github
 ```
 Post a comment to each GitHub issue in the Project Tracker where a problem was discovered.
+
+```sh
+whatwhat export
+```
+Generate Forecast project export for the three-month period centred on the current month.
+See [the wiki](https://github.com/alan-turing-institute/whatwhat/wiki/Exporting-Forecast-CSVs) (or run `whatwhat export --help`) for more usage instructions.
 
 ---
 
