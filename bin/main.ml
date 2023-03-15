@@ -134,9 +134,8 @@ let notify_arg =
       ]
   in
   let doc =
-    "Where to send notifications.\n\
-    \           $(docv) may be $(b,print), $(b,github), $(b,slack), $(b,all), or \
-     $(b,none)."
+    "Where to send notifications. $(docv) may be $(b,github), $(b,slack), $(b,all), or \
+     $(b,none). Note that terminal output is always enabled."
   in
 
   Arg.(value & opt tgs Notify.NoTarget & info [ "n"; "notify" ] ~docv:"NOTIFY" ~doc)
