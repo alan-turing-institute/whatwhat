@@ -41,9 +41,8 @@ let is_digit c =
   | _ -> false
 ;;
 
-(** Parse a string as a date. The string must contain either 8 digits, in which
- case it is treated as YYYYMMDD, or 6, in which case it is treated as YYMMDD.
- Non-digit characters are ignored. *)
+(** Parse a string containing 8 digits as a date (in YYYYMMDD format).
+    Non-digit characters are ignored. *)
 let parse_date s =
   let digits = s |> String.to_seq |> Seq.filter is_digit |> String.of_seq in
   let yyyy, mm, dd =
@@ -52,10 +51,6 @@ let parse_date s =
       ( int_of_string (String.sub digits 0 4)
       , int_of_string (String.sub digits 4 2)
       , int_of_string (String.sub digits 6 2) )
-    | 6 ->
-      ( 2000 + int_of_string (String.sub digits 0 2)
-      , int_of_string (String.sub digits 2 2)
-      , int_of_string (String.sub digits 4 2) )
     | _ -> failwith ("Unrecognised date: " ^ s)
   in
   let open CalendarLib.Date in
