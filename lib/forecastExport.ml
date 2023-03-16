@@ -128,7 +128,7 @@ let export_schedule ~start_date ~end_date =
       (match compare a1.project.name a2.project.name with
        | 0 ->
          (match a1.entity, a2.entity with
-          | Person p1, Person p2 -> compare (make_name p1) (make_name p2)
+          | Person p1, Person p2 -> compare (make_person_name p1) (make_person_name p2)
           | Placeholder p1, Placeholder p2 -> compare p1.name p2.name
           | Person _, Placeholder _ -> -1
           | Placeholder _, Person _ -> 1)

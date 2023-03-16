@@ -1,5 +1,52 @@
 {0 Whatwhat}
 
-`whatwhat` is a command-line tool used for project tracking and management.
+[whatwhat] is a command-line tool used for project tracking and management in
+the {{: https://www.turing.ac.uk/research-engineering } Research Engineering
+group} at The Alan Turing Institute.
 
-See {!page-"reporting"} for an overview of what it tries to do.
+{1 Overview}
+
+{!page-"reporting"} contains a more thorough discussion of what [whatwhat] aims
+to accomplish.
+
+{!modules:
+    Whatwhat.Domain
+    }
+
+{1 Fetching data from Forecast}
+
+{!modules:
+    Whatwhat.ForecastRaw
+    Whatwhat.Forecast
+    }
+
+{1 Fetching data from GitHub}
+
+{!modules:
+    Whatwhat.GithubRaw
+    Whatwhat.Github
+    }
+
+{1 Merging Forecast and GitHub data}
+
+{!modules:
+    Whatwhat.Schedule
+    }
+
+{1 Output}
+
+{!modules:
+    Whatwhat.ForecastExport
+    Whatwhat.GithubBot
+    Whatwhat.Log
+    Whatwhat.QueryReports
+    Whatwhat.Notify
+    Whatwhat.Slack
+    }
+
+{1 Others}
+
+{!modules:
+    Whatwhat.Config
+    Whatwhat.Utils
+    }

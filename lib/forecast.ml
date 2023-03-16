@@ -160,7 +160,7 @@ let validate_assignment fcs (a : Raw.assignment) =
        Some
          { project = a.project.id
          ; person = email
-         ; finance_code = Raw.IdMap.find_opt a.project.id fcs
+         ; finance_code = Raw.IntMap.find_opt a.project.id fcs
          ; allocation =
              [ { start_date
                ; days = CalendarLib.Date.sub end_date start_date
@@ -260,7 +260,7 @@ let get_the_schedule ~start_date ~end_date =
 
   (* A things_id is a map from raw Forecast ids to the thing *)
   let projects_id = IntMap.filter_map validate_project projs in
-  let fcs_id = Raw.IdMap.filter_map (extract_finance_code projects_id) projs in
+  let fcs_id = IntMap.filter_map (extract_finance_code projects_id) projs in
   let people_id = IntMap.filter_map validate_person peopl in
   let assignments =
     List.filter_map (validate_assignment fcs_id) asnts

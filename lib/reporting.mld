@@ -51,8 +51,8 @@ sources of errors are projects.
   clients. (The API for Forecast gives the 'ID' of the client, which is an
   integer; this must be matched against the list of clients obtained from a
   separate request. If a project has a client that is not in that list,
-  something has gone very wrong. Note that an empty client ID is possible, and
-  is recorded as E0006.)
+  something has gone very wrong. Note that an empty client ID is possible; this
+  is recorded as E1007 instead.)
 - {b F1004} An assignment's project ID is not found in the list of projects.
 - {b F1005} An assignment was assigned to neither a person nor a placeholder.
 - {b F1006} An assignment was assigned to both a person and a placeholder.

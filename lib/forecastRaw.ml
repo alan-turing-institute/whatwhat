@@ -4,12 +4,15 @@ open Cohttp_lwt_unix
 open Yojson
 open Yojson.Basic.Util
 open CalendarLib
+module IntMap = Map.Make (Int)
 
-(* An IdMap is a map from Forecast ids *)
-module IdMap = Map.Make (Int)
+(** Convenience function to generate a map from a list based on a key-generating
+    function [identify]. *)
+let make_map identify xs =
+  List.map (fun x -> identify x, x) xs |> List.to_seq |> IntMap.of_seq
+;;
 
-let make_map identify xs = List.map identify xs |> List.to_seq |> IdMap.of_seq
-
+(** Perform a HTTP request to the Forecast API. *)
 let forecast_request_async ?(query = []) endpoint =
   let open Lwt.Syntax in
   let headers =
@@ -23,38 +26,11 @@ let forecast_request_async ?(query = []) endpoint =
   in
   let* response = Client.get ~headers uri in
   let* body_string = response |> snd |> Body.to_string in
-  (* Forecast returns, eg, {"clients", [...]} *)
+  (* Forecast returns, eg, {"clients", [...]}, so we extract the list here *)
   Lwt.return (body_string |> Yojson.Basic.from_string |> member endpoint)
 ;;
 
-(* ---------------------------------------------------------------------- *)
-
-type project_schema =
-  { id : int
-  ; harvest_id : int option
-  ; client_id : int option (* The built-in project has no client !! *)
-  ; name : string
-  (* TODO: why can project code be None? *)
-  ; code : string option
-  ; tags : string list
-  ; notes : string option
-  ; color : string
-  ; archived : bool
-  }
-[@@deriving of_yojson] [@@yojson.allow_extra_fields]
-
-let get_project_schemas_async () =
-  let open Lwt.Syntax in
-  let* projects = forecast_request_async "projects" in
-  Lwt.return
-    (projects
-    |> to_list
-    |> List.map (fun x -> project_schema_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (function ({ id; _ } as p : project_schema) -> id, p))
-;;
-
-(* ---------------------------------------------------------------------- *)
-
+(** A client on Forecast is (roughly speaking) a programme. *)
 type client =
   { id : int
   ; name : string
@@ -62,6 +38,7 @@ type client =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
+(** Retrieve all clients from Forecast. *)
 let get_clients_async () =
   let open Lwt.Syntax in
   let* clients = forecast_request_async "clients" in
@@ -69,11 +46,10 @@ let get_clients_async () =
     (clients
     |> to_list
     |> List.map (fun x -> client_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (function ({ id; _ } as c : client) -> id, c))
+    |> make_map (fun c -> c.id))
 ;;
 
-(* ---------------------------------------------------------------------- *)
-
+(** A person on Forecast is a real person. *)
 type person =
   { id : int
   ; first_name : string
@@ -85,6 +61,10 @@ type person =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
+(** Generate the full name of a person. *)
+let make_person_name p = p.first_name ^ " " ^ p.last_name
+
+(** Retrieve all people from Forecast. *)
 let get_people_async () =
   let open Lwt.Syntax in
   let* people = forecast_request_async "people" in
@@ -92,14 +72,10 @@ let get_people_async () =
     (people
     |> to_list
     |> List.map (fun x -> person_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (function ({ id; _ } as p : person) -> id, p))
+    |> make_map (fun p -> p.id))
 ;;
 
-let make_name person =
-  person.first_name ^ " " ^ person.last_name
-
-(* ---------------------------------------------------------------------- *)
-
+(** A placeholder on Forecast is not a real person, but behaves like one. *)
 type placeholder =
   { id : int
   ; name : string
@@ -108,6 +84,7 @@ type placeholder =
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 
+(** Retrieve all placeholders from Forecast. *)
 let get_placeholders_async () =
   let open Lwt.Syntax in
   let* placeholders = forecast_request_async "placeholders" in
@@ -115,41 +92,108 @@ let get_placeholders_async () =
     (placeholders
     |> to_list
     |> List.map (fun x -> placeholder_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (function ({ id; _ } as p : placeholder) -> id, p))
+    |> make_map (fun p -> p.id))
 ;;
 
-(* A person or a placeholder. *)
+(** An entity is either a person or a placeholder. *)
 type entity =
   | Person of person
   | Placeholder of placeholder
-[@@deriving show, of_yojson]
+[@@deriving show]
 
+(** Get the name of an entity. *)
 let get_entity_name e =
   match e with
-  | Person p -> make_name p
+  | Person p -> make_person_name p
   | Placeholder p -> "Placeholder: " ^ p.name
 ;;
 
+(** Get the roles of an entity. *)
 let get_entity_roles e =
   match e with
   | Person p -> p.roles
   | Placeholder p -> p.roles
 ;;
 
+(** Get the Forecast ID of an entity. *)
 let get_entity_id e =
   match e with
   | Person p -> p.id
   | Placeholder p -> p.id
 ;;
 
+(** Get the archived status of an entity. *)
 let get_entity_archived e =
   match e with
   | Person p -> p.archived
   | Placeholder p -> p.archived
 ;;
 
-(* ---------------------------------------------------------------------- *)
+(** This type represents the raw JSON of a project as returned by Forecast.
+    Instead of providing a client, it only provides a client ID, so we 'fill in
+    the client' by looking it up in the list of clients before passing the data
+    on to other modules. *)
+type project_schema =
+  { id : int
+  ; harvest_id : int option
+  ; client_id : int option (* The built-in project has no client !! *)
+  ; name : string (* TODO: why can project code be None? *)
+  ; code : string option
+  ; tags : string list
+  ; notes : string option
+  ; color : string
+  ; archived : bool
+  }
+[@@deriving of_yojson] [@@yojson.allow_extra_fields]
 
+(** Retrieve all projects from Forecast. *)
+let get_project_schemas_async () =
+  let open Lwt.Syntax in
+  let* projects = forecast_request_async "projects" in
+  Lwt.return
+    (projects
+    |> to_list
+    |> List.map (fun x -> project_schema_of_yojson (x : Basic.t :> Safe.t))
+    |> make_map (fun p -> p.id))
+;;
+
+(** This is a filled-in project datatype. *)
+type project =
+  { id : int
+  ; harvest_id : int option
+  ; client : client option
+  ; name : string
+  ; code : string option
+  ; tags : string list
+  ; notes : string option
+  ; color : string
+  ; archived : bool
+  }
+[@@deriving show]
+
+(** This converts a [project_schema] to a [project], i.e., fills in the client
+    by looking it up in the list of clients. *)
+let populate_project_client clients prj =
+  let client =
+    match prj.client_id with
+    | None -> None
+    | Some i -> IntMap.find_opt i clients
+  in
+  { id = prj.id
+  ; harvest_id = prj.harvest_id
+  ; client
+  ; name = prj.name
+  ; code = prj.code
+  ; tags = prj.tags
+  ; notes = prj.notes
+  ; color = prj.color
+  ; archived = prj.archived
+  }
+;;
+
+(** This type represents the raw JSON of an assignment as returned by Forecast.
+    Similarly to the project JSON above, we fill in some subfields of the
+    assignment before passing it on to other modules. *)
 type assignment_schema =
   { id : int
   ; project_id : int
@@ -162,8 +206,11 @@ type assignment_schema =
   }
 [@@deriving of_yojson] [@@yojson.allow_extra_fields]
 
-module IntMap = Map.Make (Int)
-
+(** Parse the JSON returned by Forecast (which in general is a list of list of
+    assignments, because each query returns a list of assignments, and we
+    perform multiple queries to cover 180-day periods as necessary). This also
+    performs a merge of the results from each query, discarding any duplicate
+    assignments. *)
 let parse_combined_assignment_json (bs : Basic.t list) =
   let merge_maps asns =
     List.fold_right
@@ -191,8 +238,13 @@ let parse_combined_assignment_json (bs : Basic.t list) =
   |> List.of_seq
 ;;
 
-(* The Forecast API sets the longest period assignments can be queried for in one query.
- *)
+(** Obtain all assignments between [start_date] and [end_date].
+
+    Note that the Forecast API restricts the maximum query period to be 180
+    days. Thus, if [start_date] and [end_date] differ by a longer period,
+    several sub-queries must be made and the results combined. The combination
+    process is carried out in the [parse_combined_assignment_json] function.
+    *)
 let get_assignments_async (start_date : Date.t) (end_date : Date.t) =
   let open Lwt.Syntax in
   let rec get_assignments_inner start_date end_date =
@@ -223,21 +275,7 @@ let get_assignments_async (start_date : Date.t) (end_date : Date.t) =
   Lwt.return (parse_combined_assignment_json assignments_json)
 ;;
 
-(* ---------------------------------------------------------------------- *)
-
-type project =
-  { id : int
-  ; harvest_id : int option
-  ; client : client option
-  ; name : string
-  ; code : string option
-  ; tags : string list
-  ; notes : string option
-  ; color : string
-  ; archived : bool
-  }
-[@@deriving show]
-
+(** This is the 'filled-in' assignment type. *)
 type assignment =
   { id : int
   ; project : project
@@ -249,30 +287,13 @@ type assignment =
   }
 [@@deriving show]
 
-let populate_project_client clients prj =
-  let client =
-    match prj.client_id with
-    | None -> None
-    | Some i -> IdMap.find_opt i clients
-  in
-  { id = prj.id
-  ; harvest_id = prj.harvest_id
-  ; client = client
-  ; name = prj.name
-  ; code = prj.code
-  ; tags = prj.tags
-  ; notes = prj.notes
-  ; color = prj.color
-  ; archived = prj.archived
-  }
-;;
-
+(** Converts an [assignment_schema] to a proper [assignment]. *)
 let populate_assignment_subfields people placeholders projects asn =
   (* The raw Forecast JSON only returns client IDs, person IDs, etc. It makes
      life much easier later if we actually associate the clients, people, etc.
      themselves with each assignment. *)
   let project =
-    match IdMap.find_opt asn.project_id projects with
+    match IntMap.find_opt asn.project_id projects with
     | Some prj -> prj
     | None ->
       failwith
@@ -281,11 +302,11 @@ let populate_assignment_subfields people placeholders projects asn =
   let entity =
     match asn.person_id, asn.placeholder_id with
     | Some p, None ->
-      (match IdMap.find_opt p people with
+      (match IntMap.find_opt p people with
        | Some person -> Person person
        | None -> failwith (Printf.sprintf "person %d in assignment %d not found" p asn.id))
     | None, Some p ->
-      (match IdMap.find_opt p placeholders with
+      (match IntMap.find_opt p placeholders with
        | Some placeholder -> Placeholder placeholder
        | None ->
          failwith (Printf.sprintf "placeholder %d in assignment %d not found" p asn.id))
@@ -303,23 +324,25 @@ let populate_assignment_subfields people placeholders projects asn =
   }
 ;;
 
+(** Fetch clients, people, placeholders, projects, and assignments from
+    Forecast. Returns a promise. *)
 let get_the_schedule_async ~start_date ~end_date =
   let open Lwt.Syntax in
   let* clients = get_clients_async () in
   let* people = get_people_async () in
   let* placeholders = get_placeholders_async () in
   let* project_schemas = get_project_schemas_async () in
-  let projects = IdMap.map (populate_project_client clients) project_schemas in
+  let projects = IntMap.map (populate_project_client clients) project_schemas in
   let* assignment_schemas = get_assignments_async start_date end_date in
   let assignments =
     List.map
       (populate_assignment_subfields people placeholders projects)
       assignment_schemas
   in
-
   Lwt.return (clients, people, placeholders, projects, assignments)
 ;;
 
+(** The same as above, but returns the data directly. *)
 let get_the_schedule ~start_date ~end_date =
   get_the_schedule_async ~start_date ~end_date |> Lwt_main.run
 ;;
