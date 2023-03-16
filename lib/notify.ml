@@ -81,7 +81,8 @@ let dump_metadata_events () =
 
 let format_metadata_report_print (color: bool) (number : int) (events : Log.event list) =
   let open ANSITerminal in
-  let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
+  let errors = List.filter Log.isError events in
+  let warnings = List.filter Log.isWarning events in
   let error_msgs =
     List.map (fun ev -> Log.make_display_message ~color ev) errors
   in
@@ -102,7 +103,8 @@ let format_metadata_report_print (color: bool) (number : int) (events : Log.even
 ;;
 
 let format_metadata_report_github (events : Log.event list) : string =
-  let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
+  let errors = List.filter Log.isError events in
+  let warnings = List.filter Log.isWarning events in
   let error_msgs = List.map (fun ev -> ev.Log.message) errors in
   let warning_msgs = List.map (fun ev -> ev.Log.message) warnings in
   let n_errors = List.length errors in

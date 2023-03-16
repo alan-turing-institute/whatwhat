@@ -23,17 +23,17 @@ type schedule_error =
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log (error : schedule_error) =
-  let level, code =
+  let level =
     match error with
-    | ActiveProjectWithoutAssignments _ -> Log.Warning, 3007
-    | AllocationEndsTooLate _ -> Log.Warning, 3002
-    | AllocationStartsTooEarly _ -> Log.Warning, 3003
-    | AssignmentWithoutProject _ -> Log.Error, 9999
-    | ExtraneousForecastProject _ -> Log.Error, 3001
-    | FinanceCodeNotFound _ -> Log.Error, 3002
-    | MissingForecastProject _ -> Log.Warning, 3001
-    | NoMatchingGithubUser _ -> Log.Warning, 3010
-    | ProjectStartOverdue _ -> Log.Warning, 3009
+    | ActiveProjectWithoutAssignments _ -> Log.Warning 3007
+    | AllocationEndsTooLate _ -> Log.Warning 3002
+    | AllocationStartsTooEarly _ -> Log.Warning 3003
+    | AssignmentWithoutProject _ -> Log.Error 9999
+    | ExtraneousForecastProject _ -> Log.Error 3001
+    | FinanceCodeNotFound _ -> Log.Error 3002
+    | MissingForecastProject _ -> Log.Warning 3001
+    | NoMatchingGithubUser _ -> Log.Warning 3010
+    | ProjectStartOverdue _ -> Log.Warning 3009
     (*
     | NoMatchingForecastProject -> Log.Error
     | NoMatchingForecastUser -> Log.Warning
@@ -105,7 +105,7 @@ let log (error : schedule_error) =
     *)
   in
 
-  Log.log level code Log.Schedule entity msg
+  Log.log level Log.Schedule entity msg
 ;;
 
 (* ---------------------------------------------------------------------- *)

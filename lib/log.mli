@@ -12,9 +12,9 @@
 
 (** Severity of logged problem *)
 type level =
-  | Fatal (** Prevents whatwhat from continuing at all *)
-  | Error (** Prevents processing of some data  *)
-  | Warning (** Likely to cause an error if not fixed *)
+  | Fatal of int (** Prevents whatwhat from continuing at all *)
+  | Error of int (** Prevents processing of some data  *)
+  | Warning of int (** Likely to cause an error if not fixed *)
   | Info (** Information for end users *)
   | Debug (** Information for whatwhat developers *)
 
@@ -35,7 +35,6 @@ type entity =
 
 type event =
   { level : level
-  ; code : int
   ; source : source
   ; entity : entity
   ; message : string
@@ -43,10 +42,16 @@ type event =
 
 (** Take a log_type and a message to log, print it to stdout in the standard logging
     format. *)
-val log : level -> int -> source -> entity -> string -> unit
+val log : level -> source -> entity -> string -> unit
 
 val get_the_log : unit -> event Seq.t
 val show_level : level -> string
 val show_source : source -> string
 
 val make_display_message : ?color : bool -> event -> string
+
+val isFatal : event -> bool
+val isError : event -> bool
+val isWarning : event -> bool
+val isInfo : event -> bool
+val isDebug : event -> bool
