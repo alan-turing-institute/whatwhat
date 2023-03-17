@@ -79,6 +79,7 @@ let make_assignment_output weeks asns =
   @ List.map (fun w -> Printf.sprintf "%.1f" (get_hours_per_week w asns)) weeks
 ;;
 
+(** Returns all Mondays between two dates. *)
 let get_mondays_between ~start_date ~end_date =
   let open CalendarLib.Date in
   let first_monday = Utils.rollback_week start_date in
@@ -91,15 +92,11 @@ let get_mondays_between ~start_date ~end_date =
   List.rev (acc first_monday [])
 ;;
 
-let is_active (asn : assignment) : bool =
-  (not asn.project.archived) && not (ForecastRaw.get_entity_archived asn.entity)
-;;
-
+(** The main function *)
 let export_schedule ~start_date ~end_date =
   let _, _, _, _, assignments = ForecastRaw.get_the_schedule ~start_date ~end_date in
   let weeks = get_mondays_between ~start_date ~end_date in
 
-  (* TODO add weeks *)
   let header =
     [ "Client"
     ; "Project"
@@ -137,7 +134,8 @@ let export_schedule ~start_date ~end_date =
   in
   let data =
     assignments
-    |> List.filter is_active
+    |> List.filter (fun a ->
+         (not a.project.archived) && not (ForecastRaw.get_entity_archived a.entity))
     |> List.sort compare_assignments
     |> Utils.group_by (fun a1 a2 -> compare_assignments a1 a2 = 0)
     |> List.map (make_assignment_output weeks)
