@@ -67,7 +67,11 @@ sources of errors are projects.
   the format "hut23-X") is null.
 - {b E1002} The project code is not null but does not have the correct format.
 - {b E1003} The person email field is null.
-- {b E1004} The person email field is not a valid email.
+- {b E1004} The person email field is not a valid email. 'Valid' in this case
+  means 'matching ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$', which is
+  not quite accurate (the technical definition is in
+  {{: https://www.rfc-editor.org/rfc/rfc5322 }RFC 5322}), but is really enough
+  to catch empty emails and other typos.
 - {b E1005} The assignment person does not match a person (probably because we
   have deleted it).
 - {b E1006} The assignment project does not match a project (probably because we
@@ -81,9 +85,12 @@ sources of errors are projects.
 - {b W1001} The project tags field (which ought to hold the finance code) is
   empty. 
 - {b W1002} The project tags field has more than one entry.
-- {b W1003} Two projects exist with the same project code but a different name
-  (in general, it is okay to have two projects with the same code because they
-  refer to the same real-world project).
+- {b W1003} Two projects exist with the same issue number in Forecast but a
+  different name.
+- {b W1003} Two projects exist with the same issue number in Forecast and the
+  same name. (In general, this should not be a problem as both projects in
+  Forecast will refer to the same real-world project. However, it's a useful
+  thing to be aware of.)
 
 
 

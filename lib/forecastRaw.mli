@@ -106,8 +106,8 @@ type assignment =
   { id : int
   ; project : project
   ; entity : entity
-  ; start_date : string
-  ; end_date : string
+  ; start_date : CalendarLib.Date.t
+  ; end_date : CalendarLib.Date.t
   ; allocation : int (** This is measured in seconds per day. *)
   ; notes : string option
   }

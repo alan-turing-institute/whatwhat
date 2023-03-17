@@ -18,7 +18,6 @@ type notify_target =
   | Slack
   | All
 
-val dump_the_log : unit -> unit
 val dump_metadata_events : unit -> unit
 val extract_metadata_events : Log.event Seq.t -> Log.event list IntMap.t
 

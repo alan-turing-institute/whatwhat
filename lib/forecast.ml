@@ -1,14 +1,14 @@
-(* High-level interface to the Forecast API
+(* High-level interface to the Forecast AP I
 
    Returns a valid schedule from Forecast. A valid schedule is one such that:
-   - Every project is identified by a conformant project number (like 999)
+   - Every project is identified by a conformant project number (like 999). This
+   project number refers to a GitHub issue number, not the Forecast ID.
    - Every person is identified by an email (which is not checked)
    
    All other projects, persons, AND related assignments are removed
 
    "Errors" are emitted when an entity is invalid and is removed;
    "Warnings" are emitted when an entity is not removed but there is some issue.
-
  *)
 
 open Domain
@@ -23,113 +23,212 @@ type project =
   }
 
 (* ------------------------------------------------------------ *)
-(* Utilities *)
-
-(* `let+` is like "short-circuit and".  See "let-punning",
-   https://v2.ocaml.org/manual/bindingops.html *)
-let ( let+ ) o f = Option.map f o
-
-(* ------------------------------------------------------------ *)
 (* Logging for errors and warnings *)
 
-let log_event lvl ent msg = Log.log lvl Log.Forecast ent msg
+type forecast_event =
+  | NoProjectCodeError of Raw.project (* E1001 *)
+  | BadProjectCodeError of Raw.project (* E1002 *)
+  | NoEmailError of Raw.person (* E1003 *)
+  | InvalidEmailError of Raw.person (* E1004 *)
+  | AssignmentToRemovedPersonError of Raw.assignment (* E1005 *)
+  | AssignmentToRemovedProjectError of Raw.assignment (* E1006 *)
+  | NoClientError of Raw.project (* E1007 *)
+  | NoFinanceCodeWarning of (Raw.project, project) Either.t (* W1001 *)
+  | MultipleFinanceCodesWarning of (Raw.project, project) Either.t (* W1002 *)
+  | DuplicateIssueNumberWarning of project (* W1003 *)
+  | DuplicateIssueNumberNameWarning of project (* W1004 *)
 
-let log_raw_project (lvl : Log.level) (rp : Raw.project) msg =
-  log_event lvl (Log.RawForecastProject rp.name) msg
+let log_event (fc_event : forecast_event) : unit =
+  match fc_event with
+  | NoProjectCodeError raw_proj ->
+    Log.log'
+      { level = Log.Error 1001
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastProject raw_proj.name
+      ; message = "Project code (i.e. GitHub issue number) not found."
+      }
+  | BadProjectCodeError raw_proj ->
+    Log.log'
+      { level = Log.Error 1002
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastProject raw_proj.name
+      ; message =
+          Printf.sprintf
+            "Malformed project code (i.e. GitHub issue number) %s found."
+            (Option.get raw_proj.code)
+      }
+  | NoEmailError raw_person ->
+    Log.log'
+      { level = Log.Error 1003
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastProject (Raw.make_person_name raw_person)
+      ; message = "No email found."
+      }
+  | InvalidEmailError raw_person ->
+    Log.log'
+      { level = Log.Error 1004
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastProject (Raw.make_person_name raw_person)
+      ; message =
+          Printf.sprintf "Invalid email found: <%s>." (Option.get raw_person.email)
+      }
+  | AssignmentToRemovedPersonError raw_assignment ->
+    Log.log'
+      { level = Log.Error 1005
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastAssignment raw_assignment.id
+      ; message = Printf.sprintf "Assignment made to removed person."
+      }
+  | AssignmentToRemovedProjectError raw_assignment ->
+    Log.log'
+      { level = Log.Error 1006
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastAssignment raw_assignment.id
+      ; message = Printf.sprintf "Assignment made to removed project."
+      }
+  | NoClientError rp ->
+    Log.log'
+      { level = Log.Error 1007
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastProject rp.name
+      ; message = "Client not found."
+      }
+  | NoFinanceCodeWarning rp_or_p ->
+    Log.log'
+      { level = Log.Warning 1001
+      ; source = Log.Forecast
+      ; entity =
+          (match rp_or_p with
+           | Left rp -> Log.RawForecastProject rp.name
+           | Right p -> Log.Project p.number)
+      ; message = "Finance code not found in project tags."
+      }
+  | MultipleFinanceCodesWarning rp_or_p ->
+    Log.log'
+      { level = Log.Warning 1002
+      ; source = Log.Forecast
+      ; entity =
+          (match rp_or_p with
+           | Left rp -> Log.RawForecastProject rp.name
+           | Right p -> Log.Project p.number)
+      ; message = "Multiple finance codes found in project tags."
+      }
+  | DuplicateIssueNumberWarning p ->
+    Log.log'
+      { level = Log.Warning 1003
+      ; source = Log.Forecast
+      ; entity = Log.Project p.number
+      ; message =
+          "Another project with the same issue number but different name was found."
+      }
+  | DuplicateIssueNumberNameWarning p ->
+    Log.log'
+      { level = Log.Warning 1003
+      ; source = Log.Forecast
+      ; entity = Log.Project p.number
+      ; message = "Another project with the same issue number and same name was found."
+      }
 ;;
-
-let log_project (lvl : Log.level) (p : project) msg =
-  log_event lvl (Log.Project p.number) msg
-;;
-
-let log_raw_person (lvl : Log.level) (p : Raw.person) msg =
-  let name = p.first_name ^ " " ^ p.last_name in
-  log_event lvl (Log.RawForecastPerson name) msg
-;;
-
-let log_assignment (lvl : Log.level) (a : Raw.assignment) msg =
-  let aid (a : Raw.assignment) = "(" ^ string_of_int a.id ^ ")" in
-  log_event lvl Log.RawForecastAssignment (msg ^ aid a)
-;;
-
-(* ------------------------------------------------------------ *)
-(* Domain-specific data *)
-
-(* Regex to match the `NNN` in `hut23-NNN` *)
-let hut23_code_re = Re.compile Re.(seq [ start; str "hut23-"; group (rep1 digit); stop ])
-let ignored_project_ids = Config.get_forecast_ignored_projects ()
 
 (* ------------------------------------------------------------  *)
 (* Utilities for converting raw entities to nicer ones *)
 
 (* Projects *)
 
-let extract_project_number (project : Raw.project) =
-  let cd = project.code in
-  try
-    Some
-      (Option.get cd (* Raises Invalid_argument *)
-      |> Re.exec hut23_code_re (* Raises Not_found *)
-      |> (fun gp -> Re.Group.get gp 1) (* Raises Not_found *)
-      |> int_of_string)
-  with
-  | Invalid_argument _ ->
-    log_raw_project (Log.Error 1001) project "Missing project code";
+let ignored_project_ids = Config.get_forecast_ignored_projects ()
+
+(** [extract_project_number p] inspects the Forecast project code and picks out
+    the digits at the end if it satisfies the regex 'hut23-\d+'. *)
+let extract_project_number (p : Raw.project) =
+  let hut23_re = Tyre.compile Tyre.(str "hut23-" *> int) in
+  match p.code with
+  | None ->
+    log_event (NoProjectCodeError p);
     None
-  | Not_found ->
-    log_raw_project (Log.Error 1002) project @@ "Malformed project code: " ^ Option.get cd;
-    None
+  | Some code ->
+    (match Tyre.exec hut23_re code with
+     | Ok num -> Some num
+     | Error _ ->
+       log_event (BadProjectCodeError p);
+       None)
 ;;
 
-let validate_project id (p : Raw.project) =
-  if p.archived || List.mem id ignored_project_ids || Option.is_none p.client
+(** [validate_project _ p] checks that a Forecast project [p] is valid, in that:
+    1. It is not archived.
+    2. It is not one of the ignored projects in the [whatwhat] configuration
+       file.
+    3. It has a 'project code' matching the regex 'hut23-\d+'. The digits at the
+       end are interpreted as the GitHub issue number, although this is not
+       verified at this stage. Note that this is the {i Forecast} project code,
+       which is not the same as the finance code (which, on Forecast, is stored
+       in the [tags]; see [extract_finance_code].)
+    4. It has a valid client.
+    *)
+let validate_project _ (p : Raw.project) =
+  (* silently remove *)
+  if p.archived || List.mem p.id ignored_project_ids
   then None
   else (
-    let nmbr = extract_project_number p in
-    let client = Option.get p.client in
-    let+ nmbr = nmbr in
-    { number = nmbr; name = p.name; programme = client.name })
+    match p.client with
+    | None ->
+      log_event (NoClientError p);
+      None
+    | Some c ->
+      (match extract_project_number p with
+       | Some n -> Some { number = n; name = p.name; programme = c.name }
+       | None -> None))
 ;;
 
+(** [extract_finance_code p] checks the tags of the project [p] to find the
+    Turing finance code. *)
 let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
-  let log_appropriate_project_warning code (rp : Raw.project) msg =
+  (* [rp_or_p] is either the raw project, or the project itself if it was found
+     inside
+     the [projects] map. *)
+  let rp_or_p =
     match IntMap.find_opt rp.id projects with
-    | None -> log_raw_project (Log.Warning code) rp msg
-    | Some p -> log_project (Log.Warning code) p msg
+    | None -> Either.Left rp
+    | Some p -> Either.Right p
   in
   match rp.tags with
+  | [ fc ] -> Some fc
   | [] ->
-    log_appropriate_project_warning 1001 rp "Missing Finance Code";
+    log_event (NoFinanceCodeWarning rp_or_p);
     None
-  | fc :: [] -> Some fc
-  | fc :: _ ->
-    log_appropriate_project_warning
-      1002
-      rp
-      "More than one potential Finance code (using the first tag)";
-    Some fc
+  | _ ->
+    log_event (MultipleFinanceCodesWarning rp_or_p);
+    None
 ;;
 
 (* People *)
 
-let validate_person _ (p : Raw.person) : person option =
+(** [validate_person p] ensures that the person [p]:
+    1. has not been archived; and
+    2. has a valid email address.
+    *)
+let validate_person (p : Raw.person) : person option =
+  let email_re =
+    Tyre.compile (Tyre.pcre {|^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$|})
+  in
   if p.archived
   then None
   else (
     match p.email with
     | None ->
-      log_raw_person (Log.Error 1003) p "Missing email";
-      None
-    | Some "" ->
-      log_raw_person (Log.Error 1004) p "Email is empty";
+      log_event (NoEmailError p);
       None
     | Some email ->
-      Some
-        { email
-        ; full_name = p.first_name ^ " " ^ p.last_name
-        ; github_handle = None
-        ; slack_handle = None
-        })
+      (match Tyre.exec email_re email with
+       | Error _ ->
+         log_event (InvalidEmailError p);
+         None
+       | Ok _ ->
+         Some
+           { email
+           ; full_name = Raw.make_person_name p
+           ; github_handle = None
+           ; slack_handle = None
+           }))
 ;;
 
 (* Allocations *)
@@ -145,38 +244,34 @@ let forecast_rate_to_fte_percent n = float_of_int n /. float_of_int (60 * 60 * 8
    Raw.assignment, each with a single allocation. We will later merge these, collating the
    allocations.
    *)
-let validate_assignment fcs (a : Raw.assignment) =
-  let log_func = fun level msg -> log_assignment level a msg in
+let validate_assignment people projects fcs (a : Raw.assignment) =
   match a.entity with
-  (* We ignore assignments to placeholders here. *)
-  | Placeholder _ ->
-    log_func (Log.Error 9999) "Deleting an assignment to a placeholder";
-    None
+  (* TODO: Retain placeholder assignments! *)
+  | Placeholder _ -> None
   | Person person ->
-    let start_date_opt = Utils.date_of_string a.start_date in
-    let end_date_opt = Utils.date_of_string a.end_date in
-    (match person.email, start_date_opt, end_date_opt with
-     | Some email, Ok start_date, Ok end_date ->
-       Some
-         { project = a.project.id
-         ; person = email
-         ; finance_code = Raw.IntMap.find_opt a.project.id fcs
-         ; allocation =
-             [ { start_date
-               ; days = CalendarLib.Date.sub end_date start_date
-               ; rate = Rate (forecast_rate_to_fte_percent a.allocation)
-               }
-             ]
-         }
-     | _ ->
-       if person.email = None
-       (* TODO: why is this being checked twice? *)
-       then log_func (Log.Error 1003) "Deleting an assignment because a person had no email";
-       if start_date_opt = Error ()
-       then log_func (Log.Fatal 1008) ("Unable to parse assignment start_date " ^ a.start_date);
-       if end_date_opt = Error ()
-       then log_func (Log.Fatal 1009) ("Unable to parse assignment end_date " ^ a.end_date);
-       None)
+    (match IntMap.find_opt person.id people with
+     (* Check that the person wasn't deleted. *)
+     | None ->
+       log_event (AssignmentToRemovedPersonError a);
+       None
+     | Some valid_person ->
+       (match IntMap.find_opt a.project.id projects with
+        (* Check that the project wasn't deleted. *)
+        | None ->
+          log_event (AssignmentToRemovedProjectError a);
+          None
+        | Some _ ->
+          Some
+            { project = a.project.id
+            ; person = valid_person.email
+            ; finance_code = Raw.IntMap.find_opt a.project.id fcs
+            ; allocation =
+                [ { start_date = a.start_date
+                  ; days = CalendarLib.Date.sub a.end_date a.start_date
+                  ; rate = Rate (forecast_rate_to_fte_percent a.allocation)
+                  }
+                ]
+            }))
 ;;
 
 (* A Map module that can have as keys tuples of project.id, person.email, finance_code
@@ -238,14 +333,8 @@ let make_project_map projects_id : project IntMap.t =
     | None -> IntMap.add p.number p m
     | Some existing_p ->
       if p.name <> existing_p.name
-      then
-        log_project
-          (Log.Warning 1003)
-          p
-          "A project with the same number as this has a different name";
-      (* TODO Might we want to have an else-clause that would also warn if
-        there are two copies the same project, with the same number and name?
-        *)
+      then log_event (DuplicateIssueNumberWarning p)
+      else log_event (DuplicateIssueNumberNameWarning p);
       m
   in
   Seq.fold_left add_project IntMap.empty (IntMap.to_seq projects_id)
@@ -260,16 +349,10 @@ let get_the_schedule ~start_date ~end_date =
   (* A things_id is a map from raw Forecast ids to the thing *)
   let projects_id = IntMap.filter_map validate_project projs in
   let fcs_id = IntMap.filter_map (extract_finance_code projects_id) projs in
-  let people_id = IntMap.filter_map validate_person peopl in
+  let people_id = IntMap.filter_map (fun _ p -> validate_person p) peopl in
   let assignments =
-    List.filter_map (validate_assignment fcs_id) asnts
+    List.filter_map (validate_assignment people_id projects_id fcs_id) asnts
     |> collate_allocations
   in
   make_project_map projects_id, make_people_map people_id, assignments
-;;
-
-let get_the_current_schedule days =
-  let start_date = CalendarLib.Date.today () in
-  let end_date = CalendarLib.Date.add start_date (CalendarLib.Date.Period.day days) in
-  get_the_schedule ~start_date ~end_date
 ;;

@@ -3,7 +3,6 @@ open Cohttp_lwt
 open Cohttp_lwt_unix
 open Yojson
 open Yojson.Basic.Util
-open CalendarLib
 module IntMap = Map.Make (Int)
 
 (** Convenience function to generate a map from a list based on a key-generating
@@ -245,7 +244,7 @@ let parse_combined_assignment_json (bs : Basic.t list) =
     several sub-queries must be made and the results combined. The combination
     process is carried out in the [parse_combined_assignment_json] function.
     *)
-let get_assignments_async (start_date : Date.t) (end_date : Date.t) =
+let get_assignments_async (start_date : Utils.date) (end_date : Utils.date) =
   let open Lwt.Syntax in
   let rec get_assignments_inner start_date end_date =
     let open CalendarLib.Printer in
@@ -280,8 +279,8 @@ type assignment =
   { id : int
   ; project : project
   ; entity : entity
-  ; start_date : string
-  ; end_date : string
+  ; start_date : Utils.date
+  ; end_date : Utils.date
   ; allocation : int
   ; notes : string option
   }
@@ -314,14 +313,20 @@ let populate_assignment_subfields people placeholders projects asn =
       failwith (Printf.sprintf "assignment %d had both person and placeholder" asn.id)
     | None, None -> failwith (Printf.sprintf "assignment %d had no entity" asn.id)
   in
-  { id = asn.id
-  ; project
-  ; entity
-  ; start_date = asn.start_date
-  ; end_date = asn.end_date
-  ; allocation = asn.allocation
-  ; notes = asn.notes
-  }
+  match Utils.date_of_string asn.start_date, Utils.date_of_string asn.end_date with
+  | Ok sdate, Ok edate ->
+    { id = asn.id
+    ; project
+    ; entity
+    ; start_date = sdate
+    ; end_date = edate
+    ; allocation = asn.allocation
+    ; notes = asn.notes
+    }
+  | Error _, _ ->
+      failwith (Printf.sprintf "assignment %d had invalid start date" asn.id)
+  | _, Error _ ->
+      failwith (Printf.sprintf "assignment %d had invalid end date" asn.id)
 ;;
 
 (** Fetch clients, people, placeholders, projects, and assignments from

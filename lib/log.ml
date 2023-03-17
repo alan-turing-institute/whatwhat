@@ -20,7 +20,7 @@ type entity =
   | Project of int
   | RawForecastPerson of string
   | Person of string
-  | RawForecastAssignment
+  | RawForecastAssignment of int
   | Assignment of (int * string)
 
 type event =
@@ -46,6 +46,15 @@ let log lvl src ent msg =
     exit 2
   | _ -> ()
 ;;
+
+let log' ev =
+  Stack.push ev the_log;
+  match ev.level with
+  | Fatal _ ->
+    (* TODO: print the log instead of this cheesy message *)
+    print_endline "Uh-oh";
+    exit 2
+  | _ -> ()
 
 let get_the_log () = Stack.to_seq the_log
 
@@ -86,6 +95,20 @@ let isDebug e = match e.level with
 ;;
 
 (* Printing --------------------------------------------------- *)
+
+let dump_event (e : event) =
+  Printf.printf
+    "%s: Module %s reports: %s\n"
+    (show_level e.level)
+    (show_source e.source)
+    e.message
+;;
+
+(* Dump all logged events to standard out *)
+(* TODO: 'merge' this with Notify.format_metadata_report_print. We want ONLY the
+   pretty output. It doesn't need to belong to a specific issue for it to be
+   printed. *)
+let dump_the_log () = Seq.iter dump_event @@ get_the_log ()
 
 (* TODO: restructure code so that info/debug don't need ints *)
 let make_display_message ?(color = true) e =

@@ -25,7 +25,7 @@
   lwt
   cohttp-lwt-unix
   calendar
-  re
+  tyre
   tls
   batteries
   yaml

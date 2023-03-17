@@ -36,11 +36,7 @@ let get_hours_per_week (d : CalendarLib.Date.t) (asns : assignment list) : float
   in
   let get_hours_per_week_single (d : CalendarLib.Date.t) (a : assignment) =
     let ndays =
-      ndays_of_week_in
-        ~include_weekends:is_placeholder
-        d
-        (Utils.parse_date a.start_date)
-        (Utils.parse_date a.end_date)
+      ndays_of_week_in ~include_weekends:is_placeholder d a.start_date a.end_date
     in
     let hours_per_day = Float.of_int a.allocation /. 3600. in
     Float.of_int ndays *. hours_per_day

@@ -104,6 +104,9 @@ let ww_main notify person issue no_color =
 
   (* notification reports*)
   Notify.print_metadata_reports color;
+  print_endline (String.make 20 '-');
+  Log.dump_the_log ();
+
   match notify with
   | Notify.NoTarget -> print_endline "No notifications requested."
   | Notify.Github -> print_endline "CATCH: this would post reports to GitHub."
@@ -112,15 +115,15 @@ let ww_main notify person issue no_color =
   | Notify.All ->
     print_endline "CATCH: this would post reports to everywhere!";
 
-    (* query person's reactions*)
-    if person <> "none"
-    then QueryReports.individuals_reactions person
-    else print_endline "No person queried.";
+  (* query person's reactions*)
+  if person <> "none"
+  then QueryReports.individuals_reactions person
+  else print_endline "No person queried.";
 
-    (* query issue reactions*)
-    if issue <> "none"
-    then QueryReports.issues_reactions issue
-    else print_endline "No issue queried."
+  (* query issue reactions*)
+  if issue <> "none"
+  then QueryReports.issues_reactions issue
+  else print_endline "No issue queried."
 ;;
 
 (* Capture the arguments *)

@@ -2,6 +2,11 @@ open Cohttp
 
 exception HttpError of string
 
+(** Redefine date type (and provide a pretty-printing function in order to
+    cleanly derive [show]. *)
+type date = CalendarLib.Date.t
+let pp_date pp date = CalendarLib.Printer.Date.fprint "%i" pp date
+
 (** Parse a string as a date in the format year-month-day. If the string is not in this
     format, return [Error ()], else [Ok date]. *)
 let date_of_string (str : string) =
