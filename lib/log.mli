@@ -9,6 +9,8 @@
 
  *)
 
+exception FatalErrorRaised
+
 (** Severity of logged problem *)
 type level =
   | Fatal of int (** Prevents whatwhat from continuing at all *)
@@ -20,6 +22,7 @@ type level =
 (** Which module where we processing when the problem arose *)
 type source =
   | Forecast (** When ingesting Forecast data *)
+  | ForecastRaw
   | Github (** When ingesting GitHub data *)
   | GithubMetadata
   | Schedule (** When merging Forecast and GitHub data *)
@@ -31,6 +34,7 @@ type entity =
   | Person of string (** email address *)
   | RawForecastAssignment of int (** Assignment ID in Forecast *)
   | Assignment of (int * string) (** Pair of a Project and a person *)
+  | Other
 
 type event =
   { level : level
@@ -38,10 +42,6 @@ type event =
   ; entity : entity
   ; message : string
   }
-
-(** Take a log_type and a message to log, print it to stdout in the standard logging
-    format. *)
-val log : level -> source -> entity -> string -> unit
 
 val log' : event -> unit
 val get_the_log : unit -> event Seq.t
@@ -52,6 +52,5 @@ val isError : event -> bool
 val isWarning : event -> bool
 val isInfo : event -> bool
 val isDebug : event -> bool
-val make_display_message : ?color:bool -> event -> string
-val dump_event : event -> unit
-val dump_the_log : unit -> unit
+val pretty_print_event : use_color:bool -> event -> unit
+val pretty_print : use_color:bool -> unit

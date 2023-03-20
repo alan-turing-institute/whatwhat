@@ -65,6 +65,7 @@ val run_github_query_async
   :  ?http_method:http_method
   -> ?params:(string * string list) list
   -> ?body:string
+  -> ?failure_msg:string
   -> string
   -> Yojson.Basic.t Lwt.t
 
@@ -74,6 +75,7 @@ val run_github_query
   :  ?http_method:http_method
   -> ?params:(string * string list) list
   -> ?body:string
+  -> ?failure_msg:string
   -> string
   -> Yojson.Basic.t
 

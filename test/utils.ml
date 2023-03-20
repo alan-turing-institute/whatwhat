@@ -7,7 +7,7 @@ let test_parse_date _ =
   assert_equal this_march_13 (Utils.parse_date "20230313");
   assert_equal this_march_13 (Utils.parse_date "2023-03-13");
   assert_equal this_march_13 (Utils.parse_date "2023/03/13");
-  assert_equal this_march_13 (Utils.parse_date "2023.03.13");
+  assert_equal this_march_13 (Utils.parse_date "2023.03.13")
 ;;
 
 let test_default_start_date _ =

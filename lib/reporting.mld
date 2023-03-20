@@ -131,6 +131,16 @@ and the YAML data block has the following fields:
 - [FTE-months]: Integer, must not be specified together with [FTE-weeks] 
 - [FTE-weeks]: Integer, must not be specified together with [FTE-months] 
 
+{2 Fatal errors}
+
+- {b F2001} A generic error with a HTTP request. The error message will contain
+  more specific information.
+- {b F2002} There is no project with the name specified in the configuration
+  file.
+- {b F2003} There is more than one project with the name specified in the
+  configuration file.
+- {b F2004} Issue status was neither 'open' nor 'closed'.
+
 {2 Errors}
 
 A malformed YAML block halts parsing of the entire block. Possible reasons for

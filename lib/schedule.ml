@@ -61,10 +61,8 @@ let log (error : schedule_error) =
 
   let msg =
     match error with
-    | ActiveProjectWithoutAssignments prj ->
-      "Project "
-      ^ Int.to_string prj.nmbr
-      ^ " is active (or later), but has no assignments"
+    | ActiveProjectWithoutAssignments _ ->
+      "Project is active (or later), but has no assignments"
     | AllocationEndsTooLate asg ->
       "Assignment of "
       ^ asg.person
@@ -95,17 +93,14 @@ let log (error : schedule_error) =
     | MissingForecastProject number ->
       "No matching Forecast project for " ^ Int.to_string number
     | NoMatchingGithubUser name -> "No matching Github user for " ^ name
-    | ProjectStartOverdue number ->
-      "Project is past it latest start date, but not active:\n      "
-      ^ Int.to_string number
+    | ProjectStartOverdue _ -> "Project is past its latest start date, but not active"
     (*
     | NoMatchingForecastProject -> "No Forecast project for Github issue "
     | NoMatchingForecastUser -> "People list doesn't have an entry for Github login "
     | NoProjectColumn -> "Github issue has no project column: "
     *)
   in
-
-  Log.log level Log.Schedule entity msg
+  Log.log' { level; source = Log.Schedule; entity; message = msg }
 ;;
 
 (* ---------------------------------------------------------------------- *)

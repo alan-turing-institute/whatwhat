@@ -2,15 +2,19 @@
     later summary and notification 
  *)
 
+exception FatalErrorRaised
+
 type level =
   | Fatal of int
   | Error of int
   | Warning of int
   | Info
   | Debug
+[@@deriving ord]
 
 type source =
   | Forecast
+  | ForecastRaw
   | Github
   | GithubMetadata
   | Schedule
@@ -22,6 +26,7 @@ type entity =
   | Person of string
   | RawForecastAssignment of int
   | Assignment of (int * string)
+  | Other
 
 type event =
   { level : level
@@ -37,23 +42,10 @@ let the_log : event Stack.t = Stack.create ()
 
 (* Interface -------------------------------------------------- *)
 
-let log lvl src ent msg =
-  Stack.push { level = lvl; source = src; entity = ent; message = msg } the_log;
-  match lvl with
-  | Fatal _ ->
-    (* TODO: print the log instead of this cheesy message *)
-    print_endline "Uh-oh";
-    exit 2
-  | _ -> ()
-;;
-
 let log' ev =
   Stack.push ev the_log;
   match ev.level with
-  | Fatal _ ->
-    (* TODO: print the log instead of this cheesy message *)
-    print_endline "Uh-oh";
-    exit 2
+  | Fatal _ -> raise FatalErrorRaised
   | _ -> ()
 ;;
 
@@ -61,6 +53,7 @@ let get_the_log () = Stack.to_seq the_log
 
 let show_source = function
   | Forecast -> "Forecast"
+  | ForecastRaw -> "ForecastRaw"
   | Github -> "GitHub"
   | GithubMetadata -> "GitHub Metadata"
   | Schedule -> "Schedule"
@@ -106,37 +99,62 @@ let isDebug e =
 
 (* Printing --------------------------------------------------- *)
 
-let dump_event (e : event) =
-  Printf.printf
-    "%s: Module %s reports: %s\n"
-    (show_level e.level)
-    (show_source e.source)
-    e.message
+(* TODO implement this function properly *)
+let extract_issue_number event =
+  match event.entity with
+  | RawForecastProject _ -> None
+  | Project n -> Some n
+  | RawForecastPerson _ -> None
+  | Person _ -> None
+  | RawForecastAssignment _ -> None
+  | Assignment _ -> None
+  | Other -> None
 ;;
 
-(* Dump all logged events to standard out *)
-(* TODO: 'merge' this with Notify.format_metadata_report_print. We want ONLY the
-   pretty output. It doesn't need to belong to a specific issue for it to be
-   printed. *)
-let dump_the_log () = Seq.iter dump_event @@ get_the_log ()
-
-(* TODO: restructure code so that info/debug don't need ints *)
-let make_display_message ?(color = true) e =
+let pretty_print_event ~use_color e =
   let open ANSITerminal in
-  let style =
-    if not color
-    then []
-    else (
-      match e.level with
-      | Fatal _ -> [ Bold; Foreground Red ]
-      | Error _ -> [ Foreground Red ]
-      | Warning _ -> [ Foreground Yellow ]
-      | _ -> [])
+  let color styles = if use_color then styles else [] in
+  let error_code =
+    match e.level with
+    | Fatal n -> sprintf (color [ Bold; Foreground Red ]) "F%d" n
+    | Error n -> sprintf (color [ Foreground Red ]) "E%d" n
+    | Warning n -> sprintf (color [ Foreground Yellow ]) "W%d" n
+    | Info -> "I"
+    | Debug -> "D"
   in
-  match e.level with
-  | Fatal n -> ANSITerminal.sprintf style "F%d " n ^ e.message
-  | Error n -> ANSITerminal.sprintf style "E%d " n ^ e.message
-  | Warning n -> ANSITerminal.sprintf style "W%d " n ^ e.message
-  | Info -> ANSITerminal.sprintf style "Info  " ^ e.message
-  | Debug -> ANSITerminal.sprintf style "Debug  " ^ e.message
+  let header =
+    match extract_issue_number e with
+    | Some i -> sprintf (color [ Bold ]) "Issue %-5d" i
+    | None -> sprintf (color [ Bold ]) "Something else"
+  in
+  Printf.printf "%s %s %s\n" header error_code e.message
+;;
+
+let pretty_print ~use_color =
+  let color styles = if use_color then styles else [] in
+
+  let compare_events e1 e2 =
+    (* Compare on issue number first, then error code *)
+    match
+      match extract_issue_number e1, extract_issue_number e2 with
+      | None, None -> 0
+      | None, Some _ -> -1
+      | Some _, None -> 1
+      | Some x, Some y -> Stdlib.compare x y
+    with
+    | 0 -> compare_level e1.level e2.level
+    | n -> n
+  in
+  let fatal, nonfatal = List.partition isFatal (the_log |> Stack.to_seq |> List.of_seq) in
+
+  (* Print errors, warnings, etc. *)
+  nonfatal |> List.stable_sort compare_events |> List.iter (pretty_print_event ~use_color);
+
+  (* Print fatal errors *)
+  let open ANSITerminal in
+  match fatal with
+  | [] -> ()
+  | fs ->
+    printf (color [ Bold ]) "\nwhatwhat encountered the following fatal error(s):\n";
+    List.iter (pretty_print_event ~use_color) fs
 ;;

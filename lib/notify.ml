@@ -52,40 +52,9 @@ let extract_metadata_events (event_log : Log.event Seq.t) =
   |> Seq.fold_left add_event_to_map IntMap.empty
 ;;
 
-(* ------------------------------------------------------------ 
-   Debugging
- *)
-
-let dump_metadata_events () =
-  extract_metadata_events @@ Log.get_the_log ()
-  |> IntMap.iter (fun nmbr evs ->
-       print_endline ("Metadata events for project number " ^ string_of_int nmbr);
-       List.iter Log.dump_event evs;
-       print_endline "")
-;;
-
 (* ------------------------------------------------------------
    Reporting
  *)
-
-let format_metadata_report_print (color : bool) (number : int) (events : Log.event list) =
-  let open ANSITerminal in
-  let errors = List.filter Log.isError events in
-  let warnings = List.filter Log.isWarning events in
-  let error_msgs = List.map (fun ev -> Log.make_display_message ~color ev) errors in
-  let warning_msgs = List.map (fun ev -> Log.make_display_message ~color ev) warnings in
-
-  let header_style = if color then [ Bold ] else [] in
-  let header = sprintf header_style "Issue %-5d" number in
-  let indent n s = String.make n ' ' ^ s in
-  let messages =
-    (* Don't indent the first message. *)
-    match error_msgs @ warning_msgs with
-    | x :: xs -> x :: List.map (indent 13) xs
-    | y -> y
-  in
-  header, messages
-;;
 
 let format_metadata_report_github (events : Log.event list) : string =
   let errors = List.filter Log.isError events in
@@ -116,17 +85,6 @@ let format_metadata_report_github (events : Log.event list) : string =
   then Buffer.add_string buf "\n\nIn addition, I had the following **problem**(s):\n\n- ";
   if n_warnings > 0 then Buffer.add_string buf (String.concat "\n- " warning_msgs);
   Buffer.contents buf
-;;
-
-let print_metadata_reports color =
-  Log.get_the_log ()
-  |> extract_metadata_events
-  |> IntMap.mapi (format_metadata_report_print color)
-  |> IntMap.bindings
-  |> List.map snd
-  |> List.iter (fun (header, msgs) ->
-       print_string header;
-       List.iter print_endline msgs)
 ;;
 
 let post_metadata_reports_github () =

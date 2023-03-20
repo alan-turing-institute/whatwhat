@@ -14,7 +14,7 @@
   yaml
   ANSITerminal)
  (preprocess
-  (pps ppx_deriving.show ppx_yojson_conv)))
+  (pps ppx_deriving.show ppx_deriving.ord ppx_yojson_conv)))
 
 (documentation
  (package whatwhat)

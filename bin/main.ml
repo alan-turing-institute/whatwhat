@@ -93,37 +93,40 @@ let ww_export_cmd : unit Cmd.t =
 (* ------------------------------- *)
 
 let ww_main notify person issue no_color =
-  let people, projects, assignments = Schedule.get_the_schedule () in
-  print_endline "Whatwhat downloaded:";
-  Printf.printf "%d people; " (List.length people);
-  Printf.printf "%d projects; and " (List.length projects);
-  Printf.printf "%d assignments\n\n" (List.length assignments);
-
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let color = Unix.isatty Unix.stdout && not no_color in
 
-  (* notification reports*)
-  Notify.print_metadata_reports color;
-  (* print_endline (String.make 20 '-'); *)
-  (* Log.dump_the_log (); *)
+  try
+    let people, projects, assignments = Schedule.get_the_schedule () in
+    print_endline "Whatwhat downloaded:";
+    Printf.printf "%d people; " (List.length people);
+    Printf.printf "%d projects; and " (List.length projects);
+    Printf.printf "%d assignments\n\n" (List.length assignments);
 
-  match notify with
-  | Notify.NoTarget -> print_endline "No notifications requested."
-  | Notify.Github -> print_endline "CATCH: this would post reports to GitHub."
-  (* Notify.post_metadata_reports () *)
-  | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
-  | Notify.All ->
-    print_endline "CATCH: this would post reports to everywhere!";
+    (* notification reports*)
+    Log.pretty_print ~use_color:color;
 
-  (* query person's reactions*)
-  if person <> "none"
-  then QueryReports.individuals_reactions person
-  else print_endline "No person queried.";
+    match notify with
+    | Notify.NoTarget -> print_endline "No notifications requested."
+    | Notify.Github -> print_endline "CATCH: this would post reports to GitHub."
+    (* Notify.post_metadata_reports () *)
+    | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
+    | Notify.All ->
+      print_endline "CATCH: this would post reports to everywhere!";
 
-  (* query issue reactions*)
-  if issue <> "none"
-  then QueryReports.issues_reactions issue
-  else print_endline "No issue queried."
+      (* query person's reactions*)
+      if person <> "none"
+      then QueryReports.individuals_reactions person
+      else print_endline "No person queried.";
+
+      (* query issue reactions*)
+      if issue <> "none"
+      then QueryReports.issues_reactions issue
+      else print_endline "No issue queried."
+  with
+  | Log.FatalErrorRaised ->
+    Log.pretty_print ~use_color:color;
+    exit 2
 ;;
 
 (* Capture the arguments *)
