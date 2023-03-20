@@ -9,12 +9,9 @@
 
  *)
 
-exception FatalErrorRaised
-
 (** Severity of logged problem *)
 type level =
-  | Fatal of int (** Prevents whatwhat from continuing at all *)
-  | Error of int (** Prevents processing of some data  *)
+  | Error' of int (** Prevents processing of some data  *)
   | Warning of int (** Likely to cause an error if not fixed *)
   | Info (** Information for end users *)
   | Debug (** Information for whatwhat developers *)
@@ -45,9 +42,7 @@ type event =
 
 val log' : event -> unit
 val get_the_log : unit -> event Seq.t
-val show_level : level -> string
 val show_source : source -> string
-val isFatal : event -> bool
 val isError : event -> bool
 val isWarning : event -> bool
 val isInfo : event -> bool

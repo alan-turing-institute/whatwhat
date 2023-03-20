@@ -42,14 +42,14 @@ let log_event (fc_event : forecast_event) : unit =
   match fc_event with
   | NoProjectCodeError raw_proj ->
     Log.log'
-      { level = Log.Error 1001
+      { level = Log.Error' 1001
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject raw_proj.name
       ; message = "Project code (i.e. GitHub issue number) not found."
       }
   | BadProjectCodeError raw_proj ->
     Log.log'
-      { level = Log.Error 1002
+      { level = Log.Error' 1002
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject raw_proj.name
       ; message =
@@ -59,14 +59,14 @@ let log_event (fc_event : forecast_event) : unit =
       }
   | NoEmailError raw_person ->
     Log.log'
-      { level = Log.Error 1003
+      { level = Log.Error' 1003
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject (Raw.make_person_name raw_person)
       ; message = "No email found."
       }
   | InvalidEmailError raw_person ->
     Log.log'
-      { level = Log.Error 1004
+      { level = Log.Error' 1004
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject (Raw.make_person_name raw_person)
       ; message =
@@ -74,21 +74,21 @@ let log_event (fc_event : forecast_event) : unit =
       }
   | AssignmentToRemovedPersonError raw_assignment ->
     Log.log'
-      { level = Log.Error 1005
+      { level = Log.Error' 1005
       ; source = Log.Forecast
       ; entity = Log.RawForecastAssignment raw_assignment.id
       ; message = Printf.sprintf "Assignment made to removed person."
       }
   | AssignmentToRemovedProjectError raw_assignment ->
     Log.log'
-      { level = Log.Error 1006
+      { level = Log.Error' 1006
       ; source = Log.Forecast
       ; entity = Log.RawForecastAssignment raw_assignment.id
       ; message = Printf.sprintf "Assignment made to removed project."
       }
   | NoClientError rp ->
     Log.log'
-      { level = Log.Error 1007
+      { level = Log.Error' 1007
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject rp.name
       ; message = "Client not found."

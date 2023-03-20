@@ -14,10 +14,6 @@ not necessarily faithfully represented by the data models of these
 systems. Thus, errors, omissions, and inconsistencies may occur.
 
 We classify problems into {i errors} and {i warnings}:
-- A {i fatal error} (F-code) is one where the data retrieved is not valid in
-  the domain model of the data source. This usually means that data retrieved
-  was malformed in some way. In such a situation, whatwhat will halt execution
-  immediately.
 - An {i error} (E-code) occurs when the data retrieved from the data sources,
   while valid in the domain model of the data source, is not valid in the
   domain model of whatwhat and cannot be represented as a type returned by the
@@ -42,24 +38,6 @@ All error codes under this section should begin with the number 1.
 
 Forecast is authoritative for people and allocations, so the most likely
 sources of errors are projects. 
-
-{2 Fatal errors}
-
-- {b F1001} Data could not be obtained from Forecast API at all.
-- {b F1002} Data obtained from Forecast API was not valid JSON.
-- {b F1003} A project's client ID, if present, is not found in the list of
-  clients. (The API for Forecast gives the 'ID' of the client, which is an
-  integer; this must be matched against the list of clients obtained from a
-  separate request. If a project has a client that is not in that list,
-  something has gone very wrong. Note that an empty client ID is possible; this
-  is recorded as E1007 instead.)
-- {b F1004} An assignment's project ID is not found in the list of projects.
-- {b F1005} An assignment was assigned to neither a person nor a placeholder.
-- {b F1006} An assignment was assigned to both a person and a placeholder.
-- {b F1007} An assignment's entity (the person or placeholder the assignment is
-  to) could not be found in the list of people or placeholders.
-- {b F1008} An assignment's start date could not be parsed.
-- {b F1009} An assignment's end date could not be parsed.
 
 {2 Errors}
 
@@ -130,16 +108,6 @@ and the YAML data block has the following fields:
 - [nominal-FTE-percent]: Integer 0–100
 - [FTE-months]: Integer, must not be specified together with [FTE-weeks] 
 - [FTE-weeks]: Integer, must not be specified together with [FTE-months] 
-
-{2 Fatal errors}
-
-- {b F2001} A generic error with a HTTP request. The error message will contain
-  more specific information.
-- {b F2002} There is no project with the name specified in the configuration
-  file.
-- {b F2003} There is more than one project with the name specified in the
-  configuration file.
-- {b F2004} Issue status was neither 'open' nor 'closed'.
 
 {2 Errors}
 

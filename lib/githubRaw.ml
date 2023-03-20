@@ -23,7 +23,7 @@ type issue_state =
 let state_of_string = function
   | "open" -> Open
   | "closed" -> Closed
-  | _ -> failwith "F2004 Invalid JSON for state"
+  | _ -> failwith "Invalid JSON for state"
 ;;
 
 type issue =
@@ -68,13 +68,7 @@ let person_of_json json =
 
 (* Generic functions for querying GitHub APIs --------------------------- *)
 
-let run_github_query_async
-  ?(http_method = GET)
-  ?(params = [])
-  ?(body = "")
-  ?(failure_msg = "")
-  uri
-  =
+let run_github_query_async ?(http_method = GET) ?(params = []) ?(body = "") uri =
   let open Cohttp in
   let open Cohttp_lwt_unix in
   let github_token = Config.get_github_token () in
@@ -98,9 +92,8 @@ let run_github_query_async
         Utils.check_http_response r;
         Lwt.return b)
       (function
-       (* TODO: Properly fail *)
-       | Failure _ -> failwith ("F2001 " ^ failure_msg)
-       | Utils.HttpError e -> failwith (Printf.sprintf "%s (code %s)" failure_msg e)
+       | Failure _ -> failwith "HTTP request failed."
+       | Utils.HttpError e -> failwith ("HTTP request failed: " ^ e)
        | exn -> Lwt.fail exn)
   in
   let* body_string = Cohttp_lwt.Body.to_string body in
@@ -108,14 +101,8 @@ let run_github_query_async
   Lwt.return body_json
 ;;
 
-let run_github_query
-  ?(http_method = GET)
-  ?(params = [])
-  ?(body = "")
-  ?(failure_msg = "")
-  uri
-  =
-  run_github_query_async ~http_method ~params ~body ~failure_msg uri |> Lwt_main.run
+let run_github_query ?(http_method = GET) ?(params = []) ?(body = "") uri =
+  run_github_query_async ~http_method ~params ~body uri |> Lwt_main.run
 ;;
 
 let all_users =
@@ -297,10 +284,9 @@ let get_project_id project_name =
   in
   Lwt.return
     (match projects |> Basic.Util.to_list |> List.filter_map extract_id with
-     (* TODO: raise fatal errors instead *)
-     | [] -> failwith "F2002 Project not found"
+     | [] -> failwith "Project not found"
      | [ x ] -> x
-     | _ -> failwith "F2003 More than one project with given name found")
+     | _ -> failwith "More than one project with given name found")
 ;;
 
 let get_column (name, id) =

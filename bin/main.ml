@@ -124,8 +124,12 @@ let ww_main notify person issue no_color =
       then QueryReports.issues_reactions issue
       else print_endline "No issue queried."
   with
-  | Log.FatalErrorRaised ->
+  | Failure msg ->
+    let open ANSITerminal in
     Log.pretty_print ~use_color:color;
+    let style = if color then [ Bold; Foreground Red ] else [] in
+    eprintf style "Fatal error: ";
+    eprintf [] "%s\n" msg;
     exit 2
 ;;
 

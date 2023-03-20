@@ -28,17 +28,12 @@ let log (error : schedule_error) =
     | ActiveProjectWithoutAssignments _ -> Log.Warning 3007
     | AllocationEndsTooLate _ -> Log.Warning 3002
     | AllocationStartsTooEarly _ -> Log.Warning 3003
-    | AssignmentWithoutProject _ -> Log.Error 9999
-    | ExtraneousForecastProject _ -> Log.Error 3001
-    | FinanceCodeNotFound _ -> Log.Error 3002
+    | AssignmentWithoutProject _ -> Log.Error' 9999
+    | ExtraneousForecastProject _ -> Log.Error' 3001
+    | FinanceCodeNotFound _ -> Log.Error' 3002
     | MissingForecastProject _ -> Log.Warning 3001
     | NoMatchingGithubUser _ -> Log.Warning 3010
     | ProjectStartOverdue _ -> Log.Warning 3009
-    (*
-    | NoMatchingForecastProject -> Log.Error
-    | NoMatchingForecastUser -> Log.Warning
-    | NoProjectColumn -> Log.Error
-    *)
   in
 
   let entity =
@@ -52,11 +47,6 @@ let log (error : schedule_error) =
     | MissingForecastProject number -> Log.Project number
     | NoMatchingGithubUser email -> Log.RawForecastPerson email
     | ProjectStartOverdue number -> Log.Project number
-    (*
-    | NoMatchingForecastProject -> Log.Error
-    | NoMatchingForecastUser -> Log.Warning
-    | NoProjectColumn -> Log.Error
-    *)
   in
 
   let msg =

@@ -2,11 +2,10 @@
     later summary and notification 
  *)
 
-exception FatalErrorRaised
-
+(* We need [Error'] here instead of just [Error], because of an unfortunate bug
+   in ppx_deriving: https://github.com/ocaml-ppx/ppx_deriving/issues/254 *)
 type level =
-  | Fatal of int
-  | Error of int
+  | Error' of int
   | Warning of int
   | Info
   | Debug
@@ -42,13 +41,7 @@ let the_log : event Stack.t = Stack.create ()
 
 (* Interface -------------------------------------------------- *)
 
-let log' ev =
-  Stack.push ev the_log;
-  match ev.level with
-  | Fatal _ -> raise FatalErrorRaised
-  | _ -> ()
-;;
-
+let log' ev = Stack.push ev the_log
 let get_the_log () = Stack.to_seq the_log
 
 let show_source = function
@@ -59,23 +52,9 @@ let show_source = function
   | Schedule -> "Schedule"
 ;;
 
-let show_level = function
-  | Fatal n -> Printf.sprintf "F%d" n
-  | Error n -> Printf.sprintf "E%d" n
-  | Warning n -> Printf.sprintf "W%d" n
-  | Info -> "Info"
-  | Debug -> "Debug"
-;;
-
-let isFatal e =
-  match e.level with
-  | Fatal _ -> true
-  | _ -> false
-;;
-
 let isError e =
   match e.level with
-  | Error _ -> true
+  | Error' _ -> true
   | _ -> false
 ;;
 
@@ -116,8 +95,7 @@ let pretty_print_event ~use_color e =
   let color styles = if use_color then styles else [] in
   let error_code =
     match e.level with
-    | Fatal n -> sprintf (color [ Bold; Foreground Red ]) "F%d" n
-    | Error n -> sprintf (color [ Foreground Red ]) "E%d" n
+    | Error' n -> sprintf (color [ Foreground Red ]) "E%d" n
     | Warning n -> sprintf (color [ Foreground Yellow ]) "W%d" n
     | Info -> "I"
     | Debug -> "D"
@@ -131,8 +109,6 @@ let pretty_print_event ~use_color e =
 ;;
 
 let pretty_print ~use_color =
-  let color styles = if use_color then styles else [] in
-
   let compare_events e1 e2 =
     (* Compare on issue number first, then error code *)
     match
@@ -145,16 +121,9 @@ let pretty_print ~use_color =
     | 0 -> compare_level e1.level e2.level
     | n -> n
   in
-  let fatal, nonfatal = List.partition isFatal (the_log |> Stack.to_seq |> List.of_seq) in
-
-  (* Print errors, warnings, etc. *)
-  nonfatal |> List.stable_sort compare_events |> List.iter (pretty_print_event ~use_color);
-
-  (* Print fatal errors *)
-  let open ANSITerminal in
-  match fatal with
-  | [] -> ()
-  | fs ->
-    printf (color [ Bold ]) "\nwhatwhat encountered the following fatal error(s):\n";
-    List.iter (pretty_print_event ~use_color) fs
+  the_log
+  |> Stack.to_seq
+  |> List.of_seq
+  |> List.stable_sort compare_events
+  |> List.iter (pretty_print_event ~use_color)
 ;;

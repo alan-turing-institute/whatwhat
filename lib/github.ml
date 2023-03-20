@@ -18,49 +18,49 @@ let log_event (gh_event : github_event) : unit =
   match gh_event with
   | NoMetadataError raw_issue ->
     Log.log'
-      { level = Log.Error 2001
+      { level = Log.Error' 2001
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "YAML metadata not found in issue body."
       }
   | YamlError raw_issue ->
     Log.log'
-      { level = Log.Error 2002
+      { level = Log.Error' 2002
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Unable to parse metadata block as valid YAML."
       }
   | InvalidFieldError (raw_issue, fld) ->
     Log.log'
-      { level = Log.Error 2004
+      { level = Log.Error' 2004
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> had an invalid value." fld
       }
   | ExtraFieldError (raw_issue, fld) ->
     Log.log'
-      { level = Log.Error 2009
+      { level = Log.Error' 2009
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Unexpected field <%s> in metadata" fld
       }
   | FTETimeUnderSpecifiedError raw_issue ->
     Log.log'
-      { level = Log.Error 2006
+      { level = Log.Error' 2006
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Neither FTE-months nor FTE-weeks were specified."
       }
   | FTETimeOverSpecifiedError raw_issue ->
     Log.log'
-      { level = Log.Error 2007
+      { level = Log.Error' 2007
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Both FTE-months and FTE-weeks were specified."
       }
   | MissingCompulsoryFieldError (raw_issue, fld) ->
     Log.log'
-      { level = Log.Error 2008
+      { level = Log.Error' 2008
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Missing field: <%s>" fld

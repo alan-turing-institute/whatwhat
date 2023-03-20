@@ -5,7 +5,64 @@ open Yojson
 open Yojson.Basic.Util
 module IntMap = Map.Make (Int)
 
-(** Types *)
+(** HTTP requests --------------------------------------------- *)
+
+(** Convenience function to generate a map from a list based on a key-generating
+    function [identify]. *)
+let make_map identify xs =
+  List.map (fun x -> identify x, x) xs |> List.to_seq |> IntMap.of_seq
+;;
+
+(** Perform a HTTP request to the Forecast API. *)
+let forecast_request_async ?(query = []) endpoint =
+  let open Lwt.Syntax in
+  let headers =
+    Header.of_list
+      [ "Forecast-Account-ID", Config.get_forecast_id ()
+      ; "Authorization", "Bearer " ^ Config.get_forecast_token ()
+      ]
+  in
+  let uri =
+    Uri.with_query' (Uri.of_string (Config.get_forecast_url () ^ "/" ^ endpoint)) query
+  in
+  let* body =
+    Lwt.catch
+      (fun () ->
+        let* r, b = Client.get ~headers uri in
+        Utils.check_http_response r;
+        Lwt.return b)
+      (function
+       | Failure _ -> failwith "HTTP request failed."
+       | Utils.HttpError e -> failwith ("HTTP request failed: " ^ e)
+       | exn -> Lwt.fail exn)
+  in
+  let* body_string = Body.to_string body in
+  (* Forecast returns, eg, {"clients", [...]}, so we extract the list here *)
+  Lwt.return (body_string |> Yojson.Basic.from_string |> member endpoint)
+;;
+
+(** Clients --------------------------------------------------- *)
+
+(** A client on Forecast is (roughly speaking) a programme. *)
+type client =
+  { id : int
+  ; name : string
+  ; archived : bool
+  }
+[@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
+
+(** Retrieve all clients from Forecast. *)
+let get_clients_async () =
+  let open Lwt.Syntax in
+  let* clients = forecast_request_async "clients" in
+  Lwt.return
+    (clients
+    |> to_list
+    |> List.map (fun x -> client_of_yojson (x : Basic.t :> Safe.t))
+    |> make_map (fun (c : client) -> c.id))
+;;
+
+(** People, placeholders, and entities ------------------------ *)
 
 (** A person on Forecast is a real person. *)
 type person =
@@ -33,192 +90,6 @@ type entity =
   | Person of person
   | Placeholder of placeholder
 [@@deriving show]
-
-(** A client on Forecast is (roughly speaking) a programme. *)
-type client =
-  { id : int
-  ; name : string
-  ; archived : bool
-  }
-[@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
-
-(** This type represents the raw JSON of a project as returned by Forecast.
-    Instead of providing a client, it only provides a client ID, so we 'fill in
-    the client' by looking it up in the list of clients before passing the data
-    on to other modules. *)
-type project_schema =
-  { id : int
-  ; harvest_id : int option
-  ; client_id : int option (* The built-in project has no client !! *)
-  ; name : string (* TODO: why can project code be None? *)
-  ; code : string option
-  ; tags : string list
-  ; notes : string option
-  ; color : string
-  ; archived : bool
-  }
-[@@deriving of_yojson] [@@yojson.allow_extra_fields]
-
-(** This is a filled-in project datatype. *)
-type project =
-  { id : int
-  ; harvest_id : int option
-  ; client : client option
-  ; name : string
-  ; code : string option
-  ; tags : string list
-  ; notes : string option
-  ; color : string
-  ; archived : bool
-  }
-[@@deriving show]
-
-(** This type represents the raw JSON of an assignment as returned by Forecast.
-    Similarly to the project JSON above, we fill in some subfields of the
-    assignment before passing it on to other modules. *)
-type assignment_schema =
-  { id : int
-  ; project_id : int
-  ; person_id : int option
-  ; placeholder_id : int option
-  ; start_date : string
-  ; end_date : string
-  ; allocation : int
-  ; notes : string option
-  }
-[@@deriving of_yojson] [@@yojson.allow_extra_fields]
-
-(** This is the 'filled-in' assignment type. *)
-type assignment =
-  { id : int
-  ; project : project
-  ; entity : entity
-  ; start_date : Utils.date
-  ; end_date : Utils.date
-  ; allocation : int
-  ; notes : string option
-  }
-[@@deriving show]
-
-(** Logging *)
-
-type forecast_raw_event =
-  | HttpRequestError (* F1001 *)
-  | ClientNotFoundFatal of project_schema (* F1003 *)
-  | ProjectNotFoundFatal of assignment_schema (* F1004 *)
-  | NoEntityFatal of assignment_schema (* F1005 *)
-  | MultipleEntityFatal of assignment_schema (* F1006 *)
-  | EntityNotFoundFatal of assignment_schema (* F1007 *)
-  | InvalidStartDateFatal of assignment_schema (* F1008 *)
-  | InvalidEndDateFatal of assignment_schema (* F1009 *)
-
-let failwith_log (fcr_event : forecast_raw_event) : 'a =
-  (match fcr_event with
-   | HttpRequestError ->
-     Log.log'
-       { level = Log.Fatal 1001
-       ; source = Log.ForecastRaw
-       ; entity = Log.Other
-       ; message = "HTTP request failed."
-       }
-   | ClientNotFoundFatal prj ->
-     Log.log'
-       { level = Log.Fatal 1003
-       ; source = Log.ForecastRaw
-       ; entity = Log.RawForecastProject prj.name
-       ; message = "Client was not found."
-       }
-   | ProjectNotFoundFatal asn ->
-     Log.log'
-       { level = Log.Fatal 1004
-       ; source = Log.ForecastRaw
-       ; entity = Log.RawForecastAssignment asn.id
-       ; message =
-           Printf.sprintf "Project %d in assignment %d not found." asn.project_id asn.id
-       }
-   | NoEntityFatal asn ->
-     Log.log'
-       { level = Log.Fatal 1005
-       ; source = Log.ForecastRaw
-       ; entity = Log.RawForecastAssignment asn.id
-       ; message = Printf.sprintf "Assignment %d has no entity." asn.id
-       }
-   | MultipleEntityFatal asn ->
-     Log.log'
-       { level = Log.Fatal 1006
-       ; source = Log.ForecastRaw
-       ; entity = Log.RawForecastAssignment asn.id
-       ; message = Printf.sprintf "Assignment %d has more than one entity." asn.id
-       }
-   | EntityNotFoundFatal asn ->
-     Log.log'
-       { level = Log.Fatal 1007
-       ; source = Log.ForecastRaw
-       ; entity = Log.RawForecastAssignment asn.id
-       ; message = Printf.sprintf "Entity in assignment %d not found." asn.id
-       }
-   | InvalidStartDateFatal asn ->
-     Log.log'
-       { level = Log.Fatal 1008
-       ; source = Log.ForecastRaw
-       ; entity = Log.RawForecastAssignment asn.id
-       ; message =
-           Printf.sprintf "Start date of assignment %d could not be parsed." asn.id
-       }
-   | InvalidEndDateFatal asn ->
-     Log.log'
-       { level = Log.Fatal 1009
-       ; source = Log.ForecastRaw
-       ; entity = Log.RawForecastAssignment asn.id
-       ; message = Printf.sprintf "End date of assignment %d could not be parsed." asn.id
-       });
-  failwith "Should never reach here; this exists to satisfy the type checker."
-;;
-
-(** Convenience function to generate a map from a list based on a key-generating
-    function [identify]. *)
-let make_map identify xs =
-  List.map (fun x -> identify x, x) xs |> List.to_seq |> IntMap.of_seq
-;;
-
-(** Perform a HTTP request to the Forecast API. *)
-let forecast_request_async ?(query = []) endpoint =
-  let open Lwt.Syntax in
-  let headers =
-    Header.of_list
-      [ "Forecast-Account-ID", Config.get_forecast_id ()
-      ; "Authorization", "Bearer " ^ Config.get_forecast_token ()
-      ]
-  in
-  let uri =
-    Uri.with_query' (Uri.of_string (Config.get_forecast_url () ^ "/" ^ endpoint)) query
-  in
-  let* body =
-    Lwt.catch
-      (fun () ->
-        let* r, b = Client.get ~headers uri in
-        Utils.check_http_response r;
-        Lwt.return b)
-      (function
-       | Failure _ -> failwith_log HttpRequestError
-       | Utils.HttpError _ -> failwith_log HttpRequestError
-       | exn -> Lwt.fail exn)
-  in
-  let* body_string = Body.to_string body in
-  (* Forecast returns, eg, {"clients", [...]}, so we extract the list here *)
-  Lwt.return (body_string |> Yojson.Basic.from_string |> member endpoint)
-;;
-
-(** Retrieve all clients from Forecast. *)
-let get_clients_async () =
-  let open Lwt.Syntax in
-  let* clients = forecast_request_async "clients" in
-  Lwt.return
-    (clients
-    |> to_list
-    |> List.map (fun x -> client_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (fun (c : client) -> c.id))
-;;
 
 (** Generate the full name of a person. *)
 let make_person_name p = p.first_name ^ " " ^ p.last_name
@@ -273,6 +144,39 @@ let get_entity_archived e =
   | Placeholder p -> p.archived
 ;;
 
+(** Projects -------------------------------------------------- *)
+
+(** This type represents the raw JSON of a project as returned by Forecast.
+    Instead of providing a client, it only provides a client ID, so we 'fill in
+    the client' by looking it up in the list of clients before passing the data
+    on to other modules. *)
+type project_schema =
+  { id : int
+  ; harvest_id : int option
+  ; client_id : int option (* The built-in project has no client !! *)
+  ; name : string (* TODO: why can project code be None? *)
+  ; code : string option
+  ; tags : string list
+  ; notes : string option
+  ; color : string
+  ; archived : bool
+  }
+[@@deriving of_yojson] [@@yojson.allow_extra_fields]
+
+(** This is a filled-in project datatype. *)
+type project =
+  { id : int
+  ; harvest_id : int option
+  ; client : client option
+  ; name : string
+  ; code : string option
+  ; tags : string list
+  ; notes : string option
+  ; color : string
+  ; archived : bool
+  }
+[@@deriving show]
+
 (** Retrieve all projects from Forecast. *)
 let get_project_schemas_async () =
   let open Lwt.Syntax in
@@ -287,14 +191,7 @@ let get_project_schemas_async () =
 (** This converts a [project_schema] to a [project], i.e., fills in the client
     by looking it up in the list of clients. *)
 let populate_project_client clients prj =
-  let client =
-    match prj.client_id with
-    | None -> None
-    | Some i ->
-      (match IntMap.find_opt i clients with
-       | Some c -> Some c
-       | None -> failwith_log (ClientNotFoundFatal prj))
-  in
+  let client = Option.bind prj.client_id (fun id -> IntMap.find_opt id clients) in
   { id = prj.id
   ; harvest_id = prj.harvest_id
   ; client
@@ -306,6 +203,35 @@ let populate_project_client clients prj =
   ; archived = prj.archived
   }
 ;;
+
+(** Assignments ----------------------------------------------- *)
+
+(** This type represents the raw JSON of an assignment as returned by Forecast.
+    Similarly to the project JSON above, we fill in some subfields of the
+    assignment before passing it on to other modules. *)
+type assignment_schema =
+  { id : int
+  ; project_id : int
+  ; person_id : int option
+  ; placeholder_id : int option
+  ; start_date : string
+  ; end_date : string
+  ; allocation : int
+  ; notes : string option
+  }
+[@@deriving of_yojson] [@@yojson.allow_extra_fields]
+
+(** This is the 'filled-in' assignment type. *)
+type assignment =
+  { id : int
+  ; project : project
+  ; entity : entity
+  ; start_date : Utils.date
+  ; end_date : Utils.date
+  ; allocation : int
+  ; notes : string option
+  }
+[@@deriving show]
 
 (** Parse the JSON returned by Forecast (which in general is a list of list of
     assignments, because each query returns a list of assignments, and we
@@ -384,20 +310,24 @@ let populate_assignment_subfields people placeholders projects asn =
   let project =
     match IntMap.find_opt asn.project_id projects with
     | Some prj -> prj
-    | None -> failwith_log (ProjectNotFoundFatal asn)
+    | None ->
+      failwith
+        (Printf.sprintf "Project %d in assignment %d not found" asn.project_id asn.id)
   in
   let entity =
     match asn.person_id, asn.placeholder_id with
     | Some p, None ->
       (match IntMap.find_opt p people with
        | Some person -> Person person
-       | None -> failwith_log (EntityNotFoundFatal asn))
+       | None -> failwith (Printf.sprintf "Person %d in assignment %d not found" p asn.id))
     | None, Some p ->
       (match IntMap.find_opt p placeholders with
        | Some placeholder -> Placeholder placeholder
-       | None -> failwith_log (EntityNotFoundFatal asn))
-    | Some _, Some _ -> failwith_log (MultipleEntityFatal asn)
-    | None, None -> failwith_log (NoEntityFatal asn)
+       | None ->
+         failwith (Printf.sprintf "Placeholder %d in assignment %d not found" p asn.id))
+    | Some _, Some _ ->
+      failwith (Printf.sprintf "Multiple entities found for assignment %d" asn.id)
+    | None, None -> failwith (Printf.sprintf "No entities found for assignment %d" asn.id)
   in
   match Utils.date_of_string asn.start_date, Utils.date_of_string asn.end_date with
   | Ok sdate, Ok edate ->
@@ -409,9 +339,11 @@ let populate_assignment_subfields people placeholders projects asn =
     ; allocation = asn.allocation
     ; notes = asn.notes
     }
-  | Error _, _ -> failwith_log (InvalidStartDateFatal asn)
-  | _, Error _ -> failwith_log (InvalidEndDateFatal asn)
+  | Error _, _ -> failwith (Printf.sprintf "Invalid start date for assignment %d" asn.id)
+  | _, Error _ -> failwith (Printf.sprintf "Invalid end date for assignment %d" asn.id)
 ;;
+
+(** Get the schedule ------------------------------------------ *)
 
 (** Fetch clients, people, placeholders, projects, and assignments from
     Forecast. Returns a promise. *)
