@@ -104,8 +104,8 @@ let ww_main notify person issue no_color =
 
   (* notification reports*)
   Notify.print_metadata_reports color;
-  print_endline (String.make 20 '-');
-  Log.dump_the_log ();
+  (* print_endline (String.make 20 '-'); *)
+  (* Log.dump_the_log (); *)
 
   match notify with
   | Notify.NoTarget -> print_endline "No notifications requested."

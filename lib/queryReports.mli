@@ -9,17 +9,17 @@
 module Raw = GithubRaw
 
 (** [print_issue issue] prints the [issue] summary. *)
-val print_issue : Raw.issue -> unit
+val print_issue : col_name:string -> Raw.issue -> unit
 
 (** [test_issue_number] Determines whether the input issue identifier is an 
 int (i.e. the issue number) or the issue title. *)
-val test_issue_number : int -> Raw.issue -> Raw.issue option
+val test_issue_number : int -> Raw.issue -> bool
 
 (** Remove leading and trailing white space from a string. *)
 val strip : string -> string
 
 (** Filter issues by title to those matching the input [issue_title] string. *)
-val test_issue_title : string -> Raw.issue -> Raw.issue option
+val test_issue_title : string -> Raw.issue -> bool
 
 (** [get_name] returns a [Github.person] name. If no name is provided then the 
     login is used. *)
@@ -32,7 +32,7 @@ val get_title : Raw.issue -> string
 val test_person_name : string -> Raw.issue -> Raw.issue option
 
 (** [issue_summary] returns the issue summary: number, title, state, column. *)
-val issue_summary : string -> Raw.issue
+val issue_summary : string -> string * Raw.issue
 
 (** The types of emoji reactions we care about. **)
 type emoji =

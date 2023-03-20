@@ -110,7 +110,7 @@ type project =
 exception UnknownColumn of string
 
 (** Convert the column name in GitHub to a variant type. May raise UnknownColumn *)
-val state_of_column : string option -> State.t
+val state_of_column : string -> State.t
 
 (** A person *)
 type person =

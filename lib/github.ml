@@ -285,7 +285,7 @@ let find_programme (issue : Raw.issue) =
   List.find_map parse_label issue.labels
 ;;
 
-let validate_issue (issue : Raw.issue) =
+let validate_issue (col_name : string) (issue : Raw.issue) =
   (* GithubRaw returns the issue body as well, but we ignore for now *)
   let metadata, _ = parse_metadata issue.number issue.body in
   match metadata with
@@ -294,13 +294,16 @@ let validate_issue (issue : Raw.issue) =
     Some
       { nmbr = issue.number
       ; name = issue.title
-      ; state = state_of_column issue.column
+      ; state = state_of_column col_name
       ; programme = find_programme issue
       ; plan
       }
 ;;
 
 let get_project_issues () =
-  let issues = Raw.get_project_issues () in
-  List.filter_map validate_issue issues
+  let project = Raw.get_project () in
+  let pair_issues (col : Raw.column) = List.map (fun i -> col.name, i) col.issues in
+  project.columns
+  |> List.concat_map pair_issues
+  |> List.filter_map (fun (c, i) -> validate_issue c i)
 ;;

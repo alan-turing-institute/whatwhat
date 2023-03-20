@@ -1,7 +1,7 @@
 module Raw = GithubRaw
 
 (* Function for printing issue summary*)
-let print_issue (i : Raw.issue) =
+let print_issue ~(col_name : string) (i : Raw.issue) =
   print_endline " ";
   print_endline
     ("Issue number: "
@@ -14,16 +14,12 @@ let print_issue (i : Raw.issue) =
     ^ string_of_int i.number
     ^ ")");
   print_endline ("Issue title: " ^ i.title);
-  print_endline ("State: " ^ i.state);
-  match i.column with
-  | Some col -> print_endline ("Column: " ^ col)
-  | None -> ()
+  print_endline ("State: " ^ Raw.show_issue_state i.state);
+  print_endline ("Column: " ^ col_name)
 ;;
 
 (* filter list by issue number *)
-let test_issue_number (issue_number : int) (i : Raw.issue) =
-  if i.number = issue_number then Some i else None
-;;
+let test_issue_number (issue_number : int) (i : Raw.issue) = i.number = issue_number
 
 let strip str =
   let str = Str.replace_first (Str.regexp "^ +") "" str in
@@ -32,9 +28,7 @@ let strip str =
 
 let test_issue_title (issue_title : string) (i : Raw.issue) =
   (* ignores cases and whitespace *)
-  if strip (String.lowercase_ascii i.title) = strip (String.lowercase_ascii issue_title)
-  then Some i
-  else None
+  strip (String.lowercase_ascii i.title) = strip (String.lowercase_ascii issue_title)
 ;;
 
 (* For each element in all_names, get the name *)
@@ -64,26 +58,27 @@ let test_person_name (name : string) (i : Raw.issue) =
 
 (* Get the issue summary: number, title, state, column*)
 let issue_summary lookup_term =
+  let proj = GithubRaw.get_project () in
+  let cols = proj.columns in
+  let make_issues (col : Raw.column) = List.map (fun i -> col.name, i) col.issues in
+  let issues = List.concat_map make_issues cols in
   let issues_subset =
-    if Str.string_match (Str.regexp "[0-9]+") lookup_term 0
+    if String.for_all Utils.is_digit lookup_term
     then
-      [ GithubRaw.get_issue (int_of_string lookup_term) |> GithubRaw.populate_column_name
-      ]
-    else
-      Raw.get_project_issues ()
-      |> List.filter_map (fun x -> test_issue_title lookup_term x)
+      List.filter
+        (fun x -> x |> snd |> test_issue_number (int_of_string lookup_term))
+        issues
+    else List.filter (fun x -> x |> snd |> test_issue_title lookup_term) issues
   in
-
-  if List.length issues_subset = 0
-  then
+  match issues_subset with
+  | [] ->
     raise
       (Failure
          ("No issue found for "
          ^ lookup_term
          ^ ". Make sure you are searching by issue number (e.g. 1214) or issue"
-         ^ " title (e.g. Molecular Biology)."));
-
-  issues_subset |> List.hd
+         ^ " title (e.g. Molecular Biology)."))
+  | x :: _ -> x
 ;;
 
 type emoji =
@@ -219,12 +214,10 @@ let get_person_reaction_n (i : Raw.issue) (name : string) =
 ;;
 
 let person_summary (name : string) =
-  let column_issues = Raw.get_project_issues () in
-
-  let issues_subset =
-    column_issues |> List.filter_map (fun x -> test_person_name name x)
-  in
-
+  let proj = GithubRaw.get_project () in
+  let cols = proj.columns in
+  let issues = List.concat_map (fun (c : Raw.column) -> c.issues) cols in
+  let issues_subset = issues |> List.filter_map (fun x -> test_person_name name x) in
   (* Print outputs*)
   if List.length issues_subset = 0
   then
@@ -235,12 +228,12 @@ let person_summary (name : string) =
          ^ "'. Make sure you are spelling the name correctly. "));
 
   (* Get all issue names: those reacted to, and those not*)
-  let column_issues_names = column_issues |> List.map (fun x -> get_title x) in
+  let all_issues_names = issues |> List.map (fun x -> get_title x) in
   let issues_subset_names = issues_subset |> List.map (fun x -> get_title x) in
 
   (* Get the difference between the two lists: those not reacted to*)
   let difference =
-    List.filter (fun x -> not (List.mem x issues_subset_names)) column_issues_names
+    List.filter (fun x -> not (List.mem x issues_subset_names)) all_issues_names
   in
 
   (* Create list of project reactions *)
@@ -298,10 +291,10 @@ let individuals_reactions target =
 ;;
 
 let issues_reactions target =
-  let issue = issue_summary target in
+  let col_name, issue = issue_summary target in
 
   print_endline "";
-  print_issue issue;
+  print_issue ~col_name issue;
 
   let bl, hl, table_body = get_reaction_table issue in
 

@@ -67,22 +67,19 @@ exception UnknownColumn of string
 
 let state_of_column col =
   match col with
-  | None -> failwith "No GitHub column!"
-  | Some colname ->
-    (match colname with
-     | "Suggested" -> State.Suggested
-     | "Proposal" -> State.Proposal
-     | "Extra info needed" -> State.ExtraInfoNeeded
-     | "Project appraisal" -> State.ProjectAppraisal
-     | "Awaiting go/no-go" -> State.AwaitingGoNogo
-     | "Finding people" -> State.FindingPeople
-     | "Awaiting start" -> State.AwaitingStart
-     | "Active" -> State.Active
-     | "Completion review" -> State.CompletionReview
-     | "Done" -> State.Done
-     | "Cancelled" -> State.Cancelled
-     | "Rejected" -> State.Rejected
-     | _ -> raise (UnknownColumn ("Unknown GitHub column: " ^ colname)))
+  | "Suggested" -> State.Suggested
+  | "Proposal" -> State.Proposal
+  | "Extra info needed" -> State.ExtraInfoNeeded
+  | "Project appraisal" -> State.ProjectAppraisal
+  | "Awaiting go/no-go" -> State.AwaitingGoNogo
+  | "Finding people" -> State.FindingPeople
+  | "Awaiting start" -> State.AwaitingStart
+  | "Active" -> State.Active
+  | "Completion review" -> State.CompletionReview
+  | "Done" -> State.Done
+  | "Cancelled" -> State.Cancelled
+  | "Rejected" -> State.Rejected
+  | _ -> raise (UnknownColumn ("Unknown GitHub column: " ^ col))
 ;;
 
 type project =
