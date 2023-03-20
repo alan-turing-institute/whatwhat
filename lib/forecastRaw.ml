@@ -323,10 +323,8 @@ let populate_assignment_subfields people placeholders projects asn =
     ; allocation = asn.allocation
     ; notes = asn.notes
     }
-  | Error _, _ ->
-      failwith (Printf.sprintf "assignment %d had invalid start date" asn.id)
-  | _, Error _ ->
-      failwith (Printf.sprintf "assignment %d had invalid end date" asn.id)
+  | Error _, _ -> failwith (Printf.sprintf "assignment %d had invalid start date" asn.id)
+  | _, Error _ -> failwith (Printf.sprintf "assignment %d had invalid end date" asn.id)
 ;;
 
 (** Fetch clients, people, placeholders, projects, and assignments from

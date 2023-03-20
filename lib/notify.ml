@@ -68,20 +68,16 @@ let dump_metadata_events () =
    Reporting
  *)
 
-let format_metadata_report_print (color: bool) (number : int) (events : Log.event list) =
+let format_metadata_report_print (color : bool) (number : int) (events : Log.event list) =
   let open ANSITerminal in
   let errors = List.filter Log.isError events in
   let warnings = List.filter Log.isWarning events in
-  let error_msgs =
-    List.map (fun ev -> Log.make_display_message ~color ev) errors
-  in
-  let warning_msgs =
-    List.map (fun ev -> Log.make_display_message ~color ev) warnings
-  in
+  let error_msgs = List.map (fun ev -> Log.make_display_message ~color ev) errors in
+  let warning_msgs = List.map (fun ev -> Log.make_display_message ~color ev) warnings in
 
   let header_style = if color then [ Bold ] else [] in
   let header = sprintf header_style "Issue %-5d" number in
-  let indent = fun n s -> (String.make n ' ') ^ s in
+  let indent n s = String.make n ' ' ^ s in
   let messages =
     (* Don't indent the first message. *)
     match error_msgs @ warning_msgs with

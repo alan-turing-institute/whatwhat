@@ -96,7 +96,6 @@ val get_entity_id : entity -> int
 (** Get the archived status of an entity. *)
 val get_entity_archived : entity -> bool
 
-
 (** {1 Assignments}
 
     An [assignment] refers to a period where an entity is placed on a project.
@@ -130,4 +129,3 @@ val get_the_schedule
      * placeholder IntMap.t
      * project IntMap.t
      * assignment list
-

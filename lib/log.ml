@@ -55,6 +55,7 @@ let log' ev =
     print_endline "Uh-oh";
     exit 2
   | _ -> ()
+;;
 
 let get_the_log () = Stack.to_seq the_log
 
@@ -73,23 +74,32 @@ let show_level = function
   | Debug -> "Debug"
 ;;
 
-let isFatal e = match e.level with
+let isFatal e =
+  match e.level with
   | Fatal _ -> true
   | _ -> false
 ;;
-let isError e = match e.level with
+
+let isError e =
+  match e.level with
   | Error _ -> true
   | _ -> false
 ;;
-let isWarning e = match e.level with
+
+let isWarning e =
+  match e.level with
   | Warning _ -> true
   | _ -> false
 ;;
-let isInfo e = match e.level with
+
+let isInfo e =
+  match e.level with
   | Info -> true
   | _ -> false
 ;;
-let isDebug e = match e.level with
+
+let isDebug e =
+  match e.level with
   | Debug -> true
   | _ -> false
 ;;

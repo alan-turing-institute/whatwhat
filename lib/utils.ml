@@ -5,6 +5,7 @@ exception HttpError of string
 (** Redefine date type (and provide a pretty-printing function in order to
     cleanly derive [show]. *)
 type date = CalendarLib.Date.t
+
 let pp_date pp date = CalendarLib.Printer.Date.fprint "%i" pp date
 
 (** Parse a string as a date in the format year-month-day. If the string is not in this
@@ -131,7 +132,8 @@ let rollback_week (d : CalendarLib.Date.t) : CalendarLib.Date.t =
 
 (** Roll a date forward to a Friday. Leaves Fridays untouched.
     If [with_weekend] is [true], then rolls forward to Sundays. *)
-let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : CalendarLib.Date.t =
+let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : CalendarLib.Date.t
+  =
   let open CalendarLib.Date in
   let days_to_friday, days_to_sunday =
     match day_of_week d with
@@ -145,3 +147,4 @@ let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : Calendar
   in
   let days_to_add = if with_weekend then days_to_sunday else days_to_friday in
   add d (Period.day days_to_add)
+;;
