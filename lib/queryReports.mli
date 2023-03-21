@@ -9,30 +9,30 @@
 module Raw = GithubRaw
 
 (** [print_issue issue] prints the [issue] summary. *)
-val print_issue : col_name:string -> Raw.issue -> unit
+val print_issue : col_name:string -> Raw.issue_with_reactions -> unit
 
 (** [test_issue_number] Determines whether the input issue identifier is an 
 int (i.e. the issue number) or the issue title. *)
-val test_issue_number : int -> Raw.issue -> bool
-
-(** Remove leading and trailing white space from a string. *)
-val strip : string -> string
+val test_issue_number : int -> Raw.issue_with_reactions -> bool
 
 (** Filter issues by title to those matching the input [issue_title] string. *)
-val test_issue_title : string -> Raw.issue -> bool
+val test_issue_title : string -> Raw.issue_with_reactions -> bool
 
 (** [get_name] returns a [Github.person] name. If no name is provided then the 
     login is used. *)
 val get_name : Raw.person -> string
 
 (** [get_title] Returns an issue's title. *)
-val get_title : Raw.issue -> string
+val get_title : Raw.issue_with_reactions -> string
 
 (** [test_person_name] check if this issue contain reactions from name. *)
-val test_person_name : string -> Raw.issue -> Raw.issue option
+val test_person_name
+  :  string
+  -> Raw.issue_with_reactions
+  -> Raw.issue_with_reactions option
 
 (** [issue_summary] returns the issue summary: number, title, state, column. *)
-val issue_summary : string -> string * Raw.issue
+val issue_summary : string -> string * Raw.issue_with_reactions
 
 (** The types of emoji reactions we care about. **)
 type emoji =
@@ -77,13 +77,13 @@ val header_line : int -> int -> string
 
 (** [get_reaction_table] returns all strings required for the table summarising
     an issue's reactions.  *)
-val get_reaction_table : Raw.issue -> string * string * string list
+val get_reaction_table : Raw.issue_with_reactions -> string * string * string list
 
 (** Subset an issue's reactions to only those by [name] *)
-val get_person_reaction : Raw.issue -> string -> emoji list
+val get_person_reaction : Raw.issue_with_reactions -> string -> emoji list
 
 (** Return the number of reactions by [name] *)
-val get_person_reaction_n : Raw.issue -> string -> int
+val get_person_reaction_n : Raw.issue_with_reactions -> string -> int
 
 (** Return strings required to build table summarising a person's reactions *)
 val person_summary : string -> string * string * string list * string list

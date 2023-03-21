@@ -103,26 +103,27 @@ let ww_main notify person issue no_color =
     Printf.printf "%d projects; and " (List.length projects);
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
-    (* notification reports*)
+    (* Print output *)
     Log.pretty_print ~use_color:color;
 
-    match notify with
+    (* Send notifications if requested *)
+    (match notify with
     | Notify.NoTarget -> print_endline "No notifications requested."
     | Notify.Github -> print_endline "CATCH: this would post reports to GitHub."
     (* Notify.post_metadata_reports () *)
     | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
     | Notify.All ->
-      print_endline "CATCH: this would post reports to everywhere!";
+        print_endline "CATCH: this would post reports to everywhere!";);
 
-      (* query person's reactions*)
-      if person <> "none"
-      then QueryReports.individuals_reactions person
-      else print_endline "No person queried.";
+    (* Query a person's reactions *)
+    if person <> "none"
+    then QueryReports.individuals_reactions person
+    else print_endline "No person queried.";
 
-      (* query issue reactions*)
-      if issue <> "none"
-      then QueryReports.issues_reactions issue
-      else print_endline "No issue queried."
+    (* Query reactions on an issue *)
+    if issue <> "none"
+    then QueryReports.issues_reactions issue
+    else print_endline "No issue queried."
   with
   | Failure msg ->
     let open ANSITerminal in

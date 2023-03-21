@@ -110,6 +110,17 @@ let group_by (p : 'a -> 'a -> bool) (xs : 'a list) : 'a list list =
   List.fold_right acc xs []
 ;;
 
+(** [splitAt n xs] returns [(take n xs, drop n xs)] (i.e. the first [n] elements
+    and the rest). *)
+let rec splitAt n xs =
+  match n, xs with
+  | _, [] -> [], []
+  | 1, x :: x' -> [ x ], x'
+  | n, x :: x' ->
+    let y1, y2 = splitAt (n - 1) x' in
+    x :: y1, y2
+;;
+
 (** Sum a list *)
 let rec sum (xs : float list) : float =
   match xs with
@@ -147,4 +158,17 @@ let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : Calendar
   in
   let days_to_add = if with_weekend then days_to_sunday else days_to_friday in
   add d (Period.day days_to_add)
+;;
+
+(** [all_throttled] is like [Lwt.all] but only resolves [max_concurrent]
+    promises at a time. *)
+let rec all_throttled ?(max_concurrent = 150) (reqs : 'a Lwt.t list) =
+  let open Lwt.Syntax in
+  match splitAt max_concurrent reqs with
+  | [], [] -> Lwt.return []
+  | xs, [] -> Lwt.all xs
+  | xs, ys ->
+    let* first_batch = Lwt.all xs in
+    let* the_rest = all_throttled ~max_concurrent ys in
+    Lwt.return (first_batch @ the_rest)
 ;;

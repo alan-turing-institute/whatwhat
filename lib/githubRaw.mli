@@ -2,10 +2,16 @@
     users, and project boards, and parses that into OCaml records.
     *)
 
-(** This module only supports GET and POST requests. *)
+(** {1 HTTP requests}
+    *)
+
+(** HTTP methods. Only GET and POST are supported. *)
 type http_method =
   | GET
   | POST
+
+(** {1 People}
+    *)
 
 (** A [person] is a GitHub user: they are identified by their login username, a
     real name, and an email. The latter two are obtained from their public
@@ -16,6 +22,9 @@ type person =
   ; email : string option
   }
 [@@deriving show]
+
+(** {1 Issues}
+    *)
 
 (** The state of an issue on GitHub. *)
 type issue_state =
@@ -31,10 +40,19 @@ type issue =
   ; body : string
   ; state : issue_state
   ; assignees : person list
-  ; reactions : (string * person) list
   ; labels : string list
   }
 [@@deriving show]
+
+(** A GitHub issue, but with reactions. We have a separate type for this because
+    fetching reactions is a separate request to the GitHub API, and we don't
+    want to indiscriminately do this. *)
+type issue_with_reactions =
+  { issue : issue
+  ; reactions : (string * person) list
+  }
+
+val get_issue_with_reactions : int -> issue_with_reactions
 
 (** A column of a project on GitHub. This data type is used for data from the
     REST API. *)
@@ -82,3 +100,33 @@ val run_github_query
 val get_issue : int -> issue
 
 val get_project : unit -> project
+
+type column_numeric =
+  { name : string
+  ; id : int
+  ; issue_numbers : int list
+  }
+
+type project_numeric =
+  { id : int
+  ; name : string
+  ; columns_num : column_numeric list
+  }
+
+(** The same as a column, but issues additionally contain reactions.
+    *)
+type column_reactions =
+  { name : string
+  ; id : int
+  ; issue_reactions : issue_with_reactions list
+  }
+
+(** The same as a project, but issues additionally contain reactions. *)
+type project_reactions =
+  { id : int
+  ; name : string
+  ; columns_rxn : column_reactions list
+  }
+
+val get_project_num : unit -> project_numeric
+val get_project_reactions : unit -> project_reactions
