@@ -27,7 +27,6 @@
   calendar
   tyre
   tls
-  batteries
   yaml
   csv
   ppx_yojson_conv

@@ -173,8 +173,8 @@ let get_reaction_table (issue : Raw.issue_with_reactions) =
      then alphabetically *)
   let issue_reactions =
     issue.reactions
-    |> List.sort (fun (_a, b) (_c, d) -> compare_names b d)
-    |> List.sort (fun (a, _b) (c, _d) -> compare_emojis a c)
+    |> List.sort (fun (_, n1) (_, n2) -> compare_names n1 n2)
+    |> List.sort (fun (e1, _) (e2, _) -> compare_emojis e1 e2)
   in
 
   (* Get all emoji reactions and names *)
@@ -186,10 +186,8 @@ let get_reaction_table (issue : Raw.issue_with_reactions) =
   let max_name_length = List.fold_left (fun x y -> max x (String.length y)) 0 all_names in
 
   (* table format emojis*)
-  let table_format_emojis = List.map (fun x -> get_outcome x) all_emoji in
-  let table_body =
-    List.map2 (fun x y -> body_list max_name_length x y) all_names table_format_emojis
-  in
+  let table_format_emojis = List.map get_outcome all_emoji in
+  let table_body = List.map2 (body_list max_name_length) all_names table_format_emojis in
 
   let bl = border_line max_name_length max_emoji_length in
   let hl = header_line max_name_length max_emoji_length in
@@ -200,14 +198,14 @@ let get_reaction_table (issue : Raw.issue_with_reactions) =
 let get_person_reaction (i : Raw.issue_with_reactions) (name : string) =
   (* Get only the reactions of the person *)
   i.reactions
-  |> List.filter (fun (_a, b) -> get_name b = name)
+  |> List.filter (fun (_, b) -> get_name b = name)
   |> List.map (fun r -> r |> fst |> refactor_emoji)
 ;;
 
 let get_person_reaction_n (i : Raw.issue_with_reactions) (name : string) =
   (* Get only the reactions of the person *)
   let reactions =
-    i.reactions |> List.filter (fun (_a, b) -> get_name b = name) |> List.map fst
+    i.reactions |> List.filter (fun (_, b) -> get_name b = name) |> List.map fst
   in
   List.length reactions
 ;;
@@ -218,19 +216,18 @@ let person_summary (name : string) =
   let issues =
     List.concat_map (fun (c : Raw.column_reactions) -> c.issue_reactions) cols
   in
-  let issues_subset = issues |> List.filter_map (fun x -> test_person_name name x) in
+  let issues_subset = issues |> List.filter_map (test_person_name name) in
   (* Print outputs*)
   if List.length issues_subset = 0
   then
-    raise
-      (Failure
-         ("No issues found for '"
-         ^ name
-         ^ "'. Make sure you are spelling the name correctly. "));
+    failwith
+      (Printf.sprintf
+         "No issues found for '%s'. Make sure you are spelling the name correctly. "
+         name);
 
   (* Get all issue names: those reacted to, and those not*)
-  let all_issues_names = issues |> List.map (fun x -> get_title x) in
-  let issues_subset_names = issues_subset |> List.map (fun x -> get_title x) in
+  let all_issues_names = issues |> List.map get_title in
+  let issues_subset_names = issues_subset |> List.map get_title in
 
   (* Get the difference between the two lists: those not reacted to*)
   let difference =
@@ -245,7 +242,7 @@ let person_summary (name : string) =
      where someone reacts multiple times on the same issue *)
   let project_names =
     List.map2
-      (fun x y -> Batteries.List.make (get_person_reaction_n x name) y)
+      (fun x y -> List.init (get_person_reaction_n x name) (Fun.const y))
       issues_subset
       issues_subset_names
     |> List.flatten
@@ -254,10 +251,10 @@ let person_summary (name : string) =
   let max_name_length =
     List.fold_left (fun x y -> max x (String.length y)) 0 project_names
   in
-  let table_format_emojis = List.map (fun x -> get_outcome x) persons_reactions in
+  let table_format_emojis = List.map get_outcome persons_reactions in
 
   let table_body =
-    List.map2 (fun x y -> body_list max_name_length x y) project_names table_format_emojis
+    List.map2 (body_list max_name_length) project_names table_format_emojis
   in
 
   (* print table *)
