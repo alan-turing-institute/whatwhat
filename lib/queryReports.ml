@@ -1,7 +1,7 @@
 module Raw = GithubRaw
 
 (* Function for printing issue summary*)
-let print_issue ~(col_name : string) (i : Raw.issue_with_reactions) =
+let print_issue ~(col_name : string) (i : Raw.issue_r) =
   print_endline " ";
   print_endline
     ("Issue number: "
@@ -19,11 +19,11 @@ let print_issue ~(col_name : string) (i : Raw.issue_with_reactions) =
 ;;
 
 (* filter list by issue number *)
-let test_issue_number (issue_number : int) (i : Raw.issue_with_reactions) =
+let test_issue_number (issue_number : int) (i : Raw.issue_r) =
   i.issue.number = issue_number
 ;;
 
-let test_issue_title (issue_title : string) (i : Raw.issue_with_reactions) =
+let test_issue_title (issue_title : string) (i : Raw.issue_r) =
   (* ignores cases and whitespace *)
   String.trim (String.lowercase_ascii i.issue.title)
   = String.trim (String.lowercase_ascii issue_title)
@@ -39,10 +39,10 @@ let get_name (single_person : Raw.person) =
   else single_person.login
 ;;
 
-let get_title (i : Raw.issue_with_reactions) = i.issue.title
+let get_title (i : Raw.issue_r) = i.issue.title
 
 (* check if this issue contain reactions from name*)
-let test_person_name (name : string) (i : Raw.issue_with_reactions) =
+let test_person_name (name : string) (i : Raw.issue_r) =
   let all_names =
     i.reactions
     |> List.map (fun r -> r |> snd |> get_name |> String.lowercase_ascii |> String.trim)
@@ -56,10 +56,10 @@ let test_person_name (name : string) (i : Raw.issue_with_reactions) =
 
 (* Get the issue summary: number, title, state, column*)
 let issue_summary lookup_term =
-  let proj = GithubRaw.get_project_reactions () in
-  let cols = proj.columns_rxn in
-  let make_issues (col : Raw.column_reactions) =
-    List.map (fun i -> col.name, i) col.issue_reactions
+  let proj = GithubRaw.get_project_r () in
+  let cols = proj.columns_r in
+  let make_issues (col : Raw.column_r) =
+    List.map (fun i -> col.name, i) col.issues_r
   in
   let issues = List.concat_map make_issues cols in
   let issues_subset =
@@ -168,7 +168,7 @@ let header_line (max_name_length : int) (max_emoji_length : int) =
   This probably involves counting the reactions instead
   then refactoring the table according to the counts. 
 *)
-let get_reaction_table (issue : Raw.issue_with_reactions) =
+let get_reaction_table (issue : Raw.issue_r) =
   (* Get issue reactions then sort by most love -> least love, 
      then alphabetically *)
   let issue_reactions =
@@ -195,14 +195,14 @@ let get_reaction_table (issue : Raw.issue_with_reactions) =
   bl, hl, table_body
 ;;
 
-let get_person_reaction (i : Raw.issue_with_reactions) (name : string) =
+let get_person_reaction (i : Raw.issue_r) (name : string) =
   (* Get only the reactions of the person *)
   i.reactions
   |> List.filter (fun (_, b) -> get_name b = name)
   |> List.map (fun r -> r |> fst |> refactor_emoji)
 ;;
 
-let get_person_reaction_n (i : Raw.issue_with_reactions) (name : string) =
+let get_person_reaction_n (i : Raw.issue_r) (name : string) =
   (* Get only the reactions of the person *)
   let reactions =
     i.reactions |> List.filter (fun (_, b) -> get_name b = name) |> List.map fst
@@ -211,10 +211,10 @@ let get_person_reaction_n (i : Raw.issue_with_reactions) (name : string) =
 ;;
 
 let person_summary (name : string) =
-  let proj = GithubRaw.get_project_reactions () in
-  let cols = proj.columns_rxn in
+  let proj = GithubRaw.get_project_r () in
+  let cols = proj.columns_r in
   let issues =
-    List.concat_map (fun (c : Raw.column_reactions) -> c.issue_reactions) cols
+    List.concat_map (fun (c : Raw.column_r) -> c.issues_r) cols
   in
   let issues_subset = issues |> List.filter_map (test_person_name name) in
   (* Print outputs*)

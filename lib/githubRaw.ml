@@ -55,7 +55,6 @@ type person =
   ; name : string option
   ; email : string option
   }
-[@@deriving show]
 
 let person_of_json json =
   let open Yojson.Basic.Util in
@@ -109,7 +108,6 @@ type issue =
   ; assignees : person list
   ; labels : string list
   }
-[@@deriving show]
 
 let get_issue_async id =
   let open Yojson.Basic.Util in
@@ -151,7 +149,7 @@ let get_issue id = get_issue_async id |> Lwt_main.run
 (** A GitHub issue, but with reactions. We have a separate type for this because
     fetching reactions is a separate request to the GitHub API, and we don't
     want to indiscriminately do this. *)
-type issue_with_reactions =
+type issue_r =
   { issue : issue
   ; reactions : (string * person) list
   }
@@ -159,7 +157,7 @@ type issue_with_reactions =
 (* Like column cards, we can only fetch 100 reactions at a time. This function
    therefore fetches the first page of reactions (which can contain up to 100
    results) and then fetches a second page if 100 results were returned. *)
-let rec get_issue_reactions_async ?(page = 1) id =
+let rec get_reactions_async ?(page = 1) id =
   let batch_get page id =
     let uri =
       String.concat
@@ -196,18 +194,18 @@ let rec get_issue_reactions_async ?(page = 1) id =
   let* first_batch = batch_get page id in
   if List.length first_batch = 100
   then
-    let* next_batch = get_issue_reactions_async ~page:(page + 1) id in
+    let* next_batch = get_reactions_async ~page:(page + 1) id in
     Lwt.return (first_batch @ next_batch)
   else Lwt.return first_batch
 ;;
 
-let get_issue_with_reactions_async id =
+let get_issue_r_async id =
   let* issue = get_issue_async id in
-  let* reactions = get_issue_reactions_async id in
+  let* reactions = get_reactions_async id in
   Lwt.return { issue; reactions }
 ;;
 
-let get_issue_with_reactions id = get_issue_with_reactions_async id |> Lwt_main.run
+let get_issue_r id = get_issue_r_async id |> Lwt_main.run
 
 (* GitHub only allows for 100 items to be read from a column in a single
    request. *)
@@ -245,29 +243,28 @@ type column =
   ; id : int
   ; issues : issue list
   }
-[@@deriving show]
 
 (** The same as a column, but issues are represented only by their issue number.
     *)
-type column_numeric =
+type column_n =
   { name : string
   ; id : int
-  ; issue_numbers : int list
+  ; issues_n : int list
   }
 
 (** The same as a column, but issues additionally contain reactions.
     *)
-type column_reactions =
+type column_r =
   { name : string
   ; id : int
-  ; issue_reactions : issue_with_reactions list
+  ; issues_r : issue_r list
   }
 
 (** Fetch an entire column, but only return issue numbers instead of issues
     themselves. *)
-let get_column_numeric name id =
-  let* issue_numbers = get_issue_numbers_in_column_async id in
-  Lwt.return { name; id; issue_numbers }
+let get_column_n name id =
+  let* issues_n = get_issue_numbers_in_column_async id in
+  Lwt.return { name; id; issues_n }
 ;;
 
 (** Projects ----------------------------------------- *)
@@ -277,21 +274,20 @@ type project =
   ; name : string
   ; columns : column list
   }
-[@@deriving show]
 
 (** The same as a project, but issues are represented only by their issue
     number. *)
-type project_numeric =
+type project_n =
   { id : int
   ; name : string
-  ; columns_num : column_numeric list
+  ; columns_n : column_n list
   }
 
 (** The same as a project, but issues additionally contain reactions. *)
-type project_reactions =
+type project_r =
   { id : int
   ; name : string
-  ; columns_rxn : column_reactions list
+  ; columns_r : column_r list
   }
 
 (** Get the integer ID of a named project tracker in a repository. *)
@@ -339,36 +335,36 @@ let get_column_names_and_ids project_id =
 ;;
 
 (** A promise to fetch an entire project, but only with issue numbers. *)
-let get_project_num_async () =
+let get_project_n_async () =
   let name = Config.get_github_project_name () in
   let* proj_id = get_project_id name in
   let* col_info = get_column_names_and_ids proj_id in
-  let* columns_num =
-    Lwt.all (List.map (fun (name, id) -> get_column_numeric name id) col_info)
+  let* columns_n =
+    Lwt.all (List.map (fun (name, id) -> get_column_n name id) col_info)
   in
-  Lwt.return { id = proj_id; name; columns_num }
+  Lwt.return { id = proj_id; name; columns_n }
 ;;
 
 (** Fetch an entire project, but only with issue numbers. *)
-let get_project_num () = get_project_num_async () |> Lwt_main.run
+let get_project_n () = get_project_n_async () |> Lwt_main.run
 
 (** A promise to fetch an entire project. *)
 let get_project_async () =
-  let* project_num = get_project_num_async () in
-  let get_colname_issuenum_pairs (col : column_numeric) =
-    List.map (fun i -> col.name, i) col.issue_numbers
+  let* project_num = get_project_n_async () in
+  let get_colname_issuenum_pairs (col : column_n) =
+    List.map (fun i -> col.name, i) col.issues_n
   in
   let get_issue_with_colname (col, num) =
     let* issue = get_issue_async num in
     Lwt.return (col, issue)
   in
   let* colname_issue_pairs =
-    project_num.columns_num
+    project_num.columns_n
     |> List.concat_map get_colname_issuenum_pairs
     |> List.map get_issue_with_colname
     |> Utils.all_throttled
   in
-  let reconstruct_col (col : column_numeric) =
+  let reconstruct_col (col : column_n) =
     let issues =
       colname_issue_pairs |> List.filter (fun (n, _) -> n = col.name) |> List.map snd
     in
@@ -377,7 +373,7 @@ let get_project_async () =
   Lwt.return
     { id = project_num.id
     ; name = project_num.name
-    ; columns = List.map reconstruct_col project_num.columns_num
+    ; columns = List.map reconstruct_col project_num.columns_n
     }
 ;;
 
@@ -385,32 +381,32 @@ let get_project_async () =
 let get_project () = get_project_async () |> Lwt_main.run
 
 (** A promise to fetch an entire project, additionally with issue reactions. *)
-let get_project_reactions_async () =
-  let* project_num = get_project_num_async () in
-  let get_colname_issuenum_pairs (col : column_numeric) =
-    List.map (fun i -> col.name, i) col.issue_numbers
+let get_project_r_async () =
+  let* project_num = get_project_n_async () in
+  let get_colname_issuenum_pairs (col : column_n) =
+    List.map (fun i -> col.name, i) col.issues_n
   in
   let get_issue_rxn_with_colname (col, num) =
-    let* issue_rxn = get_issue_with_reactions_async num in
+    let* issue_rxn = get_issue_r_async num in
     Lwt.return (col, issue_rxn)
   in
   let* colname_issue_pairs =
-    project_num.columns_num
+    project_num.columns_n
     |> List.concat_map get_colname_issuenum_pairs
     |> List.map get_issue_rxn_with_colname
     |> Utils.all_throttled
   in
-  let reconstruct_col (col : column_numeric) =
-    let issue_reactions =
+  let reconstruct_col (col : column_n) =
+    let issues_r =
       colname_issue_pairs |> List.filter (fun (n, _) -> n = col.name) |> List.map snd
     in
-    { name = col.name; id = col.id; issue_reactions }
+    { name = col.name; id = col.id; issues_r }
   in
   Lwt.return
     { id = project_num.id
     ; name = project_num.name
-    ; columns_rxn = List.map reconstruct_col project_num.columns_num
+    ; columns_r = List.map reconstruct_col project_num.columns_n
     }
 ;;
 
-let get_project_reactions () = get_project_reactions_async () |> Lwt_main.run
+let get_project_r () = get_project_r_async () |> Lwt_main.run

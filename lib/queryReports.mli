@@ -9,30 +9,30 @@
 module Raw = GithubRaw
 
 (** [print_issue issue] prints the [issue] summary. *)
-val print_issue : col_name:string -> Raw.issue_with_reactions -> unit
+val print_issue : col_name:string -> Raw.issue_r -> unit
 
 (** [test_issue_number] Determines whether the input issue identifier is an 
 int (i.e. the issue number) or the issue title. *)
-val test_issue_number : int -> Raw.issue_with_reactions -> bool
+val test_issue_number : int -> Raw.issue_r -> bool
 
 (** Filter issues by title to those matching the input [issue_title] string. *)
-val test_issue_title : string -> Raw.issue_with_reactions -> bool
+val test_issue_title : string -> Raw.issue_r -> bool
 
 (** [get_name] returns a [Github.person] name. If no name is provided then the 
     login is used. *)
 val get_name : Raw.person -> string
 
 (** [get_title] Returns an issue's title. *)
-val get_title : Raw.issue_with_reactions -> string
+val get_title : Raw.issue_r -> string
 
 (** [test_person_name] check if this issue contain reactions from name. *)
 val test_person_name
   :  string
-  -> Raw.issue_with_reactions
-  -> Raw.issue_with_reactions option
+  -> Raw.issue_r
+  -> Raw.issue_r option
 
 (** [issue_summary] returns the issue summary: number, title, state, column. *)
-val issue_summary : string -> string * Raw.issue_with_reactions
+val issue_summary : string -> string * Raw.issue_r
 
 (** The types of emoji reactions we care about. **)
 type emoji =
@@ -77,13 +77,13 @@ val header_line : int -> int -> string
 
 (** [get_reaction_table] returns all strings required for the table summarising
     an issue's reactions.  *)
-val get_reaction_table : Raw.issue_with_reactions -> string * string * string list
+val get_reaction_table : Raw.issue_r -> string * string * string list
 
 (** Subset an issue's reactions to only those by [name] *)
-val get_person_reaction : Raw.issue_with_reactions -> string -> emoji list
+val get_person_reaction : Raw.issue_r -> string -> emoji list
 
 (** Return the number of reactions by [name] *)
-val get_person_reaction_n : Raw.issue_with_reactions -> string -> int
+val get_person_reaction_n : Raw.issue_r -> string -> int
 
 (** Return strings required to build table summarising a person's reactions *)
 val person_summary : string -> string * string * string list * string list
