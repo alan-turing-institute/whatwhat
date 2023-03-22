@@ -97,14 +97,14 @@ let ww_main notify person issue no_color =
   let color = Unix.isatty Unix.stdout && not no_color in
 
   try
-    (* let people, projects, assignments = Schedule.get_the_schedule () in *)
-    (* print_endline "Whatwhat downloaded:"; *)
-    (* Printf.printf "%d people; " (List.length people); *)
-    (* Printf.printf "%d projects; and " (List.length projects); *)
-    (* Printf.printf "%d assignments\n\n" (List.length assignments); *)
+    let people, projects, assignments = Schedule.get_the_schedule () in
+    print_endline "Whatwhat downloaded:";
+    Printf.printf "%d people; " (List.length people);
+    Printf.printf "%d projects; and " (List.length projects);
+    Printf.printf "%d assignments\n\n" (List.length assignments);
 
-    (* (1* Print output *1) *)
-    (* Log.pretty_print ~use_color:color; *)
+    (* Print output *)
+    Log.pretty_print ~use_color:color;
 
     (* Send notifications if requested *)
     (match notify with

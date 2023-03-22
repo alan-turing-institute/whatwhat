@@ -39,11 +39,12 @@ module Raw = GithubRaw
 type github_event =
   | NoMetadataError of Raw.issue (* E2001 *)
   | YamlError of Raw.issue (* E2002 *)
+  | ExtraFieldError of Raw.issue * string (* E2003 *)
   | InvalidFieldError of Raw.issue * string (* E2004 *)
+  | DuplicateFieldError of Raw.issue * string (* E2003 *)
   | FTETimeUnderSpecifiedError of Raw.issue (* E2006 *)
   | FTETimeOverSpecifiedError of Raw.issue (* E2007 *)
   | MissingCompulsoryFieldError of Raw.issue * string (* E2008 *)
-  | ExtraFieldError of Raw.issue * string (* E2009 *)
 
 (* We reexport the Raw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)
