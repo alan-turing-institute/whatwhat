@@ -97,17 +97,35 @@ For reference, the stages of a project, in order, are presently:
 
 and the YAML data block has the following fields:
 
-- [turing-project-code] (SHOULD BE DEPRECATED!) This is (occasionally) used to hold the
-  Finance code; however, projects may not (yet) have a Finance code or may have
-  more than one Finance code. 
-- [earliest-start-date]: missing or null allowed; means "no earliest start date"
-- [latest-start-date]: not null
-- [latest-end-date]: missing or null allowed; means "no latest end date"
-- [max-FTE-percent]: Integer 0–100, null allowed: means "same as nominal"
-- [min-FTE-percent]: Integer 0–100, null allowed: means "same as nominal"
-- [nominal-FTE-percent]: Integer 0–100
-- [FTE-months]: Integer, must not be specified together with [FTE-weeks] 
-- [FTE-weeks]: Integer, must not be specified together with [FTE-months] 
+- [turing-project-code] {i (Should be deprecated?)}
+  - Must be present
+  - May be null, when the finance code is not known yet.
+- [earliest-start-date]
+  - Must be present
+  - May be null, when there is "no earliest start date"
+- [latest-start-date]
+  - Must be present
+  - May not be null
+- [latest-end-date]
+  - Must be present
+  - May be null, when there is "no latest end date"
+- [nominal-FTE-percent]
+  - Must be present
+  - Must be an integer between 0 and 100
+- [max-FTE-percent]
+  - Must be present
+  - May be null, meaning "same as nominal"
+  - If present, must be an integer between 0 and 100
+- [min-FTE-percent]
+  - Must be present
+  - May be null, meaning "same as nominal"
+  - If present, must be an integer between 0 and 100
+- [FTE-months]
+  - Must be present if [FTE-weeks] is not
+  - Must be an integer
+- [FTE-weeks]
+  - Must be present if [FTE-months] is not
+  - Must be an integer
 
 {2 Errors}
 
@@ -116,19 +134,18 @@ error are:
 
 - {b E2001} A metadata block cannot be found at all.
 - {b E2002} A metadata block was found, but is not valid YAML.
-- {b E2003} A metadata field cannot be parsed because its name is not in the
-  list of accepted fields above.
+- {b E2003} An unexpected metadata field is present.
 - {b E2004} A metadata field cannot be parsed because its value is invalid
   (e.g. the wrong type).
 - {b E2005} A metadata field is specified more than once.
 - {b E2006} Neither [FTE-months] nor [FTE-weeks] are given.
 - {b E2007} Both [FTE-months] and [FTE-weeks] are given.
-- {b E2008} Another non-optional metadata field is not present.
-- {b E2009} An unexpected metadata field is present.
+- {b E2008} A compulsory metadata field is not present.
+- {b E2009} A metadata field that cannot be null is null (or empty).
 
 {2 Warnings}
 
-- {b W2001} A field that can be null is null.
+- {b W2001} A field that can be null is null (or empty).
 
 
 
