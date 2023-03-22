@@ -83,7 +83,7 @@ let state_of_column col =
 ;;
 
 type project =
-  { nmbr : int (** The issue number from GitHub *)
+  { number : int (** The issue number from GitHub *)
   ; name : string
   ; state : State.t
   ; programme : string option
@@ -147,7 +147,7 @@ let show_project proj =
   String.concat
     ""
     [ "{**Domain.project**\n"
-    ; Printf.sprintf "GitHub issue number: %d\n" proj.nmbr
+    ; Printf.sprintf "GitHub issue number: %d\n" proj.number
     ; Printf.sprintf "Name: %s\n" proj.name
     ; Printf.sprintf "State: %s\n" (State.show_t proj.state)
     ; "Programme: "

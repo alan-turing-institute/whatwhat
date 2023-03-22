@@ -12,7 +12,8 @@ type github_event =
   | DuplicateFieldError of Raw.issue * string (* E2003 *)
   | FTETimeUnderSpecifiedError of Raw.issue (* E2006 *)
   | FTETimeOverSpecifiedError of Raw.issue (* E2007 *)
-  | MissingCompulsoryFieldError of Raw.issue * string (* E2008 *)
+  | NullFieldError of Raw.issue * string (* E2008 *)
+  | MissingCompulsoryFieldError of Raw.issue * string (* E2009 *)
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log_event (gh_event : github_event) : unit =
@@ -66,12 +67,19 @@ let log_event (gh_event : github_event) : unit =
       ; entity = Log.Project raw_issue.number
       ; message = "Both FTE-months and FTE-weeks were specified."
       }
-  | MissingCompulsoryFieldError (raw_issue, fld) ->
+  | NullFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2008
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
-      ; message = Printf.sprintf "Missing field: <%s>" fld
+      ; message = Printf.sprintf "Field <%s> is null or empty." fld
+      }
+  | MissingCompulsoryFieldError (raw_issue, fld) ->
+    Log.log'
+      { level = Log.Error' 2009
+      ; source = Log.GithubMetadata
+      ; entity = Log.Project raw_issue.number
+      ; message = Printf.sprintf "Field <%s> is not present." fld
       }
 ;;
 
@@ -97,10 +105,15 @@ let ( >>= ) = Result.bind
 
 (* Parse a YAML metadata value into an instance of [metadata_value result],
    returning an [Error] if the field is not of one of the recognised types. *)
-let read_metadata_value prj (pairs : (string * Yaml.value) list) key =
+let read_metadata_value ~compulsory prj (pairs : (string * Yaml.value) list) key =
   let values = pairs |> List.filter (fun (k, _) -> k = key) |> List.map snd in
   match values with
-  | [] -> Ok Missing
+  | [] ->
+    if compulsory
+    then (
+      log_event (MissingCompulsoryFieldError (prj, key));
+      Error ())
+    else Ok Missing
   | _ :: _ :: _ ->
     log_event (DuplicateFieldError (prj, key));
     Error ()
@@ -133,8 +146,8 @@ let read_metadata_value prj (pairs : (string * Yaml.value) list) key =
    error is logged explaining the issue.
 
    The [yaml] block is assumed to be of dictionary type. *)
-let read_float_field n yaml key =
-  let* value_result = read_metadata_value n yaml key in
+let read_float_field ?(compulsory = true) n yaml key =
+  let* value_result = read_metadata_value ~compulsory n yaml key in
   match value_result with
   | Float value -> Ok (Some value)
   | Null | Missing -> Ok None
@@ -153,8 +166,8 @@ let read_float_field n yaml key =
    logged explaining the issue.
 
    The [yaml] block is assumed to be of dictionary type. *)
-let read_string_list_field n yaml key =
-  let* value_result = read_metadata_value n yaml key in
+let read_string_list_field ?(compulsory = true) n yaml key =
+  let* value_result = read_metadata_value ~compulsory n yaml key in
   match value_result with
   | String value -> Ok (Some [ value ])
   | StringList value -> Ok (Some value)
@@ -169,12 +182,11 @@ let read_string_list_field n yaml key =
    parsed into a [CalendarLib.Date] object, or failing this, [Error ()] is returned.
  
    The [yaml] block is assumed to be of dictionary type. *)
-let read_date_field n yaml key =
-  let* value_result = read_metadata_value n yaml key in
+let read_date_field ?(compulsory = true) n yaml key =
+  let* value_result = read_metadata_value ~compulsory n yaml key in
   match value_result with
   | String value ->
-    let date = Utils.date_of_string value in
-    (match date with
+    (match Utils.date_of_string value with
      | Ok date -> Ok (Some date)
      | Error _ ->
        log_event (InvalidFieldError (n, key));
@@ -187,12 +199,12 @@ let read_date_field n yaml key =
 
 (* Take an [option] value for a compulsory field, return [Ok value] if the option is
    [Some], or [Error ()] if it's [None]. In the latter case, log also a
-   [MissingCompulsoryFieldError]. *)
-let enforce_compulsory_field n key value_opt =
+   [NullFieldError]. *)
+let enforce_non_null_field n key value_opt =
   match value_opt with
   | Some value -> Ok value
   | None ->
-    log_event (MissingCompulsoryFieldError (n, key));
+    log_event (NullFieldError (n, key));
     Error ()
 ;;
 
@@ -230,24 +242,24 @@ let metadata_of_yaml issue (pairs : (string * Yaml.value) list) =
   let* () = check_extra_keys issue pairs in
   let* finance_codes =
     read_string_list_field issue pairs "turing-project-code"
-    >>= enforce_compulsory_field issue "turing-project-code"
+    >>= enforce_non_null_field issue "turing-project-code"
   in
   let* earliest_start_date = read_date_field issue pairs "earliest-start-date" in
   let* latest_start_date =
     read_date_field issue pairs "latest-start-date"
-    >>= enforce_compulsory_field issue "turing-project-code"
+    >>= enforce_non_null_field issue "turing-project-code"
   in
   let* latest_end_date = read_date_field issue pairs "latest-end-date" in
   let* max_fte_percent_opt = read_float_field issue pairs "max-FTE-percent" in
   let* min_fte_percent_opt = read_float_field issue pairs "min-FTE-percent" in
   let* nominal_fte_percent =
     read_float_field issue pairs "nominal-FTE-percent"
-    >>= enforce_compulsory_field issue "nominal-FTE-percent"
+    >>= enforce_non_null_field issue "nominal-FTE-percent"
   in
   let max_fte_percent = Option.value max_fte_percent_opt ~default:nominal_fte_percent in
   let min_fte_percent = Option.value min_fte_percent_opt ~default:nominal_fte_percent in
-  let* fte_months = read_float_field issue pairs "FTE-months" in
-  let* fte_weeks = read_float_field issue pairs "FTE-weeks" in
+  let* fte_months = read_float_field ~compulsory:false issue pairs "FTE-months" in
+  let* fte_weeks = read_float_field ~compulsory:false issue pairs "FTE-weeks" in
   let* budget =
     match fte_weeks, fte_months with
     | Some weeks, None -> Ok (FTE_weeks weeks)
@@ -317,7 +329,7 @@ let validate_issue (col_name : string) (issue : Raw.issue) =
   | None -> None
   | Some plan ->
     Some
-      { nmbr = issue.number
+      { number = issue.number
       ; name = issue.title
       ; state = state_of_column col_name
       ; programme = find_programme issue

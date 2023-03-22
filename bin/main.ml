@@ -92,19 +92,22 @@ let ww_export_cmd : unit Cmd.t =
 
 (* ------------------------------- *)
 
-let ww_main notify person issue no_color =
+let ww_main notify person issue no_color quiet =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let color = Unix.isatty Unix.stdout && not no_color in
 
   try
-    let people, projects, assignments = Schedule.get_the_schedule () in
+    let open CalendarLib.Date in
+    let start_date = make 2016 1 1 in
+    let end_date = add (today ()) (Period.year 1) in
+    let people, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
     print_endline "Whatwhat downloaded:";
     Printf.printf "%d people; " (List.length people);
     Printf.printf "%d projects; and " (List.length projects);
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
     (* Print output *)
-    Log.pretty_print ~use_color:color;
+    if not quiet then Log.pretty_print ~use_color:color;
 
     (* Send notifications if requested *)
     (match notify with
@@ -177,8 +180,18 @@ let color_arg =
            to a terminal.")
 ;;
 
+let quiet_arg =
+  Arg.(
+    value
+    & flag
+    & info
+        [ "q"; "quiet" ]
+        ~doc:
+          "Turn off all notifications.")
+;;
+
 let ww_main_term : unit Term.t =
-  Term.(const ww_main $ notify_arg $ person_arg $ issue_arg $ color_arg)
+  Term.(const ww_main $ notify_arg $ person_arg $ issue_arg $ color_arg $ quiet_arg)
 ;;
 
 (* -------------------------------- *)

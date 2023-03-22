@@ -140,8 +140,8 @@ error are:
 - {b E2005} A metadata field is specified more than once.
 - {b E2006} Neither [FTE-months] nor [FTE-weeks] are given.
 - {b E2007} Both [FTE-months] and [FTE-weeks] are given.
-- {b E2008} A compulsory metadata field is not present.
-- {b E2009} A metadata field that cannot be null is null (or empty).
+- {b E2008} A metadata field that cannot be null or empty is null or empty.
+- {b E2009} A compulsory metadata field is not present.
 
 {2 Warnings}
 
@@ -189,6 +189,9 @@ the GitHub metadata.
 - {b W3009} The project is past its latest start date but is not in the
   "Active" column.
 - {b W3010} A Forecast user could not be matched to a user on GitHub.
+- {b W3011} The project programme ('client' on Forecast, 'tags' on GitHub) could
+  not be matched.
+- {b W3012} The project names on Forecast and GitHub could not be matched.
 
 
 {1 Reporting}

@@ -20,4 +20,7 @@ open Domain
 
     TODO This function remains a work-in-progress. For one, we need to have it
     return a list of allocations as well. *)
-val get_the_schedule : unit -> person list * project list * assignment list
+val get_the_schedule
+  :  start_date:CalendarLib.Date.t
+  -> end_date:CalendarLib.Date.t
+  -> person list * project list * assignment list

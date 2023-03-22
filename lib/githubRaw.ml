@@ -339,9 +339,7 @@ let get_project_n_async () =
   let name = Config.get_github_project_name () in
   let* proj_id = get_project_id name in
   let* col_info = get_column_names_and_ids proj_id in
-  let* columns_n =
-    Lwt.all (List.map (fun (name, id) -> get_column_n name id) col_info)
-  in
+  let* columns_n = Lwt.all (List.map (fun (name, id) -> get_column_n name id) col_info) in
   Lwt.return { id = proj_id; name; columns_n }
 ;;
 

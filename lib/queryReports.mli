@@ -26,10 +26,7 @@ val get_name : Raw.person -> string
 val get_title : Raw.issue_r -> string
 
 (** [test_person_name] check if this issue contain reactions from name. *)
-val test_person_name
-  :  string
-  -> Raw.issue_r
-  -> Raw.issue_r option
+val test_person_name : string -> Raw.issue_r -> Raw.issue_r option
 
 (** [issue_summary] returns the issue summary: number, title, state, column. *)
 val issue_summary : string -> string * Raw.issue_r

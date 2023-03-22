@@ -100,7 +100,7 @@ end
 
     {b TODO:} Add back in the list of assignees and emojis (both from Github) *)
 type project =
-  { nmbr : int (** The issue number from GitHub *)
+  { number : int (** The issue number from GitHub *)
   ; name : string
   ; state : State.t
   ; programme : string option

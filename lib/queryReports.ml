@@ -58,9 +58,7 @@ let test_person_name (name : string) (i : Raw.issue_r) =
 let issue_summary lookup_term =
   let proj = GithubRaw.get_project_r () in
   let cols = proj.columns_r in
-  let make_issues (col : Raw.column_r) =
-    List.map (fun i -> col.name, i) col.issues_r
-  in
+  let make_issues (col : Raw.column_r) = List.map (fun i -> col.name, i) col.issues_r in
   let issues = List.concat_map make_issues cols in
   let issues_subset =
     if String.for_all Utils.is_digit lookup_term
@@ -213,9 +211,7 @@ let get_person_reaction_n (i : Raw.issue_r) (name : string) =
 let person_summary (name : string) =
   let proj = GithubRaw.get_project_r () in
   let cols = proj.columns_r in
-  let issues =
-    List.concat_map (fun (c : Raw.column_r) -> c.issues_r) cols
-  in
+  let issues = List.concat_map (fun (c : Raw.column_r) -> c.issues_r) cols in
   let issues_subset = issues |> List.filter_map (test_person_name name) in
   (* Print outputs*)
   if List.length issues_subset = 0
