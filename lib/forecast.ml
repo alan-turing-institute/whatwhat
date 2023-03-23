@@ -37,6 +37,7 @@ type forecast_event =
   | MultipleFinanceCodesWarning of (Raw.project, project) Either.t (* W1002 *)
   | DuplicateIssueNumberWarning of project (* W1003 *)
   | DuplicateIssueNumberNameWarning of project (* W1004 *)
+  | ChoseOneFinanceCodeDebug of (Raw.project, project) Either.t * string list * string
 
 let log_event (fc_event : forecast_event) : unit =
   match fc_event with
@@ -128,6 +129,20 @@ let log_event (fc_event : forecast_event) : unit =
       ; entity = Log.Project p.number
       ; message = "Another project with the same issue number and same name was found."
       }
+  | ChoseOneFinanceCodeDebug (rp_or_p, fcs, chosen_fc) ->
+    Log.log'
+      { level = Log.Debug
+      ; source = Log.Forecast
+      ; entity =
+          (match rp_or_p with
+           | Left rp -> Log.RawForecastProject rp.name
+           | Right p -> Log.Project p.number)
+      ; message =
+          Printf.sprintf
+            "From multiple finance codes <%s>, the following was chosen: <%s>"
+            (fcs |> List.map (fun s -> "'" ^ s ^ "'") |> String.concat ", ")
+            chosen_fc
+      }
 ;;
 
 (* ------------------------------------------------------------  *)
@@ -183,8 +198,7 @@ let validate_project _ (p : Raw.project) =
     Turing finance code. *)
 let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
   (* [rp_or_p] is either the raw project, or the project itself if it was found
-     inside
-     the [projects] map. *)
+     inside the [projects] map. *)
   let rp_or_p =
     match IntMap.find_opt rp.id projects with
     | None -> Either.Left rp
@@ -197,7 +211,17 @@ let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
     None
   | _ ->
     log_event (MultipleFinanceCodesWarning rp_or_p);
-    None
+    (* Try to find the one with the form <char>-<str>-<str>. *)
+    let looks_like_finance_code s =
+      match String.split_on_char '-' s with
+      | [ char; _; _ ] -> String.length char = 1
+      | _ -> false
+    in
+    (match List.filter looks_like_finance_code rp.tags with
+     | [ fc ] ->
+       log_event (ChoseOneFinanceCodeDebug (rp_or_p, rp.tags, fc));
+       Some fc
+     | _ -> None)
 ;;
 
 (* People *)
