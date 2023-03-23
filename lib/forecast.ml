@@ -27,9 +27,9 @@ type project =
 
 type forecast_event =
   | NoProjectCodeError of Raw.project (* E1001 *)
-  | BadProjectCodeError of Raw.project (* E1002 *)
+  | BadProjectCodeError of Raw.project * string (* E1002 *)
   | NoEmailError of Raw.person (* E1003 *)
-  | InvalidEmailError of Raw.person (* E1004 *)
+  | InvalidEmailError of Raw.person * string (* E1004 *)
   | AssignmentToRemovedPersonError of Raw.assignment (* E1005 *)
   | AssignmentToRemovedProjectError of Raw.assignment (* E1006 *)
   | NoClientError of Raw.project (* E1007 *)
@@ -46,53 +46,65 @@ let log_event (fc_event : forecast_event) : unit =
       { level = Log.Error' 1001
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject raw_proj.name
-      ; message = "Project code (i.e. GitHub issue number) not found."
+      ; message =
+          Printf.sprintf
+            "Project code (i.e. GitHub issue number) not found in project <%s>."
+            raw_proj.name
       }
-  | BadProjectCodeError raw_proj ->
+  | BadProjectCodeError (raw_proj, code) ->
     Log.log'
       { level = Log.Error' 1002
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject raw_proj.name
       ; message =
           Printf.sprintf
-            "Malformed project code (i.e. GitHub issue number) %s found."
-            (Option.get raw_proj.code)
+            "Malformed project code (i.e. GitHub issue number) <%s> found in project \
+             <%s>."
+            code
+            raw_proj.name
       }
   | NoEmailError raw_person ->
+    let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Error' 1003
       ; source = Log.Forecast
-      ; entity = Log.RawForecastProject (Raw.make_person_name raw_person)
-      ; message = "No email found."
+      ; entity = Log.RawForecastPerson name
+      ; message = Printf.sprintf "No email found for person <%s>." name
       }
-  | InvalidEmailError raw_person ->
+  | InvalidEmailError (raw_person, email) ->
+    let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Error' 1004
       ; source = Log.Forecast
-      ; entity = Log.RawForecastProject (Raw.make_person_name raw_person)
-      ; message =
-          Printf.sprintf "Invalid email found: <%s>." (Option.get raw_person.email)
+      ; entity = Log.RawForecastPerson name
+      ; message = Printf.sprintf "Invalid email: <%s> found for person <%s>." email name
       }
   | AssignmentToRemovedPersonError raw_assignment ->
     Log.log'
       { level = Log.Error' 1005
       ; source = Log.Forecast
       ; entity = Log.RawForecastAssignment raw_assignment.id
-      ; message = Printf.sprintf "Assignment made to removed person."
+      ; message =
+          Printf.sprintf
+            "Assignment made to removed entity <%s>."
+            (Raw.get_entity_name raw_assignment.entity)
       }
   | AssignmentToRemovedProjectError raw_assignment ->
     Log.log'
       { level = Log.Error' 1006
       ; source = Log.Forecast
       ; entity = Log.RawForecastAssignment raw_assignment.id
-      ; message = Printf.sprintf "Assignment made to removed project."
+      ; message =
+          Printf.sprintf
+            "Assignment made to removed project <%s>."
+            raw_assignment.project.name
       }
   | NoClientError rp ->
     Log.log'
       { level = Log.Error' 1007
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject rp.name
-      ; message = "Client not found."
+      ; message = Printf.sprintf "Client for project <%s> not found." rp.name
       }
   | NoFinanceCodeWarning rp_or_p ->
     Log.log'
@@ -102,7 +114,11 @@ let log_event (fc_event : forecast_event) : unit =
           (match rp_or_p with
            | Left rp -> Log.RawForecastProject rp.name
            | Right p -> Log.Project p.number)
-      ; message = "Finance code not found in project tags."
+      ; message =
+          (match rp_or_p with
+           | Left rp ->
+             Printf.sprintf "Finance code not found in tags for project <%s>." rp.name
+           | Right _ -> "Finance code not found in Forecast project tags.")
       }
   | MultipleFinanceCodesWarning rp_or_p ->
     Log.log'
@@ -112,7 +128,13 @@ let log_event (fc_event : forecast_event) : unit =
           (match rp_or_p with
            | Left rp -> Log.RawForecastProject rp.name
            | Right p -> Log.Project p.number)
-      ; message = "Multiple finance codes found in project tags."
+      ; message =
+          (match rp_or_p with
+           | Left rp ->
+             Printf.sprintf
+               "Multiple finance codes found in tags for project <%s>."
+               rp.name
+           | Right _ -> "Multiple finance codes found in Forecast project tags.")
       }
   | DuplicateIssueNumberWarning p ->
     Log.log'
@@ -120,14 +142,16 @@ let log_event (fc_event : forecast_event) : unit =
       ; source = Log.Forecast
       ; entity = Log.Project p.number
       ; message =
-          "Another project with the same issue number but different name was found."
+          "Another Forecast project with the same issue number but different name was \
+           found."
       }
   | DuplicateIssueNumberNameWarning p ->
     Log.log'
       { level = Log.Warning 1003
       ; source = Log.Forecast
       ; entity = Log.Project p.number
-      ; message = "Another project with the same issue number and same name was found."
+      ; message =
+          "Another Forecast project with the same issue number and same name was found."
       }
   | ChoseOneFinanceCodeDebug (rp_or_p, fcs, chosen_fc) ->
     Log.log'
@@ -164,7 +188,7 @@ let extract_project_number (p : Raw.project) =
     (match Tyre.exec hut23_re code with
      | Ok num -> Some num
      | Error _ ->
-       log_event (BadProjectCodeError p);
+       log_event (BadProjectCodeError (p, code));
        None)
 ;;
 
@@ -244,7 +268,7 @@ let validate_person (p : Raw.person) : person option =
     | Some email ->
       (match Tyre.exec email_re email with
        | Error _ ->
-         log_event (InvalidEmailError p);
+         log_event (InvalidEmailError (p, email));
          None
        | Ok _ ->
          Some

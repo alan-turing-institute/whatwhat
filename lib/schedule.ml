@@ -26,7 +26,7 @@ let log_event (error : schedule_event) =
       ; source = Log.Schedule
       ; entity = Log.Project fc_proj.number
       ; message =
-          Printf.sprintf "No matching GitHub issue for Forecast project %s." fc_proj.name
+          Printf.sprintf "No matching GitHub issue for Forecast project <%s>." fc_proj.name
       }
   | FinanceCodeNotMatchingError proj ->
     Log.log'
@@ -48,7 +48,7 @@ let log_event (error : schedule_event) =
       ; source = Log.Schedule
       ; entity = Log.Project asn.project
       ; message =
-          Printf.sprintf "Assignment of %s ends after project latest end." asn.person
+          Printf.sprintf "Assignment of <%s> ends after project latest end." asn.person
       }
   | AllocationStartsTooEarlyWarning asn ->
     Log.log'
@@ -57,7 +57,7 @@ let log_event (error : schedule_event) =
       ; entity = Log.Project asn.project
       ; message =
           Printf.sprintf
-            "Assignment of %s begins before project earliest start."
+            "Assignment of <%s> begins before project earliest start."
             asn.person
       }
   | ActiveProjectWithoutAssignmentWarning proj ->
@@ -88,7 +88,7 @@ let log_event (error : schedule_event) =
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message =
-          Printf.sprintf "Project programme does not match on Forecast and GitHub."
+          Printf.sprintf "Project programmes on Forecast and GitHub do not match."
       }
   | DifferentNameWarning proj ->
     Log.log'

@@ -81,13 +81,20 @@ let isDebug e =
 (* TODO implement this function properly *)
 let extract_issue_number event =
   match event.entity with
-  | RawForecastProject _ -> None
   | Project n -> Some n
-  | RawForecastPerson _ -> None
-  | Person _ -> None
-  | RawForecastAssignment _ -> None
-  | Assignment _ -> None
-  | Other -> None
+  | _ -> None
+;;
+
+(* TODO implement this function properly *)
+let extract_source event =
+  match event.entity with
+  | RawForecastProject _ -> "FCRaw:Project"
+  | Project n -> Printf.sprintf "Issue %-5d" n
+  | RawForecastPerson _ -> "FCRaw:Person"
+  | Person _ -> "Person"
+  | RawForecastAssignment _ -> "FCRaw:Assignment"
+  | Assignment _ -> "Assignment"
+  | Other -> "Other"
 ;;
 
 let should_be_shown ~verbose ~suppressed_codes event =
@@ -110,24 +117,21 @@ let pretty_print_event ~use_color e =
     | Info -> "INFO "
     | Debug -> "DEBUG"
   in
-  let header =
-    match extract_issue_number e with
-    | Some i -> sprintf (color [ Bold ]) "Issue %-5d" i
-    | None -> sprintf (color [ Bold ]) "Something else"
-  in
+  let header = sprintf (color [ Bold ]) "%-20s" (extract_source e) in
   Printf.printf "%s %s %s\n" header error_code e.message
 ;;
 
 let pretty_print ~use_color ~verbose ~suppressed_codes =
   let compare_events e1 e2 =
     (* Compare on issue number first, then error code *)
-    match
+    let issue_number_cmp =
       match extract_issue_number e1, extract_issue_number e2 with
       | None, None -> 0
       | None, Some _ -> -1
       | Some _, None -> 1
       | Some x, Some y -> Stdlib.compare x y
-    with
+    in
+    match issue_number_cmp with
     | 0 -> compare_level e1.level e2.level
     | n -> n
   in
