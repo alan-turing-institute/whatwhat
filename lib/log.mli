@@ -48,4 +48,4 @@ val isWarning : event -> bool
 val isInfo : event -> bool
 val isDebug : event -> bool
 val pretty_print_event : use_color:bool -> event -> unit
-val pretty_print : use_color:bool -> unit
+val pretty_print : use_color:bool -> verbose:int -> suppressed_codes:level list -> unit

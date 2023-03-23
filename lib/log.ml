@@ -90,6 +90,16 @@ let extract_issue_number event =
   | Other -> None
 ;;
 
+let should_be_shown ~verbose ~suppressed_codes event =
+  (not (List.mem event.level suppressed_codes))
+  &&
+  match event.level with
+  | Error' _ -> true
+  | Warning _ -> true
+  | Info -> verbose >= 1
+  | Debug -> verbose >= 2
+;;
+
 let pretty_print_event ~use_color e =
   let open ANSITerminal in
   let color styles = if use_color then styles else [] in
@@ -97,8 +107,8 @@ let pretty_print_event ~use_color e =
     match e.level with
     | Error' n -> sprintf (color [ Foreground Red ]) "E%d" n
     | Warning n -> sprintf (color [ Foreground Yellow ]) "W%d" n
-    | Info -> "I"
-    | Debug -> "D"
+    | Info -> "INFO "
+    | Debug -> "DEBUG"
   in
   let header =
     match extract_issue_number e with
@@ -108,7 +118,7 @@ let pretty_print_event ~use_color e =
   Printf.printf "%s %s %s\n" header error_code e.message
 ;;
 
-let pretty_print ~use_color =
+let pretty_print ~use_color ~verbose ~suppressed_codes =
   let compare_events e1 e2 =
     (* Compare on issue number first, then error code *)
     match
@@ -123,6 +133,7 @@ let pretty_print ~use_color =
   in
   the_log
   |> Stack.to_seq
+  |> Seq.filter (should_be_shown ~verbose ~suppressed_codes)
   |> List.of_seq
   |> List.stable_sort compare_events
   |> List.iter (pretty_print_event ~use_color)

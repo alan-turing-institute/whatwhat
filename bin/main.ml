@@ -92,7 +92,7 @@ let ww_export_cmd : unit Cmd.t =
 
 (* ------------------------------- *)
 
-let ww_main notify person issue no_color quiet =
+let ww_main notify person issue no_color quiet verbose suppressed_codes =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let color = Unix.isatty Unix.stdout && not no_color in
 
@@ -107,7 +107,7 @@ let ww_main notify person issue no_color quiet =
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
     (* Print output *)
-    if not quiet then Log.pretty_print ~use_color:color;
+    if not quiet then Log.pretty_print ~use_color:color ~verbose ~suppressed_codes;
 
     (* Send notifications if requested *)
     (match notify with
@@ -129,11 +129,11 @@ let ww_main notify person issue no_color quiet =
   with
   | Failure msg ->
     let open ANSITerminal in
-    Log.pretty_print ~use_color:color;
+    Log.pretty_print ~use_color:color ~verbose ~suppressed_codes;
     let style = if color then [ Bold; Foreground Red ] else [] in
     eprintf style "Fatal error: ";
     eprintf [] "%s\n" msg;
-    exit 2
+    exit Cmd.Exit.internal_error  (* Defined as 125. *)
 ;;
 
 (* Capture the arguments *)
@@ -150,7 +150,6 @@ let notify_arg =
     "Where to send notifications. $(docv) may be $(b,github), $(b,slack), $(b,all), or \
      $(b,none). Note that terminal output is always enabled."
   in
-
   Arg.(value & opt tgs Notify.NoTarget & info [ "n"; "notify" ] ~docv:"NOTIFY" ~doc)
 ;;
 
@@ -183,8 +182,51 @@ let quiet_arg =
   Arg.(value & flag & info [ "q"; "quiet" ] ~doc:"Turn off all notifications.")
 ;;
 
+let verbose_arg =
+  Term.app
+    (Term.const List.length)
+    Arg.(
+      value
+      & flag_all
+      & info
+          [ "v"; "verbose" ]
+          ~doc:
+            "Increase verbosity. -v shows INFO messages, and -vv additionally shows \
+             DEBUG messages.")
+;;
+
+let suppress_codes_arg =
+  let e = Tyre.((char 'e' *> int) --> fun i -> Log.Error' i) in
+  let w = Tyre.((char 'w' *> int) --> fun i -> Log.Warning i) in
+  let code_regex = Tyre.route [ e; w ] in
+  let parse_code c =
+    match Tyre.exec code_regex (String.lowercase_ascii c) with
+    | Ok code -> Some code
+    | Error _ -> None
+  in
+  Term.app
+    (Term.const (List.filter_map parse_code))
+    Arg.(
+      value
+      & opt (list string) []
+      & info
+          [ "suppress" ]
+          ~doc:
+            "Suppress specific error codes. $(docv) should be passed as a \
+             comma-separated list and is case-insensitive."
+          ~docv:"CODES")
+;;
+
 let ww_main_term : unit Term.t =
-  Term.(const ww_main $ notify_arg $ person_arg $ issue_arg $ color_arg $ quiet_arg)
+  Term.(
+    const ww_main
+    $ notify_arg
+    $ person_arg
+    $ issue_arg
+    $ color_arg
+    $ quiet_arg
+    $ verbose_arg
+    $ suppress_codes_arg)
 ;;
 
 (* -------------------------------- *)
