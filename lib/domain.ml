@@ -2,21 +2,43 @@
 
 module IntMap = Map.Make (Int)
 module StringMap = Map.Make (String)
+module DateMap = Map.Make (CalendarLib.Date)
 
 type resource =
   | FTE_weeks of float
   | FTE_months of float
 [@@deriving show]
 
-type rate = Rate of float
+module FTE = struct
+  type t = FTE of float
 
-type simple_allocation =
-  { start_date : CalendarLib.Date.t
-  ; days : CalendarLib.Date.Period.t (* [days >=0] must be true *)
-  ; rate : rate
-  }
+  let from_forecast_rate n = FTE (float_of_int n /. (60. *. 60. *. 8.))
+  let add (FTE x) (FTE y) = FTE (x +. y)
+  let get (FTE x) = x
+end
 
-type allocation = simple_allocation list
+type allocation = FTE.t DateMap.t
+
+let make_allocation start_date end_date fte =
+  let open CalendarLib.Date in
+  let is_weekend date =
+    match day_of_week date with
+    | Sat | Sun -> true
+    | _ -> false
+  in
+  let rec accum date map =
+    if date > end_date
+    then map
+    else (
+      let next_day = add date (Period.day 1) in
+      if is_weekend date
+      then accum next_day map
+      else DateMap.add date fte (accum next_day map))
+  in
+  accum start_date DateMap.empty
+;;
+
+let combine_allocations a1 a2 = DateMap.union (fun _ v1 v2 -> Some (FTE.add v1 v2)) a1 a2
 
 type project_plan =
   { budget : resource
@@ -98,96 +120,11 @@ type person =
   }
 
 type assignment =
-  { project : int (* The project code *)
-  ; person : string (* An email *)
+  { project : int  (** GitHub issue number *)
+  ; person : string
   ; finance_code : string option
   ; allocation : allocation
   }
-
-let show_project_plan plan =
-  let dts = CalendarLib.Printer.Date.to_string in
-  String.concat
-    ""
-    [ "{**Domain.project_plan**"
-    ; "\n"
-    ; "Budget: "
-    ; plan.budget |> show_resource
-    ; "Finance codes: ["
-    ; String.concat ";" plan.finance_codes
-    ; "]"
-    ; "\n"
-    ; "Latest start date: "
-    ; dts plan.latest_start_date
-    ; "\n"
-    ; "Earliest start date: "
-    ; (match plan.earliest_start_date with
-       | Some x -> "Some " ^ dts x
-       | None -> "None")
-    ; "\n"
-    ; "Latest end date: "
-    ; (match plan.latest_end_date with
-       | Some x -> "Some " ^ dts x
-       | None -> "None")
-    ; "\n"
-    ; Printf.sprintf "Nominal FTE percent: %f\n" plan.nominal_fte_percent
-    ; Printf.sprintf "Maximum FTE percent: %f\n" plan.max_fte_percent
-    ; Printf.sprintf "Minimum FTE percent: %f\n" plan.min_fte_percent
-    ; "}"
-    ]
-;;
-
-(* type project = *)
-(*   { nmbr : int  *)
-(*   ; name : string *)
-(*   ; state : State.t *)
-(*   ; programme : string option *)
-(*   ; plan : project_plan *)
-(*   } *)
-let show_project proj =
-  String.concat
-    ""
-    [ "{**Domain.project**\n"
-    ; Printf.sprintf "GitHub issue number: %d\n" proj.number
-    ; Printf.sprintf "Name: %s\n" proj.name
-    ; Printf.sprintf "State: %s\n" (State.show_t proj.state)
-    ; "Programme: "
-    ; (match proj.programme with
-       | Some x -> "Some " ^ x
-       | None -> "None")
-    ; "\n"
-    ; "Project plan: "
-    ; show_project_plan proj.plan
-    ; "\n"
-    ; "}"
-    ]
-;;
-
-let show_allocation alloc =
-  let days = CalendarLib.Date.Period.nb_days alloc.days in
-  match alloc.rate with
-  | Rate f ->
-    Printf.sprintf
-      " Start date: %s; Duration: %d days; Rate: %f"
-      (CalendarLib.Printer.Date.to_string alloc.start_date)
-      days
-      f
-;;
-
-let show_assignment asn =
-  let pf = Printf.sprintf in
-  String.concat
-    "\n"
-    ([ pf "{**Domain.assignment**"
-     ; pf "    Project : %d" asn.project
-     ; pf "    Person : %s" asn.person
-     ]
-    @ (match asn.finance_code with
-       | Some f -> [ pf "    Finance code : %s" f ]
-       | None -> [])
-    @ [ pf "    Allocations : [" ]
-    @ List.map show_allocation asn.allocation
-    @ [ pf "    ]"; pf "}" ])
-;;
 
 type schedule =
   { projects : project IntMap.t

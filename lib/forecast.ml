@@ -233,10 +233,6 @@ let validate_person (p : Raw.person) : person option =
 
 (* Allocations *)
 
-(** Forecast reports rates as seconds in a day. We divide by the number of seconds in 8h
-    to get the FTE percentage.*)
-let forecast_rate_to_fte_percent n = float_of_int n /. float_of_int (60 * 60 * 8)
-
 (* Parse Raw.assignments into Forecast.assignments.
 
    At this stage we ignore the fact that many assignments may actually concern the same
@@ -260,17 +256,16 @@ let validate_assignment people projects fcs (a : Raw.assignment) =
         | None ->
           log_event (AssignmentToRemovedProjectError a);
           None
-        | Some _ ->
+        | Some prj ->
           Some
-            { project = a.project.id
+            { project = prj.number
             ; person = valid_person.email
             ; finance_code = Raw.IntMap.find_opt a.project.id fcs
             ; allocation =
-                [ { start_date = a.start_date
-                  ; days = CalendarLib.Date.sub a.end_date a.start_date
-                  ; rate = Rate (forecast_rate_to_fte_percent a.allocation)
-                  }
-                ]
+                make_allocation
+                  a.start_date
+                  a.end_date
+                  (FTE.from_forecast_rate a.allocation)
             }))
 ;;
 
@@ -279,17 +274,11 @@ let validate_assignment people projects fcs (a : Raw.assignment) =
 module PPF = struct
   type t = int * string * string option
 
-  let compare (x0, y0, z0) (x1, y1, z1) =
-    match Stdlib.compare x0 x1 with
-    | 0 ->
-      (match Stdlib.compare y0 y1 with
-       | 0 -> Stdlib.compare z0 z1
-       | c -> c)
-    | c -> c
-  ;;
+  let compare = Stdlib.compare
 end
 
 module AssignmentMap = Map.Make (PPF)
+module DateMap = Map.Make (CalendarLib.Date)
 
 (* Collect all the assignments related to a set of project, person, and finance code
    together, and join their allocations. *)
@@ -305,7 +294,7 @@ let collate_allocations assignments =
         { project = a.project
         ; person = a.person
         ; finance_code = a.finance_code
-        ; allocation = existing_assignment.allocation @ a.allocation
+        ; allocation = combine_allocations a.allocation existing_assignment.allocation
         }
       (* Otherwise add a new assignment to the map. *)
       | None -> a

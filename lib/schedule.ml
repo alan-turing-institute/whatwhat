@@ -5,7 +5,7 @@ open Domain
 (* ---------------------------------------------------------------------- *)
 (* LOGGING *)
 
-type schedule_error =
+type schedule_event =
   | MissingGithubProjectError of Forecast.project (* E3001 TODO why is this an error? *)
   | FinanceCodeNotMatchingError of project (* E3002 *)
   | MissingForecastProjectWarning of project (* W3001 *)
@@ -16,10 +16,9 @@ type schedule_error =
   | NoMatchingGithubUserWarning of person (* W3010 *)
   | DifferentClientWarning of project (* W3011 *)
   | DifferentNameWarning of project (* W3012 *)
-  | AssignmentWithoutProject of assignment (* TODO What to do with this? *)
+  | AssignmentWithoutProjectDebug of assignment (* TODO What to do with this? *)
 
-(** TODO *)
-let log_event (error : schedule_error) =
+let log_event (error : schedule_event) =
   match error with
   | MissingGithubProjectError fc_proj ->
     Log.log'
@@ -98,24 +97,22 @@ let log_event (error : schedule_error) =
       ; entity = Log.Project proj.number
       ; message = Printf.sprintf "Project name does not match on Forecast and GitHub."
       }
-  | AssignmentWithoutProject _ -> ()
+  | AssignmentWithoutProjectDebug asn ->
+    Log.log'
+      { level = Log.Debug
+      ; source = Log.Schedule
+      ; entity = Log.Project asn.project
+      ; message = Printf.sprintf "Assignment made to project that has been deleted."
+      }
 ;;
 
 (* ---------------------------------------------------------------------- *)
 (* MERGE PEOPLE FROM FORECAST AND GITHUB *)
 
-let compare_opts a b =
-  match a, b with
-  | Some x, Some y -> x = y
-  | _ -> false
-;;
-
 (** Find the matching Github user for Forecast user fc_p.*)
 let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : person) =
   let person_matches (gh_p : Github.person) =
-    let emails_match = compare_opts gh_p.email (Some fc_p.email) in
-    let names_match = compare_opts gh_p.name (Some fc_p.full_name) in
-    emails_match || names_match
+    gh_p.email = Some fc_p.email || gh_p.name = Some fc_p.full_name
   in
   let gh_person = List.find_opt person_matches gh_people in
   if gh_person = None then log_event (NoMatchingGithubUserWarning fc_p);
@@ -123,10 +120,11 @@ let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : person) 
 ;;
 
 (** Create a list of all people, merging data from Forecast and Github. *)
-let get_people_list (fc_people : person list) (gh_people : Github.person list) =
+let merge_people (fc_people : person list) (gh_people : Github.person list) =
   (* We fold over Forecast people, looking for the matching Github person for each,
      since Forecast is considered authoritative for people. *)
-  let add_person (fc_p : person) m =
+  (* TODO: Get Slack handle. *)
+  let add_person m (fc_p : person) =
     let gh_p_opt = get_matching_gh_person_opt gh_people fc_p in
     let login_opt =
       match gh_p_opt with
@@ -140,9 +138,9 @@ let get_people_list (fc_people : person list) (gh_people : Github.person list) =
       ; slack_handle = None
       }
     in
-    m @ [ new_person ]
+    new_person :: m
   in
-  List.fold_right add_person fc_people []
+  List.fold_left add_person fc_people []
 ;;
 
 (* ---------------------------------------------------------------------- *)
@@ -173,11 +171,12 @@ let person_opt_of_gh_person (people : person list) (gh_person : Github.person) =
 ;;
 *)
 
-(* Check that each Forecast project has a hut23 code which matches that of a
-   GitHub project.
- *)
 type project_pair = Pair of (Forecast.project option * project option)
 
+(* Check that each Forecast project has a hut23 code which matches that of a
+   GitHub project. Additionally, check that the programmes and names of the
+   projects are the same on both platforms.
+ *)
 let merge_projects
   (fc_projects : Forecast.project IntMap.t)
   (gh_issues : project IntMap.t)
@@ -221,22 +220,16 @@ let check_end_date (prj : project) (asg : assignment) =
   match prj.plan.latest_end_date with
   | None -> ()
   | Some latest_end_date ->
-    let check_simple_allocation simple_aln =
-      if CalendarLib.Date.add simple_aln.start_date simple_aln.days > latest_end_date
-      then log_event (AllocationEndsTooLateWarning asg)
-    in
-    List.iter check_simple_allocation asg.allocation
+    if fst (DateMap.max_binding asg.allocation) > latest_end_date
+    then log_event (AllocationEndsTooLateWarning asg)
 ;;
 
 let check_start_date (prj : project) (asg : assignment) =
   match prj.plan.earliest_start_date with
   | None -> ()
   | Some earliest_start_date ->
-    let check_simple_allocation simple_aln =
-      if simple_aln.start_date < earliest_start_date
-      then log_event (AllocationStartsTooEarlyWarning asg)
-    in
-    List.iter check_simple_allocation asg.allocation
+    if fst (DateMap.min_binding asg.allocation) < earliest_start_date
+    then log_event (AllocationStartsTooEarlyWarning asg)
 ;;
 
 let check_assignment _ projects (asg : assignment) =
@@ -245,20 +238,13 @@ let check_assignment _ projects (asg : assignment) =
   in
   match prj_opt with
   | None ->
-    (* TODO There should probably be a check here, where if this project is not in one of
-       the columns that we process in github.ml, then there's no reason to raise an
-       error. *)
-    log_event (AssignmentWithoutProject asg);
+    log_event (AssignmentWithoutProjectDebug asg);
     false
   | Some prj ->
     check_finance_code prj asg;
     check_end_date prj asg;
     check_start_date prj asg;
     true
-;;
-
-let check_assignments people projects assignments =
-  List.filter (check_assignment people projects) assignments
 ;;
 
 module IntMap = Map.Make (Int)
@@ -308,9 +294,9 @@ let get_the_schedule ~start_date ~end_date =
     |> IntMap.of_seq
   in
   let gh_people = Github.all_users in
-  let people = get_people_list fc_people gh_people in
+  let people = merge_people fc_people gh_people in
   let projects = merge_projects fc_projects gh_issues in
-  let assignments = check_assignments people projects fc_assignments in
+  let assignments = List.filter (check_assignment people projects) fc_assignments in
   check_projects projects assignments;
 
   people, projects, assignments
