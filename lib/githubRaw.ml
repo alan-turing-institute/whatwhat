@@ -64,26 +64,28 @@ let person_of_json json =
   }
 ;;
 
-let all_users =
-  let query =
-    Printf.sprintf
-      {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
-      (Config.get_github_repo_owner ())
-      (Config.get_github_repo_name ())
-  in
-  let github_graph_ql_endpoint = Config.get_github_url () ^ "/graphql" in
-  let body_json =
-    run_github_query ~http_method:POST ~body:query github_graph_ql_endpoint
-  in
-  let open Yojson.Basic.Util in
-  body_json
-  |> member "data"
-  |> member "repository"
-  |> member "assignableUsers"
-  |> member "edges"
-  |> convert_each (fun json -> json |> member "node" |> person_of_json)
+let lazy_all_users =
+  lazy
+    (let query =
+       Printf.sprintf
+         {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
+         (Config.get_github_repo_owner ())
+         (Config.get_github_repo_name ())
+     in
+     let github_graph_ql_endpoint = Config.get_github_url () ^ "/graphql" in
+     let body_json =
+       run_github_query ~http_method:POST ~body:query github_graph_ql_endpoint
+     in
+     let open Yojson.Basic.Util in
+     body_json
+     |> member "data"
+     |> member "repository"
+     |> member "assignableUsers"
+     |> member "edges"
+     |> convert_each (fun json -> json |> member "node" |> person_of_json))
 ;;
 
+let all_users = Lazy.force lazy_all_users
 let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_users
 
 (** Issues ------------------------------------------- *)
