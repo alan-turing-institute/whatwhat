@@ -120,7 +120,7 @@ type person =
   }
 
 type assignment =
-  { project : int  (** GitHub issue number *)
+  { project : int (** GitHub issue number *)
   ; person : string
   ; finance_code : string option
   ; allocation : allocation

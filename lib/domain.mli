@@ -34,6 +34,7 @@ val show_resource : resource -> string
     *)
 module FTE : sig
   type t
+
   val from_forecast_rate : int -> t
   val add : t -> t -> t
   val get : t -> float
@@ -64,17 +65,10 @@ end
 type allocation = FTE.t DateMap.t
 
 (** Turn details from a Forecast assignment into an allocation. *)
-val make_allocation
-  : CalendarLib.Date.t
-  -> CalendarLib.Date.t
-  -> FTE.t
-  -> FTE.t DateMap.t
+val make_allocation : CalendarLib.Date.t -> CalendarLib.Date.t -> FTE.t -> FTE.t DateMap.t
 
 (** Merge two allocations. This function is commutative. *)
-val combine_allocations
-  : FTE.t DateMap.t
-  -> FTE.t DateMap.t
-  -> FTE.t DateMap.t
+val combine_allocations : FTE.t DateMap.t -> FTE.t DateMap.t -> FTE.t DateMap.t
 
 (** {1 Entities relevant to scheduling and planning} *)
 
@@ -109,6 +103,7 @@ module State : sig
     | Done
     | Cancelled
     | Rejected
+
   val show_t : t -> string
 end
 
@@ -143,7 +138,6 @@ type assignment =
   ; finance_code : string option
   ; allocation : allocation
   }
-
 
 type schedule =
   { projects : project IntMap.t

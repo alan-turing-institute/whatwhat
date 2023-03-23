@@ -111,12 +111,11 @@ let ww_main notify person issue no_color quiet =
 
     (* Send notifications if requested *)
     (match notify with
-    | Notify.NoTarget -> print_endline "No notifications requested."
-    | Notify.Github -> print_endline "CATCH: this would post reports to GitHub."
-    (* Notify.post_metadata_reports () *)
-    | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
-    | Notify.All ->
-        print_endline "CATCH: this would post reports to everywhere!";);
+     | Notify.NoTarget -> print_endline "No notifications requested."
+     | Notify.Github -> print_endline "CATCH: this would post reports to GitHub."
+     (* Notify.post_metadata_reports () *)
+     | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
+     | Notify.All -> print_endline "CATCH: this would post reports to everywhere!");
 
     (* Query a person's reactions *)
     if person <> "none"
@@ -181,13 +180,7 @@ let color_arg =
 ;;
 
 let quiet_arg =
-  Arg.(
-    value
-    & flag
-    & info
-        [ "q"; "quiet" ]
-        ~doc:
-          "Turn off all notifications.")
+  Arg.(value & flag & info [ "q"; "quiet" ] ~doc:"Turn off all notifications.")
 ;;
 
 let ww_main_term : unit Term.t =
