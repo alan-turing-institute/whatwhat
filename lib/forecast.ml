@@ -30,13 +30,15 @@ type forecast_event =
   | BadProjectCodeError of Raw.project * string (* E1002 *)
   | NoEmailError of Raw.person (* E1003 *)
   | InvalidEmailError of Raw.person * string (* E1004 *)
-  | AssignmentToRemovedPersonError of Raw.assignment (* E1005 *)
-  | AssignmentToRemovedProjectError of Raw.assignment (* E1006 *)
-  | NoClientError of Raw.project (* E1007 *)
+  | NoClientError of Raw.project (* E1005 *)
   | NoFinanceCodeWarning of (Raw.project, project) Either.t (* W1001 *)
   | MultipleFinanceCodesWarning of (Raw.project, project) Either.t (* W1002 *)
   | DuplicateIssueNumberWarning of project (* W1003 *)
   | DuplicateIssueNumberNameWarning of project (* W1004 *)
+  | AssignmentToRemovedPersonInfo of Raw.assignment
+  | AssignmentToRemovedProjectInfo of Raw.assignment
+  | NonREGPersonInfo of Raw.person
+  | ArchivedPersonDebug of Raw.person
   | ChoseOneFinanceCodeDebug of (Raw.project, project) Either.t * string list * string
 
 let log_event (fc_event : forecast_event) : unit =
@@ -79,29 +81,9 @@ let log_event (fc_event : forecast_event) : unit =
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "Invalid email: <%s> found for person <%s>." email name
       }
-  | AssignmentToRemovedPersonError raw_assignment ->
-    Log.log'
-      { level = Log.Error' 1005
-      ; source = Log.Forecast
-      ; entity = Log.RawForecastAssignment raw_assignment.id
-      ; message =
-          Printf.sprintf
-            "Assignment made to removed entity <%s>."
-            (Raw.get_entity_name raw_assignment.entity)
-      }
-  | AssignmentToRemovedProjectError raw_assignment ->
-    Log.log'
-      { level = Log.Error' 1006
-      ; source = Log.Forecast
-      ; entity = Log.RawForecastAssignment raw_assignment.id
-      ; message =
-          Printf.sprintf
-            "Assignment made to removed project <%s>."
-            raw_assignment.project.name
-      }
   | NoClientError rp ->
     Log.log'
-      { level = Log.Error' 1007
+      { level = Log.Error' 1005
       ; source = Log.Forecast
       ; entity = Log.RawForecastProject rp.name
       ; message = Printf.sprintf "Client for project <%s> not found." rp.name
@@ -152,6 +134,42 @@ let log_event (fc_event : forecast_event) : unit =
       ; entity = Log.Project p.number
       ; message =
           "Another Forecast project with the same issue number and same name was found."
+      }
+  | AssignmentToRemovedPersonInfo raw_assignment ->
+    Log.log'
+      { level = Log.Info
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastAssignment raw_assignment.id
+      ; message =
+          Printf.sprintf
+            "Assignment made to removed entity <%s>."
+            (Raw.get_entity_name raw_assignment.entity)
+      }
+  | AssignmentToRemovedProjectInfo raw_assignment ->
+    Log.log'
+      { level = Log.Info
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastAssignment raw_assignment.id
+      ; message =
+          Printf.sprintf
+            "Assignment made to removed project <%s>."
+            raw_assignment.project.name
+      }
+  | NonREGPersonInfo raw_person ->
+    let name = Raw.make_person_name raw_person in
+    Log.log'
+      { level = Log.Info
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastPerson name
+      ; message = Printf.sprintf "Ignoring non-REG person <%s>." name
+      }
+  | ArchivedPersonDebug raw_person ->
+    let name = Raw.make_person_name raw_person in
+    Log.log'
+      { level = Log.Debug
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastPerson name
+      ; message = Printf.sprintf "Ignoring archived person <%s>." name
       }
   | ChoseOneFinanceCodeDebug (rp_or_p, fcs, chosen_fc) ->
     Log.log'
@@ -252,14 +270,19 @@ let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
 
 (** [validate_person p] ensures that the person [p]:
     1. has not been archived; and
-    2. has a valid email address.
+    2. has the 'REG' tag; and
+    3. has a valid email address.
+
+    The email error is raised only if a person passes the first two checks.
     *)
 let validate_person (p : Raw.person) : person option =
   let email_re =
     Tyre.compile (Tyre.pcre {|^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$|})
   in
   if p.archived
-  then None
+  then (log_event (ArchivedPersonDebug p); None)
+  else if not (List.mem "REG" p.roles)
+  then (log_event (NonREGPersonInfo p); None)
   else (
     match p.email with
     | None ->
@@ -296,13 +319,13 @@ let validate_assignment people projects fcs (a : Raw.assignment) =
     (match IntMap.find_opt person.id people with
      (* Check that the person wasn't deleted. *)
      | None ->
-       log_event (AssignmentToRemovedPersonError a);
+       log_event (AssignmentToRemovedPersonInfo a);
        None
      | Some valid_person ->
        (match IntMap.find_opt a.project.id projects with
         (* Check that the project wasn't deleted. *)
         | None ->
-          log_event (AssignmentToRemovedProjectError a);
+          log_event (AssignmentToRemovedProjectInfo a);
           None
         | Some prj ->
           Some
@@ -382,8 +405,6 @@ let make_project_map projects_id : project IntMap.t =
 
 let get_the_schedule ~start_date ~end_date =
   let _, peopl, _, projs, asnts = Raw.get_the_schedule ~start_date ~end_date in
-
-  (* A things_id is a map from raw Forecast ids to the thing *)
   let projects_id = IntMap.filter_map validate_project projs in
   let fcs_id = IntMap.filter_map (extract_finance_code projects_id) projs in
   let people_id = IntMap.filter_map (fun _ p -> validate_person p) peopl in

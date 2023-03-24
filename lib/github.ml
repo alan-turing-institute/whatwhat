@@ -14,6 +14,8 @@ type github_event =
   | FTETimeOverSpecifiedError of Raw.issue (* E2007 *)
   | NullFieldError of Raw.issue * string (* E2008 *)
   | MissingCompulsoryFieldError of Raw.issue * string (* E2009 *)
+  | NoFinanceCodesError of Raw.issue (* E2010 *)
+  | NoFinanceCodesWarning of Raw.issue (* W2001 *)
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log_event (gh_event : github_event) : unit =
@@ -80,6 +82,20 @@ let log_event (gh_event : github_event) : unit =
       ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> is not present." fld
+      }
+  | NoFinanceCodesError raw_issue ->
+    Log.log'
+      { level = Log.Error' 2010
+      ; source = Log.GithubMetadata
+      ; entity = Log.Project raw_issue.number
+      ; message = "Finance codes in GitHub metadata were empty."
+      }
+  | NoFinanceCodesWarning raw_issue ->
+    Log.log'
+      { level = Log.Warning 2001
+      ; source = Log.GithubMetadata
+      ; entity = Log.Project raw_issue.number
+      ; message = "Finance codes in GitHub metadata were empty."
       }
 ;;
 
@@ -241,8 +257,11 @@ let check_extra_keys n (pairs : (string * Yaml.value) list) =
 let metadata_of_yaml issue (pairs : (string * Yaml.value) list) =
   let* () = check_extra_keys issue pairs in
   let* finance_codes =
-    read_string_list_field issue pairs "turing-project-code"
-    >>= enforce_non_null_field issue "turing-project-code"
+    let* finance_codes_opt = read_string_list_field issue pairs "turing-project-code" in
+    Ok
+      (match finance_codes_opt with
+       | Some xs -> xs
+       | None -> [])
   in
   let* earliest_start_date = read_date_field issue pairs "earliest-start-date" in
   let* latest_start_date =
@@ -328,6 +347,11 @@ let validate_issue (col_name : string) (issue : Raw.issue) =
   match parse_metadata issue with
   | None -> None
   | Some plan ->
+    let state = state_of_column col_name in
+    (match state >= State.FindingPeople, plan.finance_codes with
+    | false, [] -> log_event (NoFinanceCodesWarning issue)
+    | true, [] -> log_event (NoFinanceCodesError issue)
+    | _ -> ());
     Some
       { number = issue.number
       ; name = issue.title

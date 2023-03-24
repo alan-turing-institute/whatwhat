@@ -50,11 +50,7 @@ sources of errors are projects.
   not quite accurate (the technical definition is in
   {{: https://www.rfc-editor.org/rfc/rfc5322 }RFC 5322}), but is really enough
   to catch empty emails and other typos.
-- {b E1005} The assignment person does not match a person (probably because we
-  have deleted it).
-- {b E1006} The assignment project does not match a project (probably because we
-  have deleted it).
-- {b E1007} The project has no client on Forecast. This occurs naturally with
+- {b E1005} The project has no client on Forecast. This occurs naturally with
   the built-in 'Time Off' project. To suppress this error, this project should
   be added to the 'ignoredForecastProjects' configuration variable.
 
@@ -70,8 +66,14 @@ sources of errors are projects.
   Forecast will refer to the same real-world project. However, it's a useful
   thing to be aware of.)
 
+{2 Info messages}
 
+- When ignoring a person without the 'REG' tag.
+- When deleting an assignment to a person who has been removed.
+- When deleting an assignment to a project that has been removed.
 
+{2 Debug messages}
+- When ignoring an archived person.
 
 
 {1 Reading data from GitHub}
@@ -142,10 +144,13 @@ error are:
 - {b E2007} Both [FTE-months] and [FTE-weeks] are given.
 - {b E2008} A metadata field that cannot be null or empty is null or empty.
 - {b E2009} A compulsory metadata field is not present.
+- {b E2010} A project is in 'Finding People' or later, but the finance code is
+  null or empty.
 
 {2 Warnings}
 
-- {b W2001} A field that can be null is null (or empty).
+- {b W2001} A project is not yet in 'Finding People' or later, but the finance
+  code is null or empty.
 
 
 
