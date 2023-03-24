@@ -410,3 +410,6 @@ let get_project_r_async () =
 ;;
 
 let get_project_r () = get_project_r_async () |> Lwt_main.run
+
+(** Fetch a series of projects *)
+

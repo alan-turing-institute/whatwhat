@@ -1,9 +1,13 @@
 (* We distinguish between secrets and configs, because we want to keep them in two
    separate files. They are otherwise treated identically though, and both are collected
    into the same record type `t`. *)
+type project_details =
+  { name : string
+  ; active_columns : string list
+  }
+
 type t =
-  { github_project_name : string option
-  ; github_project_columns : string list option
+  { github_projects : project_details list option
   ; github_repo_name : string option
   ; github_repo_owner : string option
   ; github_token : string option
@@ -61,6 +65,27 @@ let int_list_opt_of_json = function
   | _ -> None
 ;;
 
+let projects_list_opt_of_json json =
+  let open Yojson.Basic.Util in
+  let project_of_json j =
+    match j with
+    | `Assoc pairs ->
+      (match pairs |> List.assoc "name" |> to_string_option with
+       | Some name ->
+         (match pairs |> List.assoc "activeColumns" |> string_list_opt_of_json with
+          | Some cols -> Some { name; active_columns = cols }
+          | None -> None)
+       | None -> None)
+    | _ -> None
+  in
+  match json with
+  | `List values ->
+    (match List.filter_map project_of_json values with
+     | [] -> None
+     | xs -> Some xs)
+  | _ -> None
+;;
+
 (* Find the value for a secret/config called [key].
 
    If the environment variable called [String.uppercase_ascii ("WHATWHAT_" ^ key)] exists,
@@ -92,15 +117,13 @@ let load_settings () : t =
     try Some (Yojson.Basic.from_file config_path) with
     | Sys_error _ -> None
   in
-  { github_project_name =
-      find_setting string_opt_of_json "githubProjectName" config_json_opt
-  ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
+  { github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
   ; github_repo_owner = find_setting string_opt_of_json "githubRepoOwner" config_json_opt
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
   ; github_url = find_setting string_opt_of_json "githubUrl" config_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
-  ; github_project_columns =
-      find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
+  ; github_projects =
+      find_setting projects_list_opt_of_json "githubProjects" config_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_ignored_projects =
       find_setting int_list_opt_of_json "forecastIgnoredProjects" config_json_opt
@@ -113,13 +136,11 @@ let load_settings () : t =
 let settings = load_settings ()
 
 (* TODO Isn't there some metaprogramming way to autogenerate these? Preprocessing? *)
-let get_github_project_name () =
-  match settings.github_project_name with
+let get_github_projects () =
+  match settings.github_projects with
   | Some value -> value
-  | None -> raise (MissingConfig "githubProjectName")
+  | None -> raise (MissingConfig "githubProjects")
 ;;
-
-let get_github_project_columns () = settings.github_project_columns
 
 let get_github_repo_name () =
   match settings.github_repo_name with
