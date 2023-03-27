@@ -225,7 +225,7 @@ let check_end_date (prj : project) (asg : assignment) =
   match prj.plan.latest_end_date with
   | None -> ()
   | Some latest_end_date ->
-    if fst (DateMap.max_binding asg.allocation) > latest_end_date
+    if get_last_day asg.allocation > latest_end_date
     then log_event (AllocationEndsTooLateWarning asg)
 ;;
 
@@ -233,7 +233,7 @@ let check_start_date (prj : project) (asg : assignment) =
   match prj.plan.earliest_start_date with
   | None -> ()
   | Some earliest_start_date ->
-    if fst (DateMap.min_binding asg.allocation) < earliest_start_date
+    if get_first_day asg.allocation < earliest_start_date
     then log_event (AllocationStartsTooEarlyWarning asg)
 ;;
 

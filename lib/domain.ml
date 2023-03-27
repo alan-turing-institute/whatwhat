@@ -7,26 +7,41 @@ module DateMap = Map.Make (CalendarLib.Date)
 module FTE = struct
   type t = FTE of float
 
+  let show (FTE x) = Printf.sprintf "%.2f FTE" x
   let from_forecast_rate n = FTE (float_of_int n /. (60. *. 60. *. 8.))
   let add (FTE x) (FTE y) = FTE (x +. y)
   let get (FTE x) = x
-  let rec sum (xs : t list) : t = match xs with
+
+  let rec sum (xs : t list) : t =
+    match xs with
     | [] -> FTE 0.
     | y :: ys -> add y (sum ys)
+  ;;
 
-  type time = FTE_weeks of float | FTE_months of float
+  type time =
+    | FTE_weeks of float
+    | FTE_months of float
 
-  let mpw = (12. /. 52.)   (* Months per week *)
+  let show_time = function
+    | FTE_weeks w -> Printf.sprintf "%.2f FTE-weeks" w
+    | FTE_months m -> Printf.sprintf "%.2f FTE-months" m
+  ;;
+
+  let mpw = 12. /. 52. (* Months per week *)
   let weeks (FTE x) = FTE_weeks (x /. 7.)
-  let months (FTE x) = FTE_months ((x /. 7.) *. mpw)
+  let months (FTE x) = FTE_months (x /. 7. *. mpw)
 
-  let conv_months tm = match tm with
-  | FTE_months x -> FTE_months x
-  | FTE_weeks x -> FTE_months (x *. mpw)
+  let conv_months tm =
+    match tm with
+    | FTE_months x -> FTE_months x
+    | FTE_weeks x -> FTE_months (x *. mpw)
+  ;;
 
-  let conv_weeks tm = match tm with
-  | FTE_weeks x -> FTE_weeks x
-  | FTE_months x -> FTE_weeks (x /. mpw)
+  let conv_weeks tm =
+    match tm with
+    | FTE_weeks x -> FTE_weeks x
+    | FTE_months x -> FTE_weeks (x /. mpw)
+  ;;
 end
 
 type allocation = FTE.t DateMap.t
@@ -51,6 +66,8 @@ let make_allocation start_date end_date fte =
 ;;
 
 let combine_allocations a1 a2 = DateMap.union (fun _ v1 v2 -> Some (FTE.add v1 v2)) a1 a2
+let get_first_day a1 = DateMap.min_binding a1 |> fst
+let get_last_day a1 = DateMap.max_binding a1 |> fst
 
 type project_plan =
   { budget : FTE.time

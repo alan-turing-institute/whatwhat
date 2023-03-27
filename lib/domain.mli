@@ -30,6 +30,7 @@ module DateMap : module type of Map.Make (CalendarLib.Date)
     *)
 module FTE : sig
   type t
+  val show : t -> string
 
   val from_forecast_rate : int -> t
   val add : t -> t -> t
@@ -37,6 +38,7 @@ module FTE : sig
   val sum : t list -> t
 
   type time = FTE_weeks of float | FTE_months of float
+  val show_time : time -> string
 
   val weeks : t -> time
   val months : t -> time
@@ -73,6 +75,12 @@ val make_allocation : CalendarLib.Date.t -> CalendarLib.Date.t -> FTE.t -> FTE.t
 
 (** Merge two allocations. This function is commutative. *)
 val combine_allocations : FTE.t DateMap.t -> FTE.t DateMap.t -> FTE.t DateMap.t
+
+(** Get the day an allocation begins. *)
+val get_first_day : FTE.t DateMap.t -> CalendarLib.Date.t
+
+(** Get the day an allocation ends. *)
+val get_last_day : FTE.t DateMap.t -> CalendarLib.Date.t
 
 (** {1 Entities relevant to scheduling and planning} *)
 

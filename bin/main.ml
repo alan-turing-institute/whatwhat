@@ -271,16 +271,46 @@ let ww_main_term : unit Term.t =
     $ color_arg
     $ quiet_arg
     $ verbose_arg
-    $ suppress_codes_arg)
+    $ suppress_codes_arg
+    $ only_github_issues_arg)
 ;;
 
-(* -------------------------------- *)
+(* ------------------------------- *)
+(* ------- whatwhat test --------- *)
+(* - Use this for experimenting! - *)
+
+let ww_test () =
+  let open CalendarLib.Date in
+  let start_date = make 2016 1 1 in
+  let end_date = add (today ()) (Period.year 1) in
+  let _, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
+
+  let prj = Domain.IntMap.find 1214 projects in
+  Project.print_assignments prj assignments
+;;
+
+let ww_test_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "test" ~doc:"Command to be freely used for internal testing purposes.")
+    (* The homomorphism law for applicative functors suggests that
+          [const ww_test $ const ()]
+       should be equivalent to 
+          [const (ww_test ())],
+        but because of side effects (and eager evaluation) this isn't true: the
+        latter always evaluates [ww_test ()] whereas the former doesn't. A case
+        where lack of purity makes it harder to reason about the behaviour of a
+        programme! *)
+    (Term.(const ww_test $ const ()))
+;;
+
+(* ------------------------------- *)
+(* --- putting it all together --- *)
 
 let cmd : unit Cmd.t =
   Cmd.group
     ~default:ww_main_term
     (Cmd.info "whatwhat" ~doc:"Report current project status")
-    [ ww_export_cmd; ww_open_cmd ]
+    [ ww_export_cmd; ww_open_cmd; ww_test_cmd ]
 ;;
 
 let () = exit (Cmd.eval cmd)
