@@ -102,22 +102,25 @@ let extract_source event =
   | Other -> "Other"
 ;;
 
-let should_be_shown ~verbose ~suppressed_codes ~restrict_issues issue_number event =
+let should_be_shown ~verbose ~suppressed_codes ~restrict_issues (issue_number, event) =
   (* Check if the issue number is in restrict_issues *)
-  match restrict_issues, issue_number with
-  | None, _ -> true
-  | Some _, None -> false
-  | Some numbers, Some n -> List.mem n numbers
-  &&
+  let pred1 =
+    match restrict_issues, issue_number with
+    | None, _ -> true
+    | Some _, None -> false
+    | Some numbers, Some n -> List.mem n numbers
+  in
   (* Check that the error code is not in suppressed_codes *)
-  (not (List.mem event.level suppressed_codes))
-  &&
+  let pred2 = not (List.mem event.level suppressed_codes) in
   (* Check against the desired level of verbosity *)
-  match event.level with
-  | Error' _ -> true
-  | Warning _ -> true
-  | Info -> verbose >= 1
-  | Debug -> verbose >= 2
+  let pred3 =
+    match event.level with
+    | Error' _ -> true
+    | Warning _ -> true
+    | Info -> verbose >= 1
+    | Debug -> verbose >= 2
+  in
+  pred1 && pred2 && pred3
 ;;
 
 let pretty_print_event ~use_color (_, e) =
@@ -125,17 +128,17 @@ let pretty_print_event ~use_color (_, e) =
   let header = Printf.sprintf "%-20s" (extract_source e) in
   let error_code, error_style =
     match e.level with
-    | Error' n -> Printf.sprintf "E%d" n, [Foreground Red] 
-    | Warning n -> Printf.sprintf "W%d" n, [Foreground Yellow] 
+    | Error' n -> Printf.sprintf "E%d" n, [ Foreground Red ]
+    | Warning n -> Printf.sprintf "W%d" n, [ Foreground Yellow ]
     | Info -> "INFO ", []
     | Debug -> "DEBUG", []
   in
 
-  Utils.prcol ~use_color [Bold] header;
+  Utils.prcol ~use_color [ Bold ] header;
   Printf.printf " ";
   Utils.prcol ~use_color error_style error_code;
   Printf.printf " ";
-  Printf.printf "%s\n" e.message;
+  Printf.printf "%s\n" e.message
 ;;
 
 let pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues =
@@ -155,7 +158,7 @@ let pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues =
   the_log
   |> Stack.to_seq
   |> Seq.map (fun e -> extract_issue_number e, e)
-  |> Seq.filter (fun (n, e) -> should_be_shown ~verbose ~suppressed_codes ~restrict_issues n e)
+  |> Seq.filter (should_be_shown ~verbose ~suppressed_codes ~restrict_issues)
   |> List.of_seq
   |> List.stable_sort compare_events
   |> List.iter (pretty_print_event ~use_color)
