@@ -112,7 +112,6 @@ let load_settings () : t =
 
 let settings = load_settings ()
 
-(* TODO Isn't there some metaprogramming way to autogenerate these? Preprocessing? *)
 let get_github_project_name () =
   match settings.github_project_name with
   | Some value -> value

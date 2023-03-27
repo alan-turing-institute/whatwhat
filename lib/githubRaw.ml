@@ -213,9 +213,12 @@ let rec get_issue_numbers_in_column_async ?(page = 1) col_id =
   let batch_get page col_id =
     let get_issue_number card_json : int option =
       let open Yojson.Basic.Util in
-      (* TODO: could do with more thorough error checking *)
       match card_json |> member "content_url" |> to_string_option with
-      | Some s -> Some (String.split_on_char '/' s |> List.rev |> List.hd |> int_of_string)
+      | Some s ->
+        (try
+           Some (String.split_on_char '/' s |> List.rev |> List.hd |> int_of_string)
+         with
+         | _ -> failwith "GitHub column card had invalid content_url string")
       | None -> None
     in
     let uri =

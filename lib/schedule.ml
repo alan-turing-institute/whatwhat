@@ -6,7 +6,7 @@ open Domain
 (* LOGGING *)
 
 type schedule_event =
-  | MissingGithubProjectError of Forecast.project (* E3001 TODO why is this an error? *)
+  | MissingGithubProjectError of Forecast.project (* E3001 *)
   | FinanceCodeNotMatchingError of project (* E3002 *)
   | MissingForecastProjectWarning of project (* W3001 *)
   | AllocationEndsTooLateWarning of assignment (* W3002 *)
@@ -27,7 +27,9 @@ let log_event (error : schedule_event) =
       ; source = Log.Schedule
       ; entity = Log.Project fc_proj.number
       ; message =
-          Printf.sprintf "No matching GitHub issue for Forecast project <%s>." fc_proj.name
+          Printf.sprintf
+            "No matching GitHub issue for Forecast project <%s>."
+            fc_proj.name
       }
   | FinanceCodeNotMatchingError proj ->
     Log.log'
@@ -49,7 +51,9 @@ let log_event (error : schedule_event) =
       ; source = Log.Schedule
       ; entity = Log.ForecastProject asn.project.number
       ; message =
-          Printf.sprintf "Assignment of <%s> ends after project latest end." asn.person.full_name
+          Printf.sprintf
+            "Assignment of <%s> ends after project latest end."
+            asn.person.full_name
       }
   | AllocationStartsTooEarlyWarning asn ->
     Log.log'
@@ -88,8 +92,7 @@ let log_event (error : schedule_event) =
       { level = Log.Warning 3011
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
-      ; message =
-          Printf.sprintf "Project programmes on Forecast and GitHub do not match."
+      ; message = Printf.sprintf "Project programmes on Forecast and GitHub do not match."
       }
   | DifferentNameWarning proj ->
     Log.log'
@@ -208,9 +211,10 @@ let merge_projects
       (* Check that their names match *)
       if fc_p.name <> gh_p.name then log_event (DifferentNameWarning gh_p);
       (* Check that their project codes match *)
-      let finance_codes_match = match fc_p.finance_code with
-      | None -> false
-      | Some cd -> List.mem cd gh_p.plan.finance_codes
+      let finance_codes_match =
+        match fc_p.finance_code with
+        | None -> false
+        | Some cd -> List.mem cd gh_p.plan.finance_codes
       in
       if not finance_codes_match then log_event (FinanceCodeNotMatchingError gh_p)
   in
@@ -240,22 +244,19 @@ let check_start_date (prj : project) (asg : assignment) =
 let merge_assignment people projects (asn : Forecast.assignment) : assignment option =
   match IntMap.find_opt asn.project.number projects with
   | None ->
-      log_event (AssignmentWithoutProjectDebug asn);
-      None
+    log_event (AssignmentWithoutProjectDebug asn);
+    None
   | Some prj ->
-      (match List.find_opt (fun p -> p.full_name = asn.person.full_name) people with
-      | None -> 
-          log_event (AssignmentWithoutPersonDebug asn);
-          None
-      | Some psn -> 
-          let new_asn = {
-            project = prj;
-            person = psn;
-            allocation = asn.allocation
-          } in
-          check_start_date prj new_asn;
-          check_end_date prj new_asn;
-          Some new_asn)
+    (match List.find_opt (fun p -> p.full_name = asn.person.full_name) people with
+     | None ->
+       log_event (AssignmentWithoutPersonDebug asn);
+       None
+     | Some psn ->
+       let new_asn = { project = prj; person = psn; allocation = asn.allocation } in
+       check_start_date prj new_asn;
+       check_end_date prj new_asn;
+       Some new_asn)
+;;
 
 (* ---------------------------------------------------------------------- *)
 (* CHECKS ON SCHEDULE *)
@@ -269,11 +270,18 @@ let check_is_overdue prj =
   then log_event (ProjectStartOverdueWarning prj)
 ;;
 
-let check_projects_active assignments_map prj =
-  let asgs_opt = IntMap.find_opt prj.number assignments_map in
-  if prj.state >= Active && Option.is_none asgs_opt
-     (* TODO This should check for assignments that are active right now, rather than
-        any assignments *)
+let check_projects_active (assignments_map : assignment list IntMap.t) (prj : project) =
+  let has_active_assignments =
+    match IntMap.find_opt prj.number assignments_map with
+    | None -> false
+    | Some asns ->
+      let today = CalendarLib.Date.today () in
+      List.exists
+        (fun a ->
+          get_first_day a.allocation <= today && get_last_day a.allocation >= today)
+        asns
+  in
+  if prj.state >= Active && not has_active_assignments
   then log_event (ActiveProjectWithoutAssignmentWarning prj)
 ;;
 
@@ -283,7 +291,7 @@ let check_projects projects assignments =
       asg.project.number
       (function
        | None -> Some [ asg ]
-       | Some old_asgs -> Some (asg :: old_asgs))
+       | Some other_asgs -> Some (asg :: other_asgs))
       acc
   in
   let assignments_by_project = List.fold_left folder IntMap.empty assignments in

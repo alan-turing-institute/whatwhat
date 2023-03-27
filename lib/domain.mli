@@ -119,9 +119,7 @@ module State : sig
   val show_t : t -> string
 end
 
-(** A project, combining both a Github issue and a matching Forecast project.
-
-    {b TODO:} Add back in the list of assignees and emojis (both from Github) *)
+(** A project, combining both a Github issue and a matching Forecast project. *)
 type project =
   { number : int (** The issue number from GitHub *)
   ; name : string

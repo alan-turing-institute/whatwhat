@@ -154,8 +154,8 @@ type project_schema =
   { id : int
   ; harvest_id : int option
   ; client_id : int option (* The built-in project has no client !! *)
-  ; name : string (* TODO: why can project code be None? *)
-  ; code : string option
+  ; name : string
+  ; code : string option (* This should have the form "hut23-X" *)
   ; tags : string list
   ; notes : string option
   ; color : string
