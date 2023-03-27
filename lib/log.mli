@@ -29,7 +29,7 @@ type entity =
   | ForecastProject of int (** The project number *)
   | Project of int (** The project number *)
   | RawForecastPerson of string (** Person's name *)
-  | ForecastPerson of string (** Email address *) 
+  | ForecastPerson of string (** Email address *)
   | Person of string (** email address *)
   | RawForecastAssignment of int (** Assignment ID in Forecast *)
   | Assignment of (int * string) (** Pair of a Project and a person *)
@@ -49,5 +49,10 @@ val isError : event -> bool
 val isWarning : event -> bool
 val isInfo : event -> bool
 val isDebug : event -> bool
-val pretty_print_event : use_color:bool -> event -> unit
-val pretty_print : use_color:bool -> verbose:int -> suppressed_codes:level list -> unit
+
+val pretty_print
+  :  use_color:bool
+  -> verbose:int
+  -> suppressed_codes:level list
+  -> restrict_issues:int list option
+  -> unit

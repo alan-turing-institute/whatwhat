@@ -122,7 +122,8 @@ let ww_export_cmd : unit Cmd.t =
 (* ------------------------------- *)
 (* ---------- whatwhat ----------- *)
 
-let ww_main notify person issue no_color quiet verbose suppressed_codes =
+let ww_main notify person issue no_color quiet verbose suppressed_codes only_github_issues
+  =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
@@ -136,8 +137,13 @@ let ww_main notify person issue no_color quiet verbose suppressed_codes =
     Printf.printf "%d projects; and " (Domain.IntMap.cardinal projects);
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
+    let restrict_issues =
+      if only_github_issues then Some (projects |> Domain.IntMap.bindings |> List.map fst) else None
+    in
+
     (* Print output *)
-    if not quiet then Log.pretty_print ~use_color ~verbose ~suppressed_codes;
+    if not quiet
+    then Log.pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues;
 
     (* Send notifications if requested *)
     (match notify with
@@ -159,7 +165,7 @@ let ww_main notify person issue no_color quiet verbose suppressed_codes =
   with
   | Failure msg ->
     let open ANSITerminal in
-    Log.pretty_print ~use_color ~verbose ~suppressed_codes;
+    Log.pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues:None;
     Utils.eprcol ~use_color [ Bold; Foreground Red ] "Fatal error: ";
     Printf.eprintf "%s\n" msg;
     exit Cmd.Exit.internal_error (* Defined as 125. *)
@@ -243,6 +249,17 @@ let suppress_codes_arg =
             "Suppress specific error codes. $(docv) should be passed as a \
              comma-separated list and is case-insensitive."
           ~docv:"CODES")
+;;
+
+let only_github_issues_arg =
+  Arg.(
+    value
+    & flag
+    & info
+        [ "G"; "only-github" ]
+        ~doc:
+          "Only print notifications for projects on the specified columns of the GitHub \
+           project tracker.")
 ;;
 
 let ww_main_term : unit Term.t =

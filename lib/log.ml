@@ -83,6 +83,7 @@ let isDebug e =
 (* TODO implement this function properly *)
 let extract_issue_number event =
   match event.entity with
+  | ForecastProject n -> Some n
   | Project n -> Some n
   | _ -> None
 ;;
@@ -101,9 +102,17 @@ let extract_source event =
   | Other -> "Other"
 ;;
 
-let should_be_shown ~verbose ~suppressed_codes event =
+let should_be_shown ~verbose ~suppressed_codes ~restrict_issues issue_number event =
+  (* Check if the issue number is in restrict_issues *)
+  match restrict_issues, issue_number with
+  | None, _ -> true
+  | Some _, None -> false
+  | Some numbers, Some n -> List.mem n numbers
+  &&
+  (* Check that the error code is not in suppressed_codes *)
   (not (List.mem event.level suppressed_codes))
   &&
+  (* Check against the desired level of verbosity *)
   match event.level with
   | Error' _ -> true
   | Warning _ -> true
@@ -111,7 +120,7 @@ let should_be_shown ~verbose ~suppressed_codes event =
   | Debug -> verbose >= 2
 ;;
 
-let pretty_print_event ~use_color e =
+let pretty_print_event ~use_color (_, e) =
   let open ANSITerminal in
   let header = Printf.sprintf "%-20s" (extract_source e) in
   let error_code, error_style =
@@ -129,11 +138,11 @@ let pretty_print_event ~use_color e =
   Printf.printf "%s\n" e.message;
 ;;
 
-let pretty_print ~use_color ~verbose ~suppressed_codes =
-  let compare_events e1 e2 =
+let pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues =
+  let compare_events (n1, e1) (n2, e2) =
     (* Compare on issue number first, then error code *)
     let issue_number_cmp =
-      match extract_issue_number e1, extract_issue_number e2 with
+      match n1, n2 with
       | None, None -> 0
       | None, Some _ -> -1
       | Some _, None -> 1
@@ -145,7 +154,8 @@ let pretty_print ~use_color ~verbose ~suppressed_codes =
   in
   the_log
   |> Stack.to_seq
-  |> Seq.filter (should_be_shown ~verbose ~suppressed_codes)
+  |> Seq.map (fun e -> extract_issue_number e, e)
+  |> Seq.filter (fun (n, e) -> should_be_shown ~verbose ~suppressed_codes ~restrict_issues n e)
   |> List.of_seq
   |> List.stable_sort compare_events
   |> List.iter (pretty_print_event ~use_color)
