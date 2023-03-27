@@ -172,3 +172,17 @@ let rec all_throttled ?(max_concurrent = 150) (reqs : 'a Lwt.t list) =
     let* the_rest = all_throttled ~max_concurrent ys in
     Lwt.return (first_batch @ the_rest)
 ;;
+
+(** Prints a string with or without colour *)
+let prcol ~use_color styles string =
+  if use_color then
+    ANSITerminal.print_string styles string
+  else
+    print_string string
+
+(** Same as above but to stderr *)
+let eprcol ~use_color styles string =
+  if use_color then
+    ANSITerminal.prerr_string styles string
+  else
+    prerr_string string

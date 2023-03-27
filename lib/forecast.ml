@@ -11,7 +11,6 @@
    "Warnings" are emitted when an entity is not removed but there is some issue.
  *)
 
-open Domain
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
 module StringMap = Map.Make (String) (* email => person *)
@@ -20,6 +19,7 @@ type project =
   { number : int (* Ought to be a GitHub issue number *)
   ; name : string
   ; programme : string
+  ; finance_code : string option
   }
 
 (* ------------------------------------------------------------ *)
@@ -210,6 +210,36 @@ let extract_project_number (p : Raw.project) =
        None)
 ;;
 
+(** [extract_finance_code p] checks the tags of the project [p] to find the
+    Turing finance code. *)
+let extract_finance_code (rp : Raw.project) =
+  (* [rp_or_p] is either the raw project, or the project itself if it was found
+     inside the [projects] map. *)
+  (* let rp_or_p = *)
+  (*   match IntMap.find_opt rp.id projects with *)
+  (*   | None -> Either.Left rp *)
+  (*   | Some p -> Either.Right p *)
+  (* in *)
+  match rp.tags with
+  | [ fc ] -> Some fc
+  | [] ->
+    log_event (NoFinanceCodeWarning (Left rp));
+    None
+  | _ ->
+    log_event (MultipleFinanceCodesWarning (Left rp));
+    (* Try to find the one with the form <char>-<str>-<str>. *)
+    let looks_like_finance_code s =
+      match String.split_on_char '-' s with
+      | [ char; _; _ ] -> String.length char = 1
+      | _ -> false
+    in
+    (match List.filter looks_like_finance_code rp.tags with
+     | [ fc ] ->
+       log_event (ChoseOneFinanceCodeDebug ((Left rp), rp.tags, fc));
+       Some fc
+     | _ -> None)
+;;
+
 (** [validate_project _ p] checks that a Forecast project [p] is valid, in that:
     1. It is not archived.
     2. It is not one of the ignored projects in the [whatwhat] configuration
@@ -232,41 +262,25 @@ let validate_project _ (p : Raw.project) =
       None
     | Some c ->
       (match extract_project_number p with
-       | Some n -> Some { number = n; name = p.name; programme = c.name }
+       | Some n -> Some {
+         number = n;
+         name = p.name;
+         programme = c.name;
+         finance_code = extract_finance_code p
+         }
        | None -> None))
 ;;
 
-(** [extract_finance_code p] checks the tags of the project [p] to find the
-    Turing finance code. *)
-let extract_finance_code (projects : project IntMap.t) _ (rp : Raw.project) =
-  (* [rp_or_p] is either the raw project, or the project itself if it was found
-     inside the [projects] map. *)
-  let rp_or_p =
-    match IntMap.find_opt rp.id projects with
-    | None -> Either.Left rp
-    | Some p -> Either.Right p
-  in
-  match rp.tags with
-  | [ fc ] -> Some fc
-  | [] ->
-    log_event (NoFinanceCodeWarning rp_or_p);
-    None
-  | _ ->
-    log_event (MultipleFinanceCodesWarning rp_or_p);
-    (* Try to find the one with the form <char>-<str>-<str>. *)
-    let looks_like_finance_code s =
-      match String.split_on_char '-' s with
-      | [ char; _; _ ] -> String.length char = 1
-      | _ -> false
-    in
-    (match List.filter looks_like_finance_code rp.tags with
-     | [ fc ] ->
-       log_event (ChoseOneFinanceCodeDebug (rp_or_p, rp.tags, fc));
-       Some fc
-     | _ -> None)
-;;
-
 (* People *)
+
+(** This type represents all the useful information we can obtain from a Forecast
+    person. It is not the same as Domain.person; that represents a complete
+    overview of a person after the GitHub data has been merged in.
+    *)
+type person = {
+  full_name : string;
+  email : string
+}
 
 (** [validate_person p] ensures that the person [p]:
     1. has not been archived; and
@@ -297,12 +311,20 @@ let validate_person (p : Raw.person) : person option =
          Some
            { email
            ; full_name = Raw.make_person_name p
-           ; github_handle = None
-           ; slack_handle = None
            }))
 ;;
 
 (* Allocations *)
+
+(* This type represents all the useful information we can obtain from a Forecast
+   assignment. It is not the same as Domain.assignment, that represents a
+   complete overview of an assignment after the GitHub data has been merged in.
+   *)
+type assignment =
+  { project : project
+  ; person : person
+  ; allocation : Domain.allocation
+  }
 
 (* Parse Raw.assignments into Forecast.assignments.
 
@@ -311,7 +333,7 @@ let validate_person (p : Raw.person) : person option =
    Raw.assignment, each with a single allocation. We will later merge these, collating the
    allocations.
    *)
-let validate_assignment people projects fcs (a : Raw.assignment) =
+let validate_assignment people projects (a : Raw.assignment) =
   match a.entity with
   (* TODO: Retain placeholder assignments! *)
   | Placeholder _ -> None
@@ -329,14 +351,13 @@ let validate_assignment people projects fcs (a : Raw.assignment) =
           None
         | Some prj ->
           Some
-            { project = prj.number
-            ; person = valid_person.email
-            ; finance_code = Raw.IntMap.find_opt a.project.id fcs
+            { project = prj
+            ; person = valid_person
             ; allocation =
-                make_allocation
+                Domain.make_allocation
                   a.start_date
                   a.end_date
-                  (FTE.from_forecast_rate a.allocation)
+                  (Domain.FTE.from_forecast_rate a.allocation)
             }))
 ;;
 
@@ -355,7 +376,7 @@ module DateMap = Map.Make (CalendarLib.Date)
    together, and join their allocations. *)
 let collate_allocations assignments =
   let f (m : assignment AssignmentMap.t) (a : assignment) =
-    let ppf = a.project, a.person, a.finance_code in
+    let ppf = a.project.number, a.person.full_name, a.project.finance_code in
     let existing_assignment_opt = AssignmentMap.find_opt ppf m in
     let assignment_to_add =
       match existing_assignment_opt with
@@ -364,8 +385,7 @@ let collate_allocations assignments =
       | Some existing_assignment ->
         { project = a.project
         ; person = a.person
-        ; finance_code = a.finance_code
-        ; allocation = combine_allocations a.allocation existing_assignment.allocation
+        ; allocation = Domain.combine_allocations a.allocation existing_assignment.allocation
         }
       (* Otherwise add a new assignment to the map. *)
       | None -> a
@@ -406,10 +426,9 @@ let make_project_map projects_id : project IntMap.t =
 let get_the_schedule ~start_date ~end_date =
   let _, peopl, _, projs, asnts = Raw.get_the_schedule ~start_date ~end_date in
   let projects_id = IntMap.filter_map validate_project projs in
-  let fcs_id = IntMap.filter_map (extract_finance_code projects_id) projs in
   let people_id = IntMap.filter_map (fun _ p -> validate_person p) peopl in
   let assignments =
-    List.filter_map (validate_assignment people_id projects_id fcs_id) asnts
+    List.filter_map (validate_assignment people_id projects_id) asnts
     |> collate_allocations
   in
   make_project_map projects_id, make_people_map people_id, assignments

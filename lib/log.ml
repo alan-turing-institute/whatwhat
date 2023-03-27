@@ -20,8 +20,10 @@ type source =
 
 type entity =
   | RawForecastProject of string
+  | ForecastProject of int
   | Project of int
   | RawForecastPerson of string
+  | ForecastPerson of string
   | Person of string
   | RawForecastAssignment of int
   | Assignment of (int * string)
@@ -89,8 +91,10 @@ let extract_issue_number event =
 let extract_source event =
   match event.entity with
   | RawForecastProject _ -> "FCRaw:Project"
+  | ForecastProject n -> Printf.sprintf "Issue %-5d" n
   | Project n -> Printf.sprintf "Issue %-5d" n
   | RawForecastPerson _ -> "FCRaw:Person"
+  | ForecastPerson _ -> "Person"
   | Person _ -> "Person"
   | RawForecastAssignment _ -> "FCRaw:Assignment"
   | Assignment _ -> "Assignment"
@@ -109,16 +113,20 @@ let should_be_shown ~verbose ~suppressed_codes event =
 
 let pretty_print_event ~use_color e =
   let open ANSITerminal in
-  let color styles = if use_color then styles else [] in
-  let error_code =
+  let header = Printf.sprintf "%-20s" (extract_source e) in
+  let error_code, error_style =
     match e.level with
-    | Error' n -> sprintf (color [ Foreground Red ]) "E%d" n
-    | Warning n -> sprintf (color [ Foreground Yellow ]) "W%d" n
-    | Info -> "INFO "
-    | Debug -> "DEBUG"
+    | Error' n -> Printf.sprintf "E%d" n, [Foreground Red] 
+    | Warning n -> Printf.sprintf "W%d" n, [Foreground Yellow] 
+    | Info -> "INFO ", []
+    | Debug -> "DEBUG", []
   in
-  let header = sprintf (color [ Bold ]) "%-20s" (extract_source e) in
-  Printf.printf "%s %s %s\n" header error_code e.message
+
+  Utils.prcol ~use_color [Bold] header;
+  Printf.printf " ";
+  Utils.prcol ~use_color error_style error_code;
+  Printf.printf " ";
+  Printf.printf "%s\n" e.message;
 ;;
 
 let pretty_print ~use_color ~verbose ~suppressed_codes =

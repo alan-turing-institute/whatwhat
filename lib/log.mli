@@ -26,8 +26,10 @@ type source =
 
 type entity =
   | RawForecastProject of string (** Project name *)
-  | Project of int (** The project code *)
+  | ForecastProject of int (** The project number *)
+  | Project of int (** The project number *)
   | RawForecastPerson of string (** Person's name *)
+  | ForecastPerson of string (** Email address *) 
   | Person of string (** email address *)
   | RawForecastAssignment of int (** Assignment ID in Forecast *)
   | Assignment of (int * string) (** Pair of a Project and a person *)

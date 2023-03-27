@@ -281,8 +281,8 @@ let metadata_of_yaml issue (pairs : (string * Yaml.value) list) =
   let* fte_weeks = read_float_field ~compulsory:false issue pairs "FTE-weeks" in
   let* budget =
     match fte_weeks, fte_months with
-    | Some weeks, None -> Ok (FTE_weeks weeks)
-    | None, Some months -> Ok (FTE_months months)
+    | Some weeks, None -> Ok (FTE.FTE_weeks weeks)
+    | None, Some months -> Ok (FTE.FTE_months months)
     | None, None ->
       log_event (FTETimeUnderSpecifiedError issue);
       Error ()

@@ -13,6 +13,10 @@ to accomplish.
     Whatwhat.Domain
     }
 
+{1 Obtaining high-level overviews}
+    Whatwhat.Project
+    Whatwhat.Person
+
 {1 Fetching data from Forecast}
 
 {!modules:

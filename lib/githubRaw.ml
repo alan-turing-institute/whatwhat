@@ -35,8 +35,8 @@ let run_github_query_async ?(http_method = GET) ?(params = []) ?(body = "") uri 
         Utils.check_http_response r;
         Lwt.return b)
       (function
-       | Failure _ -> failwith "HTTP request failed."
-       | Utils.HttpError e -> failwith ("HTTP request failed: " ^ e)
+       | Failure _ -> failwith "GitHub HTTP request failed."
+       | Utils.HttpError e -> failwith ("GitHub HTTP request failed: " ^ e)
        | exn -> Lwt.fail exn)
   in
   let* body_string = Cohttp_lwt.Body.to_string body in
@@ -64,28 +64,26 @@ let person_of_json json =
   }
 ;;
 
-let lazy_all_users =
-  lazy
-    (let query =
-       Printf.sprintf
-         {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
-         (Config.get_github_repo_owner ())
-         (Config.get_github_repo_name ())
-     in
-     let github_graph_ql_endpoint = Config.get_github_url () ^ "/graphql" in
-     let body_json =
-       run_github_query ~http_method:POST ~body:query github_graph_ql_endpoint
-     in
-     let open Yojson.Basic.Util in
-     body_json
-     |> member "data"
-     |> member "repository"
-     |> member "assignableUsers"
-     |> member "edges"
-     |> convert_each (fun json -> json |> member "node" |> person_of_json))
+let all_users =
+  let query =
+    Printf.sprintf
+      {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
+      (Config.get_github_repo_owner ())
+      (Config.get_github_repo_name ())
+  in
+  let github_graph_ql_endpoint = Config.get_github_url () ^ "/graphql" in
+  let body_json =
+    run_github_query ~http_method:POST ~body:query github_graph_ql_endpoint
+  in
+  let open Yojson.Basic.Util in
+  body_json
+  |> member "data"
+  |> member "repository"
+  |> member "assignableUsers"
+  |> member "edges"
+  |> convert_each (fun json -> json |> member "node" |> person_of_json)
 ;;
 
-let all_users = Lazy.force lazy_all_users
 let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_users
 
 (** Issues ------------------------------------------- *)

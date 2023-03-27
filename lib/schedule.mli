@@ -23,4 +23,4 @@ open Domain
 val get_the_schedule
   :  start_date:CalendarLib.Date.t
   -> end_date:CalendarLib.Date.t
-  -> person list * project list * assignment list
+  -> person list * project IntMap.t * assignment list

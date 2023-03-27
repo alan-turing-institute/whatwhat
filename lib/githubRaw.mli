@@ -50,8 +50,9 @@ type person =
   ; email : string option
   }
 
-(** [all_users] is a list of all users who can be assigned to issues in the
-    repository, which essentially means anybody who can view the repository. *)
+(** [all_users] is a list of all users who can be assigned to issues in
+    the repository, which essentially means anybody who can view the
+    repository. *)
 val all_users : person list
 
 (** {1 Issues}

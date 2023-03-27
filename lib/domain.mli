@@ -14,14 +14,6 @@ module DateMap : module type of Map.Make (CalendarLib.Date)
 
 (** {1 Measures and units} *)
 
-(** A [resource] is the total amount of effort put in to a project, either in 
-    FTE-weeks or FTE-months. The conversion used is 52/12. *)
-type resource =
-  | FTE_weeks of float
-  | FTE_months of float
-
-val show_resource : resource -> string
-
 (** An [fte] is a number, representing the FTE-equivalents at which a person is
     assigned to a project. 1.0 FTE corresponds to a nominal rate of 8.0 hours
     per day, or equivalently, 28800 seconds per day (the units in which Forecast
@@ -31,6 +23,10 @@ val show_resource : resource -> string
     the FTE constructor in order to restrict the creation of FTE values. The
     only way to create a new value with type [FTE.t] is to use the
     [from_forecast_rate] 'smart constructor'.
+    
+    [FTE.time] represent products of FTEs and a time period. 1 FTE, multiplied
+    by 7 days, gives 1 FTE-week. The conversion factor between FTE-weeks and
+    FTE-months is 12/52.
     *)
 module FTE : sig
   type t
@@ -38,6 +34,14 @@ module FTE : sig
   val from_forecast_rate : int -> t
   val add : t -> t -> t
   val get : t -> float
+  val sum : t list -> t
+
+  type time = FTE_weeks of float | FTE_months of float
+
+  val weeks : t -> time
+  val months : t -> time
+  val conv_weeks : time -> time
+  val conv_months : time -> time
 end
 
 (** {1 Periods of time} *)
@@ -74,7 +78,7 @@ val combine_allocations : FTE.t DateMap.t -> FTE.t DateMap.t -> FTE.t DateMap.t
 
 (** A [plan] gives the constraints on the possible allocations to a project. *)
 type project_plan =
-  { budget : resource
+  { budget : FTE.time
   ; finance_codes : string list
   ; latest_start_date : CalendarLib.Date.t
   ; earliest_start_date : CalendarLib.Date.t option
@@ -133,9 +137,8 @@ type person =
 
 (** An assignment of a person to a project for a specific allocation *)
 type assignment =
-  { project : int (* The project code *)
-  ; person : string (* An email *)
-  ; finance_code : string option
+  { project : project
+  ; person : person
   ; allocation : allocation
   }
 

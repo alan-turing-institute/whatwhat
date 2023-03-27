@@ -94,7 +94,7 @@ let ww_export_cmd : unit Cmd.t =
 
 let ww_main notify person issue no_color quiet verbose suppressed_codes =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
-  let color = Unix.isatty Unix.stdout && not no_color in
+  let use_color = Unix.isatty Unix.stdout && not no_color in
 
   try
     let open CalendarLib.Date in
@@ -103,11 +103,11 @@ let ww_main notify person issue no_color quiet verbose suppressed_codes =
     let people, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
     print_endline "Whatwhat downloaded:";
     Printf.printf "%d people; " (List.length people);
-    Printf.printf "%d projects; and " (List.length projects);
+    Printf.printf "%d projects; and " (Domain.IntMap.cardinal projects);
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
     (* Print output *)
-    if not quiet then Log.pretty_print ~use_color:color ~verbose ~suppressed_codes;
+    if not quiet then Log.pretty_print ~use_color ~verbose ~suppressed_codes;
 
     (* Send notifications if requested *)
     (match notify with
@@ -129,10 +129,9 @@ let ww_main notify person issue no_color quiet verbose suppressed_codes =
   with
   | Failure msg ->
     let open ANSITerminal in
-    Log.pretty_print ~use_color:color ~verbose ~suppressed_codes;
-    let style = if color then [ Bold; Foreground Red ] else [] in
-    eprintf style "Fatal error: ";
-    eprintf [] "%s\n" msg;
+    Log.pretty_print ~use_color ~verbose ~suppressed_codes;
+    Utils.eprcol ~use_color [ Bold; Foreground Red ] "Fatal error: ";
+    Printf.eprintf "%s\n" msg;
     exit Cmd.Exit.internal_error  (* Defined as 125. *)
 ;;
 

@@ -32,8 +32,8 @@ let forecast_request_async ?(query = []) endpoint =
         Utils.check_http_response r;
         Lwt.return b)
       (function
-       | Failure _ -> failwith "HTTP request failed."
-       | Utils.HttpError e -> failwith ("HTTP request failed: " ^ e)
+       | Failure _ -> failwith "Forecast HTTP request failed."
+       | Utils.HttpError e -> failwith ("Forecast HTTP request failed: " ^ e)
        | exn -> Lwt.fail exn)
   in
   let* body_string = Body.to_string body in
