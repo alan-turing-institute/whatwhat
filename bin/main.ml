@@ -5,7 +5,37 @@
 open Whatwhat
 open Cmdliner
 
-(** whatwhat export ... *)
+(* ------------------------------- *)
+(* ------- whatwhat open --------- *)
+
+let ww_open (issue_num : int) : unit =
+  let uri =
+    String.concat
+      "/"
+      [ "https://github.com"
+      ; Config.get_github_repo_owner ()
+      ; Config.get_github_repo_name ()
+      ; "issues"
+      ; string_of_int issue_num
+      ]
+  in
+  Filename.quote_command "open" [ uri ] |> Sys.command |> exit
+;;
+
+let issue_num_arg : int Term.t =
+  Arg.(
+    required & pos 0 (some int) None & info ~docv:"NUMBER" ~doc:"Issue number to open" [])
+;;
+
+let ww_open_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "open" ~doc:"Open a GitHub issue in a browser")
+    Term.(const ww_open $ issue_num_arg)
+;;
+
+(* ------------------------------- *)
+(* ------ whatwhat export -------- *)
+
 let ww_export
   (start_date_in : string option)
   (end_date_in : string option)
@@ -65,7 +95,6 @@ let ww_export
   Printf.eprintf "Done.\n"
 ;;
 
-(* command-line options for [whatwhat export] *)
 let start_date_arg : string option Term.t =
   Arg.(value & pos 0 (some string) None & info ~docv:"START" ~doc:"Start date" [])
 ;;
@@ -91,6 +120,7 @@ let ww_export_cmd : unit Cmd.t =
 ;;
 
 (* ------------------------------- *)
+(* ---------- whatwhat ----------- *)
 
 let ww_main notify person issue no_color quiet verbose suppressed_codes =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
@@ -132,10 +162,9 @@ let ww_main notify person issue no_color quiet verbose suppressed_codes =
     Log.pretty_print ~use_color ~verbose ~suppressed_codes;
     Utils.eprcol ~use_color [ Bold; Foreground Red ] "Fatal error: ";
     Printf.eprintf "%s\n" msg;
-    exit Cmd.Exit.internal_error  (* Defined as 125. *)
+    exit Cmd.Exit.internal_error (* Defined as 125. *)
 ;;
 
-(* Capture the arguments *)
 let notify_arg =
   let tgs =
     Arg.enum
@@ -230,13 +259,11 @@ let ww_main_term : unit Term.t =
 
 (* -------------------------------- *)
 
-(** Define default command and other subcommands *)
-
 let cmd : unit Cmd.t =
   Cmd.group
     ~default:ww_main_term
     (Cmd.info "whatwhat" ~doc:"Report current project status")
-    [ ww_export_cmd ]
+    [ ww_export_cmd; ww_open_cmd ]
 ;;
 
 let () = exit (Cmd.eval cmd)
