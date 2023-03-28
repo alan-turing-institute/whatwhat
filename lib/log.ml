@@ -104,7 +104,14 @@ let extract_source event =
   | Other -> "Other"
 ;;
 
-let should_be_shown ~verbose ~suppressed_codes ~restrict_issues (issue_number, event) =
+(* A type which determines whether specific error codes are to be suppressed or
+   filtered for. *)
+type code_spec =
+  | Without of level list
+  | Only of level list
+  | All
+
+let should_be_shown ~verbose ~restrict_codes ~restrict_issues (issue_number, event) =
   (* Check if the issue number is in restrict_issues *)
   let pred1 =
     match restrict_issues, issue_number with
@@ -112,8 +119,13 @@ let should_be_shown ~verbose ~suppressed_codes ~restrict_issues (issue_number, e
     | Some _, None -> false
     | Some numbers, Some n -> List.mem n numbers
   in
-  (* Check that the error code is not in suppressed_codes *)
-  let pred2 = not (List.mem event.level suppressed_codes) in
+  (* Check that the error code is consistent with restrict_codes *)
+  let pred2 =
+    match restrict_codes with
+    | All -> true
+    | Only cds -> List.mem event.level cds
+    | Without cds -> not (List.mem event.level cds)
+  in
   (* Check against the desired level of verbosity *)
   let pred3 =
     match event.level with
@@ -143,7 +155,7 @@ let pretty_print_event ~use_color (_, e) =
   Printf.printf "%s\n" e.message
 ;;
 
-let pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues =
+let pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues =
   let compare_events (n1, e1) (n2, e2) =
     (* Compare on issue number first, then error code *)
     let issue_number_cmp =
@@ -160,7 +172,7 @@ let pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues =
   the_log
   |> Stack.to_seq
   |> Seq.map (fun e -> extract_issue_number e, e)
-  |> Seq.filter (should_be_shown ~verbose ~suppressed_codes ~restrict_issues)
+  |> Seq.filter (should_be_shown ~verbose ~restrict_codes ~restrict_issues)
   |> List.of_seq
   |> List.stable_sort compare_events
   |> List.iter (pretty_print_event ~use_color)

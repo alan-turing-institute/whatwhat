@@ -122,10 +122,27 @@ let ww_export_cmd : unit Cmd.t =
 (* ------------------------------- *)
 (* ---------- whatwhat ----------- *)
 
-let ww_main notify person issue no_color quiet verbose suppressed_codes only_github_issues
+let ww_main
+  notify
+  person
+  issue
+  no_color
+  quiet
+  verbose
+  without_codes
+  only_codes
+  only_github_issues
   =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
+
+  (* Decide which codes to show *)
+  let restrict_codes =
+    match only_codes, without_codes with
+    | _ :: _, _ -> Log.Only only_codes
+    | _, _ :: _ -> Log.Without without_codes
+    | _ -> Log.All
+  in
 
   try
     let open CalendarLib.Date in
@@ -138,12 +155,14 @@ let ww_main notify person issue no_color quiet verbose suppressed_codes only_git
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
     let restrict_issues =
-      if only_github_issues then Some (projects |> Domain.IntMap.bindings |> List.map fst) else None
+      if only_github_issues
+      then Some (projects |> Domain.IntMap.bindings |> List.map fst)
+      else None
     in
 
     (* Print output *)
     if not quiet
-    then Log.pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues;
+    then Log.pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues;
 
     (* Send notifications if requested *)
     (match notify with
@@ -165,7 +184,7 @@ let ww_main notify person issue no_color quiet verbose suppressed_codes only_git
   with
   | Failure msg ->
     let open ANSITerminal in
-    Log.pretty_print ~use_color ~verbose ~suppressed_codes ~restrict_issues:None;
+    Log.pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues:None;
     Utils.eprcol ~use_color [ Bold; Foreground Red ] "Fatal error: ";
     Printf.eprintf "%s\n" msg;
     exit Cmd.Exit.internal_error (* Defined as 125. *)
@@ -229,7 +248,7 @@ let verbose_arg =
              DEBUG messages.")
 ;;
 
-let suppress_codes_arg =
+let without_codes_arg =
   let e = Tyre.((char 'e' *> int) --> fun i -> Log.Error' i) in
   let w = Tyre.((char 'w' *> int) --> fun i -> Log.Warning i) in
   let code_regex = Tyre.route [ e; w ] in
@@ -244,10 +263,32 @@ let suppress_codes_arg =
       value
       & opt (list string) []
       & info
-          [ "suppress" ]
+          [ "without" ]
+          ~doc:"Suppress specific error codes. See --only for more explanation."
+          ~docv:"CODES")
+;;
+
+let only_codes_arg =
+  let e = Tyre.((char 'e' *> int) --> fun i -> Log.Error' i) in
+  let w = Tyre.((char 'w' *> int) --> fun i -> Log.Warning i) in
+  let code_regex = Tyre.route [ e; w ] in
+  let parse_code c =
+    match Tyre.exec code_regex (String.lowercase_ascii c) with
+    | Ok code -> Some code
+    | Error _ -> None
+  in
+  Term.app
+    (Term.const (List.filter_map parse_code))
+    Arg.(
+      value
+      & opt (list string) []
+      & info
+          [ "only" ]
           ~doc:
-            "Suppress specific error codes. $(docv) should be passed as a \
-             comma-separated list and is case-insensitive."
+            "Only show specific error codes. $(docv) should be passed as a \
+             comma-separated list, so for example, use --only=E3001,W3001 to only show \
+             those two types of messages. The argument is case-insensitive. Note that \
+             --only takes precedence over --without."
           ~docv:"CODES")
 ;;
 
@@ -271,7 +312,8 @@ let ww_main_term : unit Term.t =
     $ color_arg
     $ quiet_arg
     $ verbose_arg
-    $ suppress_codes_arg
+    $ without_codes_arg
+    $ only_codes_arg
     $ only_github_issues_arg)
 ;;
 
@@ -285,7 +327,7 @@ let ww_test () =
   let end_date = add (today ()) (Period.year 1) in
   let _, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
 
-  let prj = Domain.IntMap.find 1214 projects in
+  let prj = Domain.IntMap.find 536 projects in
   Project.print_assignments prj assignments
 ;;
 
@@ -300,7 +342,7 @@ let ww_test_cmd : unit Cmd.t =
         latter always evaluates [ww_test ()] whereas the former doesn't. A case
         where lack of purity makes it harder to reason about the behaviour of a
         programme! *)
-    (Term.(const ww_test $ const ()))
+    Term.(const ww_test $ const ())
 ;;
 
 (* ------------------------------- *)

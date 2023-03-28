@@ -51,9 +51,16 @@ val isWarning : event -> bool
 val isInfo : event -> bool
 val isDebug : event -> bool
 
+(* A type which determines whether specific error codes are to be suppressed or
+   filtered for. *)
+type code_spec =
+  | Without of level list
+  | Only of level list
+  | All
+
 val pretty_print
   :  use_color:bool
   -> verbose:int
-  -> suppressed_codes:level list
+  -> restrict_codes:code_spec
   -> restrict_issues:int list option
   -> unit
