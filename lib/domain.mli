@@ -14,36 +14,49 @@ module DateMap : module type of Map.Make (CalendarLib.Date)
 
 (** {1 Measures and units} *)
 
-(** An [fte] is a number, representing the FTE-equivalents at which a person is
-    assigned to a project. 1.0 FTE corresponds to a nominal rate of 8.0 hours
-    per day, or equivalently, 28800 seconds per day (the units in which Forecast
-    reports allocations.
-
-    [FTE.t] is really just a [FTE of float] wrapper; however, we don't export
-    the FTE constructor in order to restrict the creation of FTE values. The
-    only way to create a new value with type [FTE.t] is to use the
-    [from_forecast_rate] 'smart constructor'.
-    
-    [FTE.time] represent products of FTEs and a time period. 1 FTE, multiplied
-    by 7 days, gives 1 FTE-week. The conversion factor between FTE-weeks and
-    FTE-months is 12/52.
-    *)
 module FTE : sig
+  (** An [FTE.t] is a number, representing the FTE-equivalents at which a person
+      is assigned to a project. 1.0 FTE corresponds to a nominal rate of 8.0
+      hours per day, or equivalently, 28800 seconds per day (the units in which
+      Forecast reports allocations).
+      *)
   type t
+  (** [show t] prints "t FTE" where t is rounded to 2 decimal places. *)
   val show : t -> string
 
+  (** Unsurprisingly, [FTE.t] is really just a [FTE of float] wrapper; however,
+      we don't export the FTE constructor in order to restrict the creation of
+      FTE values. The only way to create a new value with type [FTE.t] is to use
+      the [from_forecast_rate] 'smart constructor'. *)
   val from_forecast_rate : int -> t
   val add : t -> t -> t
+  (** Retrieve the float value wrapped in the FTE. Avoid using this where
+      possible; it leads to ambiguity in the units. If you just want to print
+      the value, use [show] instead. *)
   val get : t -> float
-  val sum : t list -> t
 
+  (** [FTE.time] represent products of FTEs and a time period. 1 FTE, multiplied
+      by 7 days, gives 1 FTE-week. The conversion factor between FTE-weeks and
+      FTE-months is 12/52. *)
   type time = FTE_weeks of float | FTE_months of float
+  (** [show_time t] prints "t FTE-weeks" where t is rounded to 2 decimal places.
+      If [t] is in FTE-months it is converted first. *)
   val show_time : time -> string
 
-  val weeks : t -> time
-  val months : t -> time
-  val conv_weeks : time -> time
-  val conv_months : time -> time
+  (** Convert a list of FTE-days to an FTE-week quantity. *)
+  val sum_over_days : t list -> time
+  (** Retrieve the number of FTE-weeks wrapped in the [FTE.time]. As above,
+      avoid using this where possible. *)
+  val weeks_in : time -> float
+  (** Multiply an FTE-time period by a factor *)
+  val mul_time : time -> float -> time
+  (** Compare two FTE-time periods. Like the rest of the OCaml standard library,
+      [compare_time a b] returns a positive integer for [a > b], negative for [a
+      < b], and 0 for [a == b]. *)
+  val compare_time : time -> time -> int
+  (** Add up a list of FTE-time periods (for example, those belonging to
+      different people on a project). *)
+  val sum_time : time list -> time
 end
 
 (** {1 Periods of time} *)

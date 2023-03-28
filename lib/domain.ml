@@ -12,36 +12,45 @@ module FTE = struct
   let add (FTE x) (FTE y) = FTE (x +. y)
   let get (FTE x) = x
 
-  let rec sum (xs : t list) : t =
-    match xs with
-    | [] -> FTE 0.
-    | y :: ys -> add y (sum ys)
-  ;;
-
   type time =
     | FTE_weeks of float
     | FTE_months of float
 
+  let mpw = 12. /. 52. (* Months per week *)
+
   let show_time = function
     | FTE_weeks w -> Printf.sprintf "%.2f FTE-weeks" w
-    | FTE_months m -> Printf.sprintf "%.2f FTE-months" m
+    | FTE_months m -> Printf.sprintf "%.2f FTE-weeks" (m /. mpw)
   ;;
 
-  let mpw = 12. /. 52. (* Months per week *)
-  let weeks (FTE x) = FTE_weeks (x /. 7.)
-  let months (FTE x) = FTE_months (x /. 7. *. mpw)
+  let weeks_in = function
+    | FTE_weeks w -> w
+    | FTE_months m -> m /. mpw
 
-  let conv_months tm =
+  let sum_over_days (xs : t list) : time =
+    (* Sum FTE-days *)
+    let rec fte_days ts = match ts with
+    | [] -> 0.
+    | y :: ys -> get y +. fte_days ys
+    in
+    (* Then convert to FTE-weeks *)
+    FTE_weeks ((fte_days xs) /. 7.)
+  ;;
+
+  let mul_time tm y =
     match tm with
-    | FTE_months x -> FTE_months x
-    | FTE_weeks x -> FTE_months (x *. mpw)
-  ;;
+    | FTE_weeks x -> FTE_weeks (x *. y)
+    | FTE_months x -> FTE_months (x *. y)
 
-  let conv_weeks tm =
-    match tm with
-    | FTE_weeks x -> FTE_weeks x
-    | FTE_months x -> FTE_weeks (x /. mpw)
-  ;;
+  let add_time tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in
+    FTE_weeks (w1 +. w2)
+
+  let compare_time tm1 tm2 =
+    compare (weeks_in tm1) (weeks_in tm2)
+
+  let sum_time tms =
+    List.fold_left add_time (FTE_weeks 0.) tms
 end
 
 type allocation = FTE.t DateMap.t
