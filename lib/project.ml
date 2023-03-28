@@ -1,16 +1,10 @@
 open Domain
-
-let ftes_of_assignment (asn : assignment) =
-  let a = asn.allocation in
-  a |> DateMap.bindings |> List.map snd |> FTE.sum_over_days
-;;
-
 let ftes_of_assignments (prj : project) (asns : assignment list)
-  : (string * FTE.time) list
+  : (string * FTE.t) list
   =
   asns
   |> List.filter (fun a -> a.project.number = prj.number)
-  |> List.map (fun a -> get_entity_name a.entity, ftes_of_assignment a)
+  |> List.map (fun a -> get_entity_name a.entity, Domain.ftes_of_assignment a)
 ;;
 
 let print_assignments_to (prj : project) (asns : assignment list) : unit =
@@ -22,7 +16,7 @@ let print_assignments_to (prj : project) (asns : assignment list) : unit =
         Printf.printf
           "%-32s %18s, %s to %s\n"
           (get_entity_name asn.entity)
-          (FTE.show_time (ftes_of_assignment asn))
+          (FTE.show_t (ftes_of_assignment asn))
           (CalendarLib.Printer.Date.to_string (get_first_day asn.allocation))
           (CalendarLib.Printer.Date.to_string (get_last_day asn.allocation)))
       asns'
@@ -34,14 +28,14 @@ let print_project_header prj =
 ;;
 
 let print_assignments (prj : project) (asns : assignment list) =
-  let total_fte_time = ftes_of_assignments prj asns |> List.map snd |> FTE.sum_time in
+  let total_fte_time = ftes_of_assignments prj asns |> List.map snd |> FTE.sum in
   let budget = prj.plan.budget in
-  let discrepancy = FTE.div_time (FTE.sub_time total_fte_time budget) budget in
+  let discrepancy = FTE.div (FTE.sub total_fte_time budget) budget in
 
   print_project_header prj;
   print_assignments_to prj asns;
   print_endline (String.make 77 '-');
-  Printf.printf "%-32s %18s (%+.2f%%)\n" "Allocations found" (FTE.show_time total_fte_time) (100. *. discrepancy);
-  Printf.printf "%-32s %18s\n" "Allocations expected" (FTE.show_time
+  Printf.printf "%-32s %18s (%+.2f%%)\n" "Allocations found" (FTE.show_t total_fte_time) (100. *. discrepancy);
+  Printf.printf "%-32s %18s\n" "Allocations expected" (FTE.show_t
   budget);
 ;;

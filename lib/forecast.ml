@@ -374,6 +374,7 @@ let validate_assignment people projects (a : Raw.assignment) =
            ; entity = Placeholder { name = placeholder.name }
            ; allocation =
                Domain.make_allocation
+                 ~with_weekends:true
                  a.start_date
                  a.end_date
                  (Domain.FTE.from_forecast_rate a.allocation)
@@ -390,6 +391,7 @@ let validate_assignment people projects (a : Raw.assignment) =
             ; entity = Person valid_person
             ; allocation =
                 Domain.make_allocation
+                  ~with_weekends:false
                   a.start_date
                   a.end_date
                   (Domain.FTE.from_forecast_rate a.allocation)

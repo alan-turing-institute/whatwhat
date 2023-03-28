@@ -327,7 +327,7 @@ let ww_test () =
   let end_date = add (today ()) (Period.year 1) in
   let _, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
 
-  let prj = Domain.IntMap.find 536 projects in
+  let prj = Domain.IntMap.find 1205 projects in
   Project.print_assignments prj assignments
 ;;
 

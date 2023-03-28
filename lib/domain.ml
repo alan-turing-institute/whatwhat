@@ -5,64 +5,68 @@ module StringMap = Map.Make (String)
 module DateMap = Map.Make (CalendarLib.Date)
 
 module FTE = struct
-  type t = FTE of float
+  type hour = Hour of float
 
-  let show (FTE x) = Printf.sprintf "%.2f FTE" x
-  let from_forecast_rate n = FTE (float_of_int n /. (60. *. 60. *. 8.))
-  let add (FTE x) (FTE y) = FTE (x +. y)
-  let get (FTE x) = x
+  let get (Hour h) = h
+  let add_hours (Hour h1) (Hour h2) = Hour (h1 +. h2)
+  let from_forecast_rate n = Hour (float_of_int n /. 3600.)
 
-  type time =
-    | FTE_weeks of float
-    | FTE_months of float
+  type t =
+    | Weeks of float
+    | Months of float
 
   let mpw = 12. /. 52. (* Months per week *)
 
-  let show_time = function
-    | FTE_weeks w -> Printf.sprintf "%.2f FTE-weeks" w
-    | FTE_months m -> Printf.sprintf "%.2f FTE-weeks" (m /. mpw)
+  let show_t = function
+    | Weeks w -> Printf.sprintf "%.2f FTE-weeks" w
+    | Months m -> Printf.sprintf "%.2f FTE-weeks" (m /. mpw)
   ;;
 
   let weeks_in = function
-    | FTE_weeks w -> w
-    | FTE_months m -> m /. mpw
-
-  let sum_over_days (xs : t list) : time =
-    (* Sum FTE-days *)
-    let rec fte_days ts = match ts with
-    | [] -> 0.
-    | y :: ys -> get y +. fte_days ys
-    in
-    (* Then convert to FTE-weeks *)
-    FTE_weeks ((fte_days xs) /. 7.)
+    | Weeks w -> w
+    | Months m -> m /. mpw
   ;;
 
-  let add_time tm1 tm2 =
-    let w1, w2 = weeks_in tm1, weeks_in tm2 in
-    FTE_weeks (w1 +. w2)
+  let sum_to_weeks ?(is_placeholder = false) (hs : hour list) : t =
+    let hours_per_week = if is_placeholder then 56. else 40. in
+    (* Sum hours per day *)
+    let rec sum_hours ts =
+      match ts with
+      | [] -> 0.
+      | y :: ys -> get y +. sum_hours ys
+    in
+    (* Then convert to FTE-weeks *)
+    Weeks (sum_hours hs /. hours_per_week)
+  ;;
 
-  let sub_time tm1 tm2 =
+  let add tm1 tm2 =
     let w1, w2 = weeks_in tm1, weeks_in tm2 in
-    FTE_weeks (w1 -. w2)
+    Weeks (w1 +. w2)
+  ;;
 
-  let mul_time tm y =
+  let sub tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in
+    Weeks (w1 -. w2)
+  ;;
+
+  let mul tm y =
     match tm with
-    | FTE_weeks x -> FTE_weeks (x *. y)
-    | FTE_months x -> FTE_months (x *. y)
+    | Weeks x -> Weeks (x *. y)
+    | Months x -> Months (x *. y)
+  ;;
 
-  let div_time tm1 tm2 =
-    let w1, w2 = weeks_in tm1, weeks_in tm2 in w1 /. w2
+  let div tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in
+    w1 /. w2
+  ;;
 
-  let compare_time tm1 tm2 =
-    compare (weeks_in tm1) (weeks_in tm2)
-
-  let sum_time tms =
-    List.fold_left add_time (FTE_weeks 0.) tms
+  let compare tm1 tm2 = compare (weeks_in tm1) (weeks_in tm2)
+  let sum tms = List.fold_left add (Weeks 0.) tms
 end
 
-type allocation = FTE.t DateMap.t
+type allocation = FTE.hour DateMap.t
 
-let make_allocation start_date end_date fte =
+let make_allocation ~with_weekends start_date end_date fte =
   let open CalendarLib.Date in
   let is_weekend date =
     match day_of_week date with
@@ -74,19 +78,22 @@ let make_allocation start_date end_date fte =
     then map
     else (
       let next_day = add date (Period.day 1) in
-      if is_weekend date
+      if is_weekend date && not with_weekends
       then accum next_day map
       else DateMap.add date fte (accum next_day map))
   in
   accum start_date DateMap.empty
 ;;
 
-let combine_allocations a1 a2 = DateMap.union (fun _ v1 v2 -> Some (FTE.add v1 v2)) a1 a2
+let combine_allocations a1 a2 =
+  DateMap.union (fun _ v1 v2 -> Some (FTE.add_hours v1 v2)) a1 a2
+;;
+
 let get_first_day a1 = DateMap.min_binding a1 |> fst
 let get_last_day a1 = DateMap.max_binding a1 |> fst
 
 type project_plan =
-  { budget : FTE.time
+  { budget : FTE.t
   ; finance_codes : string list
   ; latest_start_date : CalendarLib.Date.t
   ; earliest_start_date : CalendarLib.Date.t option
@@ -164,16 +171,16 @@ type person =
   ; slack_handle : string option
   }
 
-type placeholder = 
-  { name : string }
+type placeholder = { name : string }
 
 type entity =
-  Person of person
+  | Person of person
   | Placeholder of placeholder
 
 let get_entity_name = function
   | Person p -> p.full_name
   | Placeholder p -> Printf.sprintf "Placeholder: %s" p.name
+;;
 
 type assignment =
   { project : project
@@ -185,6 +192,12 @@ let is_person_assignment a =
   match a.entity with
   | Person _ -> true
   | _ -> false
+;;
+
+let ftes_of_assignment asn =
+  let is_placeholder = not (is_person_assignment asn) in
+  asn.allocation |> DateMap.bindings |> List.map snd |> FTE.sum_to_weeks ~is_placeholder
+;;
 
 type schedule =
   { projects : project IntMap.t
