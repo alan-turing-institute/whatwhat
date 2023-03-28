@@ -25,9 +25,8 @@
   lwt
   cohttp-lwt-unix
   calendar
-  re
+  tyre
   tls
-  batteries
   yaml
   csv
   ppx_yojson_conv

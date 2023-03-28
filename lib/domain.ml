@@ -2,24 +2,91 @@
 
 module IntMap = Map.Make (Int)
 module StringMap = Map.Make (String)
+module DateMap = Map.Make (CalendarLib.Date)
 
-type resource =
-  | FTE_weeks of float
-  | FTE_months of float
-[@@deriving show]
+module FTE = struct
+  type t = FTE of float
 
-type rate = Rate of float
+  let show (FTE x) = Printf.sprintf "%.2f FTE" x
+  let from_forecast_rate n = FTE (float_of_int n /. (60. *. 60. *. 8.))
+  let add (FTE x) (FTE y) = FTE (x +. y)
+  let get (FTE x) = x
 
-type simple_allocation =
-  { start_date : CalendarLib.Date.t
-  ; days : CalendarLib.Date.Period.t (* [days >=0] must be true *)
-  ; rate : rate
-  }
+  type time =
+    | FTE_weeks of float
+    | FTE_months of float
 
-type allocation = simple_allocation list
+  let mpw = 12. /. 52. (* Months per week *)
+
+  let show_time = function
+    | FTE_weeks w -> Printf.sprintf "%.2f FTE-weeks" w
+    | FTE_months m -> Printf.sprintf "%.2f FTE-weeks" (m /. mpw)
+  ;;
+
+  let weeks_in = function
+    | FTE_weeks w -> w
+    | FTE_months m -> m /. mpw
+
+  let sum_over_days (xs : t list) : time =
+    (* Sum FTE-days *)
+    let rec fte_days ts = match ts with
+    | [] -> 0.
+    | y :: ys -> get y +. fte_days ys
+    in
+    (* Then convert to FTE-weeks *)
+    FTE_weeks ((fte_days xs) /. 7.)
+  ;;
+
+  let add_time tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in
+    FTE_weeks (w1 +. w2)
+
+  let sub_time tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in
+    FTE_weeks (w1 -. w2)
+
+  let mul_time tm y =
+    match tm with
+    | FTE_weeks x -> FTE_weeks (x *. y)
+    | FTE_months x -> FTE_months (x *. y)
+
+  let div_time tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in w1 /. w2
+
+  let compare_time tm1 tm2 =
+    compare (weeks_in tm1) (weeks_in tm2)
+
+  let sum_time tms =
+    List.fold_left add_time (FTE_weeks 0.) tms
+end
+
+type allocation = FTE.t DateMap.t
+
+let make_allocation start_date end_date fte =
+  let open CalendarLib.Date in
+  let is_weekend date =
+    match day_of_week date with
+    | Sat | Sun -> true
+    | _ -> false
+  in
+  let rec accum date map =
+    if date > end_date
+    then map
+    else (
+      let next_day = add date (Period.day 1) in
+      if is_weekend date
+      then accum next_day map
+      else DateMap.add date fte (accum next_day map))
+  in
+  accum start_date DateMap.empty
+;;
+
+let combine_allocations a1 a2 = DateMap.union (fun _ v1 v2 -> Some (FTE.add v1 v2)) a1 a2
+let get_first_day a1 = DateMap.min_binding a1 |> fst
+let get_last_day a1 = DateMap.max_binding a1 |> fst
 
 type project_plan =
-  { budget : resource
+  { budget : FTE.time
   ; finance_codes : string list
   ; latest_start_date : CalendarLib.Date.t
   ; earliest_start_date : CalendarLib.Date.t option
@@ -67,26 +134,23 @@ exception UnknownColumn of string
 
 let state_of_column col =
   match col with
-  | None -> failwith "No GitHub column!"
-  | Some colname ->
-    (match colname with
-     | "Suggested" -> State.Suggested
-     | "Proposal" -> State.Proposal
-     | "Extra info needed" -> State.ExtraInfoNeeded
-     | "Project appraisal" -> State.ProjectAppraisal
-     | "Awaiting go/no-go" -> State.AwaitingGoNogo
-     | "Finding people" -> State.FindingPeople
-     | "Awaiting start" -> State.AwaitingStart
-     | "Active" -> State.Active
-     | "Completion review" -> State.CompletionReview
-     | "Done" -> State.Done
-     | "Cancelled" -> State.Cancelled
-     | "Rejected" -> State.Rejected
-     | _ -> raise (UnknownColumn ("Unknown GitHub column: " ^ colname)))
+  | "Suggested" -> State.Suggested
+  | "Proposal" -> State.Proposal
+  | "Extra info needed" -> State.ExtraInfoNeeded
+  | "Project appraisal" -> State.ProjectAppraisal
+  | "Awaiting go/no-go" -> State.AwaitingGoNogo
+  | "Finding people" -> State.FindingPeople
+  | "Awaiting start" -> State.AwaitingStart
+  | "Active" -> State.Active
+  | "Completion review" -> State.CompletionReview
+  | "Done" -> State.Done
+  | "Cancelled" -> State.Cancelled
+  | "Rejected" -> State.Rejected
+  | _ -> raise (UnknownColumn ("Unknown GitHub column: " ^ col))
 ;;
 
 type project =
-  { nmbr : int (** The issue number from GitHub *)
+  { number : int (** The issue number from GitHub *)
   ; name : string
   ; state : State.t
   ; programme : string option
@@ -100,97 +164,27 @@ type person =
   ; slack_handle : string option
   }
 
+type placeholder = 
+  { name : string }
+
+type entity =
+  Person of person
+  | Placeholder of placeholder
+
+let get_entity_name = function
+  | Person p -> p.full_name
+  | Placeholder p -> Printf.sprintf "Placeholder: %s" p.name
+
 type assignment =
-  { project : int (* The project code *)
-  ; person : string (* An email *)
-  ; finance_code : string option
+  { project : project
+  ; entity : entity
   ; allocation : allocation
   }
 
-let show_project_plan plan =
-  let dts = CalendarLib.Printer.Date.to_string in
-  String.concat
-    ""
-    [ "{**Domain.project_plan**"
-    ; "\n"
-    ; "Budget: "
-    ; plan.budget |> show_resource
-    ; "Finance codes: ["
-    ; String.concat ";" plan.finance_codes
-    ; "]"
-    ; "\n"
-    ; "Latest start date: "
-    ; dts plan.latest_start_date
-    ; "\n"
-    ; "Earliest start date: "
-    ; (match plan.earliest_start_date with
-       | Some x -> "Some " ^ dts x
-       | None -> "None")
-    ; "\n"
-    ; "Latest end date: "
-    ; (match plan.latest_end_date with
-       | Some x -> "Some " ^ dts x
-       | None -> "None")
-    ; "\n"
-    ; Printf.sprintf "Nominal FTE percent: %f\n" plan.nominal_fte_percent
-    ; Printf.sprintf "Maximum FTE percent: %f\n" plan.max_fte_percent
-    ; Printf.sprintf "Minimum FTE percent: %f\n" plan.min_fte_percent
-    ; "}"
-    ]
-;;
-
-(* type project = *)
-(*   { nmbr : int  *)
-(*   ; name : string *)
-(*   ; state : State.t *)
-(*   ; programme : string option *)
-(*   ; plan : project_plan *)
-(*   } *)
-let show_project proj =
-  String.concat
-    ""
-    [ "{**Domain.project**\n"
-    ; Printf.sprintf "GitHub issue number: %d\n" proj.nmbr
-    ; Printf.sprintf "Name: %s\n" proj.name
-    ; Printf.sprintf "State: %s\n" (State.show_t proj.state)
-    ; "Programme: "
-    ; (match proj.programme with
-       | Some x -> "Some " ^ x
-       | None -> "None")
-    ; "\n"
-    ; "Project plan: "
-    ; show_project_plan proj.plan
-    ; "\n"
-    ; "}"
-    ]
-;;
-
-let show_allocation alloc =
-  let days = CalendarLib.Date.Period.nb_days alloc.days in
-  match alloc.rate with
-  | Rate f ->
-    Printf.sprintf
-      " Start date: %s; Duration: %d days; Rate: %f"
-      (CalendarLib.Printer.Date.to_string alloc.start_date)
-      days
-      f
-;;
-
-let show_assignment asn =
-  let pf = Printf.sprintf in
-  String.concat
-    "\n"
-    ([ pf "{**Domain.assignment**"
-     ; pf "    Project : %d" asn.project
-     ; pf "    Person : %s" asn.person
-     ]
-    @ (match asn.finance_code with
-       | Some f -> [ pf "    Finance code : %s" f ]
-       | None -> [])
-    @ [ pf "    Allocations : [" ]
-    @ List.map show_allocation asn.allocation
-    @ [ pf "    ]"; pf "}" ])
-;;
+let is_person_assignment a =
+  match a.entity with
+  | Person _ -> true
+  | _ -> false
 
 type schedule =
   { projects : project IntMap.t

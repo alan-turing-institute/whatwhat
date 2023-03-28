@@ -2,7 +2,7 @@
     
    
 
-    The plan is to emit a GitHub comment of the following form:
+    The plan is to emit a GitHub comment of the following form:;
     {v
     Hi there, this is WhatWhat Bot. I'm a bot. Beep boop!
 
@@ -23,7 +23,6 @@ module IntMap = Map.Make (Int)
 
 type notify_target =
   | NoTarget
-  | Print
   | Github
   | Slack
   | All
@@ -53,58 +52,13 @@ let extract_metadata_events (event_log : Log.event Seq.t) =
   |> Seq.fold_left add_event_to_map IntMap.empty
 ;;
 
-(* ------------------------------------------------------------ 
-   Debugging
- *)
-
-let dump_event (e : Log.event) =
-  Printf.printf
-    "%s: Module %s reports: %s\n"
-    (Log.show_level e.level)
-    (Log.show_source e.source)
-    e.message
-;;
-
-(* Dump all logged events to standard out *)
-let dump_the_log () = Seq.iter dump_event @@ Log.get_the_log ()
-
-let dump_metadata_events () =
-  extract_metadata_events @@ Log.get_the_log ()
-  |> IntMap.iter (fun nmbr evs ->
-       print_endline ("Metadata events for project number " ^ string_of_int nmbr);
-       List.iter dump_event evs;
-       print_endline "")
-;;
-
 (* ------------------------------------------------------------
    Reporting
  *)
 
-let format_metadata_report_print (number : int) (events : Log.event list) =
-  let open ANSITerminal in
-  let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
-  let error_msgs =
-    List.map (fun ev -> sprintf [ Foreground Red ] "Error: " ^ ev.Log.message) errors
-  in
-  let warning_msgs =
-    List.map
-      (fun ev -> sprintf [ Foreground Yellow ] "Warning: " ^ ev.Log.message)
-      warnings
-  in
-
-  let header = sprintf [ Bold ] "Issue %-5d" number in
-  let indent = String.make 13 ' ' in
-  let messages =
-    (* Don't indent the first message. *)
-    match error_msgs @ warning_msgs with
-    | x :: xs -> x :: List.map (fun s -> indent ^ s) xs
-    | y -> y
-  in
-  header, messages
-;;
-
 let format_metadata_report_github (events : Log.event list) : string =
-  let errors, warnings = List.partition (fun ev -> ev.Log.level = Log.Error) events in
+  let errors = List.filter Log.isError events in
+  let warnings = List.filter Log.isWarning events in
   let error_msgs = List.map (fun ev -> ev.Log.message) errors in
   let warning_msgs = List.map (fun ev -> ev.Log.message) warnings in
   let n_errors = List.length errors in
@@ -131,17 +85,6 @@ let format_metadata_report_github (events : Log.event list) : string =
   then Buffer.add_string buf "\n\nIn addition, I had the following **problem**(s):\n\n- ";
   if n_warnings > 0 then Buffer.add_string buf (String.concat "\n- " warning_msgs);
   Buffer.contents buf
-;;
-
-let print_metadata_reports () =
-  Log.get_the_log ()
-  |> extract_metadata_events
-  |> IntMap.mapi format_metadata_report_print
-  |> IntMap.bindings
-  |> List.map snd
-  |> List.iter (fun (header, msgs) ->
-       print_string header;
-       List.iter print_endline msgs)
 ;;
 
 let post_metadata_reports_github () =

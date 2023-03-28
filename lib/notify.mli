@@ -14,17 +14,11 @@ module IntMap : module type of Map.Make (Int)
 (** Where notifications should be posted. The default is NoTarget. *)
 type notify_target =
   | NoTarget
-  | Print
   | Github
   | Slack
   | All
 
-val dump_the_log : unit -> unit
-val dump_metadata_events : unit -> unit
 val extract_metadata_events : Log.event Seq.t -> Log.event list IntMap.t
-
-(** Print a more concise form of metadata reports. *)
-val print_metadata_reports : unit -> unit
 
 (** Format metadata reports in a suitable manner for posting to GitHub. *)
 val format_metadata_report_github : Log.event list -> string

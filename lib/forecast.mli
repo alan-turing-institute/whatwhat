@@ -1,21 +1,47 @@
-(** High-level interface to Forecast. Returns only entities that are correctly
-    defined accoring to our domain model. *)
+(** High-level interface to the Forecast API. *)
 
-open CalendarLib
 module IntMap : module type of Map.Make (Int)
 module StringMap : module type of Map.Make (String)
 
+
+(** The types in this module represent all the useful information we can
+    obtain from Forecast (after validation). They are not the same as the types
+    in the Domain module: those represent all possible information on a person /
+    project / etc. after merging data from GitHub and Forecast.
+    *)
+type person = {
+  full_name : string;
+  email : string
+}
+
+(** An entity is a person or a placeholder. Placeholders are represented
+    directly using the [Domain.placeholder] type, because there is no extra
+    information about placeholders to be gained from GitHub. *)
+type entity =
+  | Person of person
+  | Placeholder of Domain.placeholder
+
+(** Get the name of an entity. *)
+val get_entity_name : entity -> string
+
+(** This type contains all the useful information about a project which can be
+    extracted from Forecast.
+    *)
 type project =
-  { number : int
+  { number : int (** The issue number on GitHub. *)
   ; name : string
   ; programme : string
+  ; finance_code : string option
   }
 
-val get_the_schedule
-  :  start_date:Date.t
-  -> end_date:Date.t
-  -> project IntMap.t * Domain.person StringMap.t * Domain.assignment list
+type assignment =
+  { project : project
+  ; entity : entity
+  ; allocation : Domain.allocation
+  }
 
-val get_the_current_schedule
-  :  int
-  -> project IntMap.t * Domain.person StringMap.t * Domain.assignment list
+(** Obtain a valid Forecast schedule between two given dates. *)
+val get_the_schedule
+  :  start_date:CalendarLib.Date.t
+  -> end_date:CalendarLib.Date.t
+  -> project IntMap.t * person StringMap.t * assignment list

@@ -4,74 +4,14 @@
 open Yojson
 open Lwt.Syntax
 
+(** HTTP requests ------------------------------------ *)
+
+(** Only GET and POST are supported *)
 type http_method =
   | GET
   | POST
 
-type person =
-  { login : string
-  ; name : string option
-  ; email : string option
-  }
-[@@deriving show]
-
-type issue =
-  { number : int
-  ; title : string
-  ; body : string
-  ; state : string
-  ; assignees : person list
-  ; reactions : (string * person) list
-  ; labels : string list
-  ; column : string option
-  }
-[@@deriving show]
-
-type column =
-  { name : string
-  ; id : int
-  ; issues : (issue * string) list
-  }
-[@@deriving show]
-
-type project =
-  { number : int
-  ; name : string
-  ; columns : column list
-  }
-[@@deriving show]
-
-type project_root = { projects : project list } [@@deriving show]
-
-(* ---------------------------------------------------------------------- *)
-(* PARSERS *)
-(* Parsers for the JSON returned by the Github API *)
-
-(* Convenient bindings for functions we use repeatedly when parsing the JSON returned by
-   the API. *)
-let member_to_string (str : string) json =
-  json |> Basic.Util.member str |> Basic.Util.to_string
-;;
-
-let person_of_json json =
-  { login = json |> member_to_string "login"
-  ; name = json |> Basic.Util.member "name" |> Basic.Util.to_string_option
-  ; email = json |> Basic.Util.member "email" |> Basic.Util.to_string_option
-  }
-;;
-
-(* ------- Generic functions for querying GitHub APIs ------- *)
-
-(* unfortunately method is an OCaml keyword *)
-(* TODO: Check for errors in body JSON before returning; member returns `Null if
-   the field isn't found. The code below only works if an object is returned; it
-   fails if an array of objects is returned (e.g. when getting a list of issues
-   in a column *)
-(* let errors = Basic.Util.member "errors" body_json in *)
-(* match errors with *)
-(* | `Null -> Lwt.return body_json *)
-(* | _ -> raise @@ QueryError (Basic.to_string errors) *)
-let run_github_query_async ?(methd = GET) ?(params = []) ?(body = "") uri =
+let run_github_query_async ?(http_method = GET) ?(params = []) ?(body = "") uri =
   let open Cohttp in
   let open Cohttp_lwt_unix in
   let github_token = Config.get_github_token () in
@@ -82,42 +22,59 @@ let run_github_query_async ?(methd = GET) ?(params = []) ?(body = "") uri =
     |> fun header -> Header.prepend_user_agent header "Whatwhat"
   in
   let uri = Uri.add_query_params (Uri.of_string uri) params in
-  let* response, body =
-    match methd with
-    | GET -> Client.get ~headers:header_obj uri
-    | POST ->
-      let body_obj = Cohttp_lwt.Body.of_string body in
-      Client.post ~headers:header_obj ~body:body_obj uri
+  let* body =
+    Lwt.catch
+      (fun () ->
+        let* r, b =
+          match http_method with
+          | GET -> Client.get ~headers:header_obj uri
+          | POST ->
+            let body_obj = Cohttp_lwt.Body.of_string body in
+            Client.post ~headers:header_obj ~body:body_obj uri
+        in
+        Utils.check_http_response r;
+        Lwt.return b)
+      (function
+       | Failure _ -> failwith "GitHub HTTP request failed."
+       | Utils.HttpError e -> failwith ("GitHub HTTP request failed: " ^ e)
+       | exn -> Lwt.fail exn)
   in
-  let () = Utils.check_http_response response in
   let* body_string = Cohttp_lwt.Body.to_string body in
   let body_json = Basic.from_string body_string in
   Lwt.return body_json
 ;;
 
-let run_github_query ?(methd = GET) ?(params = []) ?(body = "") uri =
-  run_github_query_async ~methd ~params ~body uri |> Lwt_main.run
+let run_github_query ?(http_method = GET) ?(params = []) ?(body = "") uri =
+  run_github_query_async ~http_method ~params ~body uri |> Lwt_main.run
+;;
+
+(** Users -------------------------------------------- *)
+
+type person =
+  { login : string
+  ; name : string option
+  ; email : string option
+  }
+
+let person_of_json json =
+  let open Yojson.Basic.Util in
+  { login = json |> member "login" |> to_string
+  ; name = json |> member "name" |> to_string_option
+  ; email = json |> member "email" |> to_string_option
+  }
 ;;
 
 let all_users =
-  let query_template =
-    {|{ "query": "query { repository(owner: REPO_OWNER, name: REPO_NAME) { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
+  let query =
+    Printf.sprintf
+      {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
+      (Config.get_github_repo_owner ())
+      (Config.get_github_repo_name ())
   in
-  let replacements =
-    [ Str.regexp "REPO_NAME", "\\\"" ^ Config.get_github_repo_name () ^ "\\\""
-    ; Str.regexp "REPO_OWNER", "\\\"" ^ Config.get_github_repo_owner () ^ "\\\""
-    ]
-  in
-  let replace_multiple replacements str =
-    let folder query (to_replace, replace_with) =
-      Str.global_replace to_replace replace_with query
-    in
-    List.fold_left folder str replacements
-  in
-  let query = replace_multiple replacements query_template in
-
   let github_graph_ql_endpoint = Config.get_github_url () ^ "/graphql" in
-  let body_json = run_github_query ~methd:POST ~body:query github_graph_ql_endpoint in
+  let body_json =
+    run_github_query ~http_method:POST ~body:query github_graph_ql_endpoint
+  in
   let open Yojson.Basic.Util in
   body_json
   |> member "data"
@@ -129,12 +86,78 @@ let all_users =
 
 let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_users
 
-(* ------- Queries using REST API ------- *)
+(** Issues ------------------------------------------- *)
+
+(** An issue is either open or closed. *)
+type issue_state =
+  | Open
+  | Closed
+[@@deriving show]
+
+let state_of_string = function
+  | "open" -> Open
+  | "closed" -> Closed
+  | _ -> failwith "Invalid JSON for state"
+;;
+
+type issue =
+  { number : int
+  ; title : string
+  ; body : string
+  ; state : issue_state
+  ; assignees : person list
+  ; labels : string list
+  }
+
+let get_issue_async id =
+  let open Yojson.Basic.Util in
+  let issue_uri =
+    String.concat
+      "/"
+      [ Config.get_github_url ()
+      ; "repos"
+      ; Config.get_github_repo_owner ()
+      ; Config.get_github_repo_name ()
+      ; "issues"
+      ; string_of_int id
+      ]
+  in
+  let* issue_json = run_github_query_async issue_uri in
+  Lwt.return
+    { number = id
+    ; title = issue_json |> member "title" |> to_string
+    ; body = issue_json |> member "body" |> to_string
+    ; state = issue_json |> member "state" |> to_string |> state_of_string
+    ; assignees =
+        issue_json
+        |> member "assignees"
+        |> to_list
+        |> List.filter_map (fun a ->
+             a |> member "login" |> to_string |> find_person_by_login)
+    ; labels =
+        issue_json
+        |> member "labels"
+        |> to_list
+        |> List.map (fun j -> j |> member "name" |> to_string)
+    }
+;;
+
+let get_issue id = get_issue_async id |> Lwt_main.run
+
+(** Issues with reactions ---------------------------- *)
+
+(** A GitHub issue, but with reactions. We have a separate type for this because
+    fetching reactions is a separate request to the GitHub API, and we don't
+    want to indiscriminately do this. *)
+type issue_r =
+  { issue : issue
+  ; reactions : (string * person) list
+  }
 
 (* Like column cards, we can only fetch 100 reactions at a time. This function
    therefore fetches the first page of reactions (which can contain up to 100
    results) and then fetches a second page if 100 results were returned. *)
-let rec get_issue_reactions_async ?(page = 1) id =
+let rec get_reactions_async ?(page = 1) id =
   let batch_get page id =
     let uri =
       String.concat
@@ -171,168 +194,220 @@ let rec get_issue_reactions_async ?(page = 1) id =
   let* first_batch = batch_get page id in
   if List.length first_batch = 100
   then
-    let* next_batch = get_issue_reactions_async ~page:(page + 1) id in
+    let* next_batch = get_reactions_async ~page:(page + 1) id in
     Lwt.return (first_batch @ next_batch)
   else Lwt.return first_batch
 ;;
 
-let get_issue_async ?col_name id =
-  let ( let* ) = Lwt.bind in
-  let open Yojson.Basic.Util in
-  let issue_uri =
+let get_issue_r_async id =
+  let* issue = get_issue_async id in
+  let* reactions = get_reactions_async id in
+  Lwt.return { issue; reactions }
+;;
+
+let get_issue_r id = get_issue_r_async id |> Lwt_main.run
+
+(* GitHub only allows for 100 items to be read from a column in a single
+   request. *)
+let rec get_issue_numbers_in_column_async ?(page = 1) col_id =
+  let batch_get page col_id =
+    let get_issue_number card_json : int option =
+      let open Yojson.Basic.Util in
+      match card_json |> member "content_url" |> to_string_option with
+      | Some s ->
+        (try
+           Some (String.split_on_char '/' s |> List.rev |> List.hd |> int_of_string)
+         with
+         | _ -> failwith "GitHub column card had invalid content_url string")
+      | None -> None
+    in
+    let uri =
+      String.concat
+        "/"
+        [ Config.get_github_url (); "projects"; "columns"; string_of_int col_id; "cards" ]
+    in
+    let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
+    let* cards = run_github_query_async ~params uri in
+    let issue_numbers = cards |> Basic.Util.to_list |> List.filter_map get_issue_number in
+    Lwt.return issue_numbers
+  in
+  let* first_batch = batch_get page col_id in
+  if List.length first_batch = 100
+  then
+    let* next_batch = get_issue_numbers_in_column_async ~page:(page + 1) col_id in
+    Lwt.return (first_batch @ next_batch)
+  else Lwt.return first_batch
+;;
+
+(** Columns ------------------------------------------ *)
+
+type column =
+  { name : string
+  ; id : int
+  ; issues : issue list
+  }
+
+(** The same as a column, but issues are represented only by their issue number.
+    *)
+type column_n =
+  { name : string
+  ; id : int
+  ; issues_n : int list
+  }
+
+(** The same as a column, but issues additionally contain reactions.
+    *)
+type column_r =
+  { name : string
+  ; id : int
+  ; issues_r : issue_r list
+  }
+
+(** Fetch an entire column, but only return issue numbers instead of issues
+    themselves. *)
+let get_column_n name id =
+  let* issues_n = get_issue_numbers_in_column_async id in
+  Lwt.return { name; id; issues_n }
+;;
+
+(** Projects ----------------------------------------- *)
+
+type project =
+  { id : int
+  ; name : string
+  ; columns : column list
+  }
+
+(** The same as a project, but issues are represented only by their issue
+    number. *)
+type project_n =
+  { id : int
+  ; name : string
+  ; columns_n : column_n list
+  }
+
+(** The same as a project, but issues additionally contain reactions. *)
+type project_r =
+  { id : int
+  ; name : string
+  ; columns_r : column_r list
+  }
+
+(** Get the integer ID of a named project tracker in a repository. *)
+let get_project_id project_name =
+  let uri =
     String.concat
       "/"
       [ Config.get_github_url ()
       ; "repos"
       ; Config.get_github_repo_owner ()
       ; Config.get_github_repo_name ()
-      ; "issues"
-      ; string_of_int id
+      ; "projects"
       ]
   in
-  let* issue_json = run_github_query_async issue_uri in
-  let* reactions = get_issue_reactions_async id in
+  let* projects = run_github_query_async ~http_method:GET uri in
+  let extract_id json =
+    if json |> Basic.Util.member "name" |> Basic.Util.to_string = project_name
+    then Some (json |> Basic.Util.member "id" |> Basic.Util.to_int)
+    else None
+  in
   Lwt.return
-    { number = id
-    ; title = issue_json |> member "title" |> to_string
-    ; body = issue_json |> member "body" |> to_string
-    ; state = issue_json |> member "state" |> to_string
-    ; assignees =
-        issue_json
-        |> member "assignees"
-        |> to_list
-        |> List.filter_map (fun a ->
-             a |> member "login" |> to_string |> find_person_by_login)
-    ; reactions
-    ; labels =
-        issue_json
-        |> member "labels"
-        |> to_list
-        |> List.map (fun j -> j |> member "name" |> to_string)
-    ; column = col_name
+    (match projects |> Basic.Util.to_list |> List.filter_map extract_id with
+     | [] -> failwith "Project not found"
+     | [ x ] -> x
+     | _ -> failwith "More than one project with given name found")
+;;
+
+(** Get (name, id) pairs for each column in a project. *)
+let get_column_names_and_ids project_id =
+  let uri =
+    String.concat
+      "/"
+      [ Config.get_github_url (); "projects"; string_of_int project_id; "columns" ]
+  in
+  let* resp = run_github_query_async uri in
+  let entries = resp |> Basic.Util.to_list in
+  let get_id col = col |> Basic.Util.member "id" |> Basic.Util.to_int in
+  let get_name col = col |> Basic.Util.member "name" |> Basic.Util.to_string in
+  let filtered_entries =
+    match Config.get_github_project_columns () with
+    | Some names -> entries |> List.filter (fun c -> List.mem (get_name c) names)
+    | None -> entries
+  in
+  Lwt.return (filtered_entries |> List.map (fun c -> get_name c, get_id c))
+;;
+
+(** A promise to fetch an entire project, but only with issue numbers. *)
+let get_project_n_async () =
+  let name = Config.get_github_project_name () in
+  let* proj_id = get_project_id name in
+  let* col_info = get_column_names_and_ids proj_id in
+  let* columns_n = Lwt.all (List.map (fun (name, id) -> get_column_n name id) col_info) in
+  Lwt.return { id = proj_id; name; columns_n }
+;;
+
+(** Fetch an entire project, but only with issue numbers. *)
+let get_project_n () = get_project_n_async () |> Lwt_main.run
+
+(** A promise to fetch an entire project. *)
+let get_project_async () =
+  let* project_num = get_project_n_async () in
+  let get_colname_issuenum_pairs (col : column_n) =
+    List.map (fun i -> col.name, i) col.issues_n
+  in
+  let get_issue_with_colname (col, num) =
+    let* issue = get_issue_async num in
+    Lwt.return (col, issue)
+  in
+  let* colname_issue_pairs =
+    project_num.columns_n
+    |> List.concat_map get_colname_issuenum_pairs
+    |> List.map get_issue_with_colname
+    |> Utils.all_throttled
+  in
+  let reconstruct_col (col : column_n) =
+    let issues =
+      colname_issue_pairs |> List.filter (fun (n, _) -> n = col.name) |> List.map snd
+    in
+    { name = col.name; id = col.id; issues }
+  in
+  Lwt.return
+    { id = project_num.id
+    ; name = project_num.name
+    ; columns = List.map reconstruct_col project_num.columns_n
     }
 ;;
 
-let get_issue ?col_name id = get_issue_async ?col_name id |> Lwt_main.run
+(** Fetch an entire project. *)
+let get_project () = get_project_async () |> Lwt_main.run
 
-let get_issues_async (idnames : (int * string) list) =
-  idnames |> List.map (fun (i, col) -> get_issue_async ~col_name:col i) |> Lwt.all
-;;
-
-(* Get a batch of issues, but with some throttling such that only
-   max_concurrent_issues requests are fired off at any one time.
-   Turns out that if you ask GitHub for >300 issues at a go, it complains
-   Fatal error: exception Failure("TLS to non-TCP currently unsupported:
-     host=api.github.com endp=(Unknown \"name resolution failed\")" *)
-let rec get_issues_throttled (idnames : (int * string) list) =
-  let rec splitAt n xs =
-    match n, xs with
-    | _, [] -> [], []
-    | 1, x :: x' -> [ x ], x'
-    | n, x :: x' ->
-      let y1, y2 = splitAt (n - 1) x' in
-      x :: y1, y2
+(** A promise to fetch an entire project, additionally with issue reactions. *)
+let get_project_r_async () =
+  let* project_num = get_project_n_async () in
+  let get_colname_issuenum_pairs (col : column_n) =
+    List.map (fun i -> col.name, i) col.issues_n
   in
-  let max_concurrent_issues = 150 in
-  match splitAt max_concurrent_issues idnames with
-  | [], [] -> Lwt.return []
-  | xs, [] -> get_issues_async xs
-  | xs, ys ->
-    let* first_batch = get_issues_async xs in
-    let* the_rest = get_issues_throttled ys in
-    Lwt.return (first_batch @ the_rest)
-;;
-
-(* GitHub only allows for 100 items to be read from a column in a single
-   request. *)
-let rec get_issue_numbers_in_column_async ?(page = 1) col =
-  let batch_get page col =
-    let get_issue_number card_json : int option =
-      let open Yojson.Basic.Util in
-      (* TODO: could do with more thorough error checking *)
-      match card_json |> member "content_url" |> to_string_option with
-      | Some s -> Some (String.split_on_char '/' s |> List.rev |> List.hd |> int_of_string)
-      | None -> None
+  let get_issue_rxn_with_colname (col, num) =
+    let* issue_rxn = get_issue_r_async num in
+    Lwt.return (col, issue_rxn)
+  in
+  let* colname_issue_pairs =
+    project_num.columns_n
+    |> List.concat_map get_colname_issuenum_pairs
+    |> List.map get_issue_rxn_with_colname
+    |> Utils.all_throttled
+  in
+  let reconstruct_col (col : column_n) =
+    let issues_r =
+      colname_issue_pairs |> List.filter (fun (n, _) -> n = col.name) |> List.map snd
     in
-    let uri =
-      String.concat
-        "/"
-        [ Config.get_github_url (); "projects"; "columns"; string_of_int col.id; "cards" ]
-    in
-    let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
-    let* cards = run_github_query_async ~params uri in
-    let issue_numbers =
-      cards
-      |> Basic.Util.to_list
-      |> List.filter_map get_issue_number
-      |> List.map (fun i -> i, col.name)
-    in
-    Lwt.return issue_numbers
+    { name = col.name; id = col.id; issues_r }
   in
-  let* first_batch = batch_get page col in
-  if List.length first_batch = 100
-  then
-    let* next_batch = get_issue_numbers_in_column_async ~page:(page + 1) col in
-    Lwt.return (first_batch @ next_batch)
-  else Lwt.return first_batch
+  Lwt.return
+    { id = project_num.id
+    ; name = project_num.name
+    ; columns_r = List.map reconstruct_col project_num.columns_n
+    }
 ;;
 
-(* column -> (int, string) list *)
-(* the string is the name of the column, i.e. project status *)
-let get_issue_numbers_in_column col =
-  get_issue_numbers_in_column_async col |> Lwt_main.run
-;;
-
-let parse_column (column_json : Basic.t) : column =
-  let open Yojson.Basic.Util in
-  let name = column_json |> member "name" |> to_string in
-  let id = column_json |> member "id" |> to_int in
-  { name; id; issues = [] }
-;;
-
-(* TODO: don't hardcode the project id; they can be gotten via
-    https://api.github.com/repos/OWNER/REPO/projects *)
-let get_project_issue_numbers_async () =
-  let project_id =
-    match Config.get_github_project_name () with
-    | "Project Tracker" -> "621998"
-    | "NowWhat Test Project" -> "14539393"
-    | _ -> failwith "unknown project name"
-  in
-  let uri =
-    String.concat "/" [ Config.get_github_url (); "projects"; project_id; "columns" ]
-  in
-  let* columns = run_github_query_async uri in
-  let columns = columns |> Basic.Util.to_list |> List.map parse_column in
-  let filtered_columns =
-    match Config.get_github_project_columns () with
-    | Some names -> columns |> List.filter (fun (c : column) -> List.mem c.name names)
-    | None -> columns
-  in
-  let* issue_numbers' =
-    filtered_columns |> List.map get_issue_numbers_in_column_async |> Lwt.all
-  in
-  Lwt.return (List.flatten issue_numbers')
-;;
-
-let get_project_issue_numbers () = get_project_issue_numbers_async () |> Lwt_main.run
-
-let get_project_issues_async () =
-  let* issue_numbers = get_project_issue_numbers_async () in
-  get_issues_throttled issue_numbers
-;;
-
-let get_project_issues () = get_project_issues_async () |> Lwt_main.run
-
-let populate_column_name ?project_issue_numbers issue =
-  match issue.column with
-  | Some _ -> issue
-  | None ->
-    let project_data =
-      match project_issue_numbers with
-      | None -> get_project_issue_numbers ()
-      | Some x -> x
-    in
-    let col_name = List.assoc_opt issue.number project_data in
-    { issue with column = col_name }
-;;
+let get_project_r () = get_project_r_async () |> Lwt_main.run

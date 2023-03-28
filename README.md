@@ -14,24 +14,15 @@ A reimagining of `nowwhat` in OCaml.
 
 ### 1. Usage
 
-(Prefix command with `dune exec` in a build environment, or `dune exec --` if you are passing
-command-line arguments.)
+(To run these using the build environment, run each command as `dune exec -- <cmd>`.)
 
-```sh
-whatwhat
-```
-Currently, report errors found when parsing the github metadata.
-
-```sh
-whatwhat --target=github
-```
-Post a comment to each GitHub issue in the Project Tracker where a problem was discovered.
-
-```sh
-whatwhat export
-```
-Generate Forecast project export for the three-month period centred on the current month.
-See [the wiki](https://github.com/alan-turing-institute/whatwhat/wiki/Exporting-Forecast-CSVs) (or run `whatwhat export --help`) for more usage instructions.
+- `whatwhat`: Report errors found when parsing data from GitHub and Forecast.
+- `whatwhat --target=github`: Post a comment to each GitHub issue in the
+  Project Tracker where a problem was discovered.
+- `whatwhat export`: Generate Forecast project export for the three-month
+  period centred on the current month. See [the
+  wiki](https://github.com/alan-turing-institute/whatwhat/wiki/Exporting-Forecast-CSVs)
+  (or run `whatwhat export --help`) for more usage instructions.
 
 ---
 
@@ -46,18 +37,17 @@ See [the wiki](https://github.com/alan-turing-institute/whatwhat/wiki/Exporting-
 
     `eval $(opam env)`
 
-3. `opam install dune utop merlin odig` 
+3. `opam install dune utop odig ocaml-lsp-server` 
 
     (And I think you will need to do this again if you create a new
     switch. Maybe there's some way to say "this switch builds on this other
     one?")
 
-4. (For VS Code) `opam install ocaml-lsp-server`
+4. (For Emacs) `opam install tuareg`
 
-5. (For Emacs) `opam install tuareg`
-
-6. (For Emacs and Vim) `opam user-setup install` (I don't have an example yet of a successful Vim set
-   up. Someone **has** used `ocaml-lsp-server` with Vim, however.)
+5. (For Neovim) Add `require'lspconfig'.ocamllsp.setup{on_attach = on_attach}`
+   to your config. (Instructions for Vim 8/Vim 9 LSP plugins should be obtained
+   from the repository of the plugin you're using.)
 
 ---
 

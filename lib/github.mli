@@ -33,16 +33,21 @@
 
  *)
 
+module Raw = GithubRaw
+
 (** Errors and warnings for logging problems with the issue metadata. *)
-type parse_error =
-  | DateParsingError
-  | ExtraFieldError
-  | FieldTypeError
-  | FTETimeUnderSpecifiedError
-  | FTETimeOverSpecifiedError
-  | MissingCompulsoryFieldError
-  | NoMetadataError
-  | YamlError
+type github_event =
+  | NoMetadataError of Raw.issue (* E2001 *)
+  | YamlError of Raw.issue (* E2002 *)
+  | ExtraFieldError of Raw.issue * string (* E2003 *)
+  | InvalidFieldError of Raw.issue * string (* E2004 *)
+  | DuplicateFieldError of Raw.issue * string (* E2003 *)
+  | FTETimeUnderSpecifiedError of Raw.issue (* E2006 *)
+  | FTETimeOverSpecifiedError of Raw.issue (* E2007 *)
+  | NullFieldError of Raw.issue * string (* E2008 *)
+  | MissingCompulsoryFieldError of Raw.issue * string (* E2009 *)
+  | NoFinanceCodesError of Raw.issue (* E2010 *)
+  | NoFinanceCodesWarning of Raw.issue (* W2001 *)
 
 (* We reexport the Raw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)

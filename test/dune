@@ -1,4 +1,3 @@
 (tests
  (names utils)
- (libraries whatwhat
-            ounit2))
+ (libraries whatwhat ounit2))

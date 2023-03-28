@@ -2,6 +2,12 @@ open Cohttp
 
 exception HttpError of string
 
+(** Redefine date type (and provide a pretty-printing function in order to
+    cleanly derive [show]. *)
+type date = CalendarLib.Date.t
+
+let pp_date pp date = CalendarLib.Printer.Date.fprint "%i" pp date
+
 (** Parse a string as a date in the format year-month-day. If the string is not in this
     format, return [Error ()], else [Ok date]. *)
 let date_of_string (str : string) =
@@ -104,6 +110,32 @@ let group_by (p : 'a -> 'a -> bool) (xs : 'a list) : 'a list list =
   List.fold_right acc xs []
 ;;
 
+(** Sort and then group elements of a list according to a key *)
+let sort_and_group_by (f : 'a -> 'key) (xs : 'a list) : ('key * 'a list) list =
+  match xs with
+  | [] -> []
+  | _ ->
+    xs
+    |> List.map (fun x -> f x, x)
+    |> List.sort (fun x1 x2 -> compare (fst x1) (fst x2))
+    |> group_by (fun x1 x2 -> fst x1 = fst x2)
+    |> List.map (fun ps ->
+         match ps with
+         | p :: _ -> fst p, List.map snd ps
+         | _ -> failwith "group_by on nonempty input should not give empty lists")
+;;
+
+(** [splitAt n xs] returns [(take n xs, drop n xs)] (i.e. the first [n] elements
+    and the rest). *)
+let rec splitAt n xs =
+  match n, xs with
+  | _, [] -> [], []
+  | 1, x :: x' -> [ x ], x'
+  | n, x :: x' ->
+    let y1, y2 = splitAt (n - 1) x' in
+    x :: y1, y2
+;;
+
 (** Sum a list *)
 let rec sum (xs : float list) : float =
   match xs with
@@ -126,7 +158,8 @@ let rollback_week (d : CalendarLib.Date.t) : CalendarLib.Date.t =
 
 (** Roll a date forward to a Friday. Leaves Fridays untouched.
     If [with_weekend] is [true], then rolls forward to Sundays. *)
-let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : CalendarLib.Date.t =
+let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : CalendarLib.Date.t
+  =
   let open CalendarLib.Date in
   let days_to_friday, days_to_sunday =
     match day_of_week d with
@@ -140,3 +173,27 @@ let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : Calendar
   in
   let days_to_add = if with_weekend then days_to_sunday else days_to_friday in
   add d (Period.day days_to_add)
+;;
+
+(** [all_throttled] is like [Lwt.all] but only resolves [max_concurrent]
+    promises at a time. *)
+let rec all_throttled ?(max_concurrent = 150) (reqs : 'a Lwt.t list) =
+  let open Lwt.Syntax in
+  match splitAt max_concurrent reqs with
+  | [], [] -> Lwt.return []
+  | xs, [] -> Lwt.all xs
+  | xs, ys ->
+    let* first_batch = Lwt.all xs in
+    let* the_rest = all_throttled ~max_concurrent ys in
+    Lwt.return (first_batch @ the_rest)
+;;
+
+(** Prints a string with or without colour *)
+let prcol ~use_color styles string =
+  if use_color then ANSITerminal.print_string styles string else print_string string
+;;
+
+(** Same as above but to stderr *)
+let eprcol ~use_color styles string =
+  if use_color then ANSITerminal.prerr_string styles string else prerr_string string
+;;

@@ -1,13 +1,6 @@
 open ForecastRaw
 module DateMap = Map.Make (CalendarLib.Date)
 
-type assignment_output =
-  { client : ForecastRaw.client
-  ; project : ForecastRaw.project
-  ; entity : ForecastRaw.entity
-  ; hours_per_week : float DateMap.t
-  }
-
 (** [ndays_of_week_in d start_date end_date] counts the number of weekdays in
     the week commencing [d] between [start_date] and [end_date].
     [d] must be a Monday. *)
@@ -43,11 +36,7 @@ let get_hours_per_week (d : CalendarLib.Date.t) (asns : assignment list) : float
   in
   let get_hours_per_week_single (d : CalendarLib.Date.t) (a : assignment) =
     let ndays =
-      ndays_of_week_in
-        ~include_weekends:is_placeholder
-        d
-        (Utils.parse_date a.start_date)
-        (Utils.parse_date a.end_date)
+      ndays_of_week_in ~include_weekends:is_placeholder d a.start_date a.end_date
     in
     let hours_per_day = Float.of_int a.allocation /. 3600. in
     Float.of_int ndays *. hours_per_day
@@ -86,6 +75,7 @@ let make_assignment_output weeks asns =
   @ List.map (fun w -> Printf.sprintf "%.1f" (get_hours_per_week w asns)) weeks
 ;;
 
+(** Returns all Mondays between two dates. *)
 let get_mondays_between ~start_date ~end_date =
   let open CalendarLib.Date in
   let first_monday = Utils.rollback_week start_date in
@@ -98,15 +88,11 @@ let get_mondays_between ~start_date ~end_date =
   List.rev (acc first_monday [])
 ;;
 
-let is_active (asn : assignment) : bool =
-  (not asn.project.archived) && not (ForecastRaw.get_entity_archived asn.entity)
-;;
-
+(** The main function *)
 let export_schedule ~start_date ~end_date =
   let _, _, _, _, assignments = ForecastRaw.get_the_schedule ~start_date ~end_date in
   let weeks = get_mondays_between ~start_date ~end_date in
 
-  (* TODO add weeks *)
   let header =
     [ "Client"
     ; "Project"
@@ -135,7 +121,7 @@ let export_schedule ~start_date ~end_date =
       (match compare a1.project.name a2.project.name with
        | 0 ->
          (match a1.entity, a2.entity with
-          | Person p1, Person p2 -> compare (make_name p1) (make_name p2)
+          | Person p1, Person p2 -> compare (make_person_name p1) (make_person_name p2)
           | Placeholder p1, Placeholder p2 -> compare p1.name p2.name
           | Person _, Placeholder _ -> -1
           | Placeholder _, Person _ -> 1)
@@ -144,7 +130,8 @@ let export_schedule ~start_date ~end_date =
   in
   let data =
     assignments
-    |> List.filter is_active
+    |> List.filter (fun a ->
+         (not a.project.archived) && not (ForecastRaw.get_entity_archived a.entity))
     |> List.sort compare_assignments
     |> Utils.group_by (fun a1 a2 -> compare_assignments a1 a2 = 0)
     |> List.map (make_assignment_output weeks)
