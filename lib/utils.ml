@@ -110,6 +110,21 @@ let group_by (p : 'a -> 'a -> bool) (xs : 'a list) : 'a list list =
   List.fold_right acc xs []
 ;;
 
+(** Sort and then group elements of a list according to a key *)
+let sort_and_group_by (f : 'a -> 'key) (xs : 'a list) : ('key * 'a list) list =
+  match xs with
+  | [] -> []
+  | _ ->
+    xs
+    |> List.map (fun x -> f x, x)
+    |> List.sort (fun x1 x2 -> compare (fst x1) (fst x2))
+    |> group_by (fun x1 x2 -> fst x1 = fst x2)
+    |> List.map (fun ps ->
+         match ps with
+         | p :: _ -> fst p, List.map snd ps
+         | _ -> failwith "group_by on nonempty input should not give empty lists")
+;;
+
 (** [splitAt n xs] returns [(take n xs, drop n xs)] (i.e. the first [n] elements
     and the rest). *)
 let rec splitAt n xs =
@@ -175,14 +190,10 @@ let rec all_throttled ?(max_concurrent = 150) (reqs : 'a Lwt.t list) =
 
 (** Prints a string with or without colour *)
 let prcol ~use_color styles string =
-  if use_color then
-    ANSITerminal.print_string styles string
-  else
-    print_string string
+  if use_color then ANSITerminal.print_string styles string else print_string string
+;;
 
 (** Same as above but to stderr *)
 let eprcol ~use_color styles string =
-  if use_color then
-    ANSITerminal.prerr_string styles string
-  else
-    prerr_string string
+  if use_color then ANSITerminal.prerr_string styles string else prerr_string string
+;;

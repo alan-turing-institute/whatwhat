@@ -39,6 +39,7 @@ type forecast_event =
   | AssignmentToRemovedProjectInfo of Raw.assignment
   | NonREGPersonInfo of Raw.person
   | ArchivedPersonDebug of Raw.person
+  | ArchivedPlaceholderDebug of Raw.placeholder
   | ChoseOneFinanceCodeDebug of (Raw.project, project) Either.t * string list * string
 
 let log_event (fc_event : forecast_event) : unit =
@@ -171,6 +172,14 @@ let log_event (fc_event : forecast_event) : unit =
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "Ignoring archived person <%s>." name
       }
+  | ArchivedPlaceholderDebug raw_placeholder ->
+    let name = raw_placeholder.name in
+    Log.log'
+      { level = Log.Debug
+      ; source = Log.Forecast
+      ; entity = Log.RawForecastPlaceholder name
+      ; message = Printf.sprintf "Ignoring archived person <%s>." name
+      }
   | ChoseOneFinanceCodeDebug (rp_or_p, fcs, chosen_fc) ->
     Log.log'
       { level = Log.Debug
@@ -235,7 +244,7 @@ let extract_finance_code (rp : Raw.project) =
     in
     (match List.filter looks_like_finance_code rp.tags with
      | [ fc ] ->
-       log_event (ChoseOneFinanceCodeDebug ((Left rp), rp.tags, fc));
+       log_event (ChoseOneFinanceCodeDebug (Left rp, rp.tags, fc));
        Some fc
      | _ -> None)
 ;;
@@ -262,12 +271,13 @@ let validate_project _ (p : Raw.project) =
       None
     | Some c ->
       (match extract_project_number p with
-       | Some n -> Some {
-         number = n;
-         name = p.name;
-         programme = c.name;
-         finance_code = extract_finance_code p
-         }
+       | Some n ->
+         Some
+           { number = n
+           ; name = p.name
+           ; programme = c.name
+           ; finance_code = extract_finance_code p
+           }
        | None -> None))
 ;;
 
@@ -277,26 +287,42 @@ let validate_project _ (p : Raw.project) =
     person. It is not the same as Domain.person; that represents a complete
     overview of a person after the GitHub data has been merged in.
     *)
-type person = {
-  full_name : string;
-  email : string
-}
+type person =
+  { full_name : string
+  ; email : string
+  }
 
-(** [validate_person p] ensures that the person [p]:
+(** An entity is a person or a placeholder. Placeholders are represented
+    directly using the [Domain.placeholder] type, because there is no extra
+    information about placeholders to be gained from GitHub. *)
+type entity =
+  | Person of person
+  | Placeholder of Domain.placeholder
+
+(** Get the name of an entity. *)
+let get_entity_name e =
+  match e with
+  | Person p -> p.full_name
+  | Placeholder p -> "Placeholder: " ^ p.name
+;;
+
+(** [validate_entity p] ensures that the entity [e]:
     1. has not been archived; and
-    2. has the 'REG' tag; and
-    3. has a valid email address.
-
-    The email error is raised only if a person passes the first two checks.
+    2. if it is a person, has the 'REG' tag; and
+    3. if it is a person, has a valid email address.
     *)
 let validate_person (p : Raw.person) : person option =
   let email_re =
     Tyre.compile (Tyre.pcre {|^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$|})
   in
   if p.archived
-  then (log_event (ArchivedPersonDebug p); None)
+  then (
+    log_event (ArchivedPersonDebug p);
+    None)
   else if not (List.mem "REG" p.roles)
-  then (log_event (NonREGPersonInfo p); None)
+  then (
+    log_event (NonREGPersonInfo p);
+    None)
   else (
     match p.email with
     | None ->
@@ -307,11 +333,7 @@ let validate_person (p : Raw.person) : person option =
        | Error _ ->
          log_event (InvalidEmailError (p, email));
          None
-       | Ok _ ->
-         Some
-           { email
-           ; full_name = Raw.make_person_name p
-           }))
+       | Ok _ -> Some { email; full_name = Raw.make_person_name p }))
 ;;
 
 (* Allocations *)
@@ -322,37 +344,50 @@ let validate_person (p : Raw.person) : person option =
    *)
 type assignment =
   { project : project
-  ; person : person
+  ; entity : entity
   ; allocation : Domain.allocation
   }
 
 (* Parse Raw.assignments into Forecast.assignments.
 
    At this stage we ignore the fact that many assignments may actually concern the same
-   person, project, finance code combination, and just create a single assignment for each
-   Raw.assignment, each with a single allocation. We will later merge these, collating the
+   person, project, finance code combination, and just create a single assignment for each Raw.assignment, each with a single allocation. We will later merge these, collating the
    allocations.
    *)
 let validate_assignment people projects (a : Raw.assignment) =
-  match a.entity with
-  (* TODO: Retain placeholder assignments! *)
-  | Placeholder _ -> None
-  | Person person ->
-    (match IntMap.find_opt person.id people with
-     (* Check that the person wasn't deleted. *)
-     | None ->
-       log_event (AssignmentToRemovedPersonInfo a);
-       None
-     | Some valid_person ->
-       (match IntMap.find_opt a.project.id projects with
-        (* Check that the project wasn't deleted. *)
+  (* First check that the project wasn't deleted *)
+  match IntMap.find_opt a.project.id projects with
+  | None ->
+    log_event (AssignmentToRemovedProjectInfo a);
+    None
+  | Some prj ->
+    (* Then check the entity to which it's assigned *)
+    (match a.entity with
+     | Placeholder placeholder ->
+       if placeholder.archived
+       then (
+         log_event (ArchivedPlaceholderDebug placeholder);
+         None)
+       else
+         Some
+           { project = prj
+           ; entity = Placeholder { name = placeholder.name }
+           ; allocation =
+               Domain.make_allocation
+                 a.start_date
+                 a.end_date
+                 (Domain.FTE.from_forecast_rate a.allocation)
+           }
+     | Person person ->
+       (match IntMap.find_opt person.id people with
+        (* Check that the person wasn't deleted. *)
         | None ->
-          log_event (AssignmentToRemovedProjectInfo a);
+          log_event (AssignmentToRemovedPersonInfo a);
           None
-        | Some prj ->
+        | Some valid_person ->
           Some
             { project = prj
-            ; person = valid_person
+            ; entity = Person valid_person
             ; allocation =
                 Domain.make_allocation
                   a.start_date
@@ -361,36 +396,37 @@ let validate_assignment people projects (a : Raw.assignment) =
             }))
 ;;
 
-(* A Map module that can have as keys tuples of project.id, person.email, finance_code
+(* A Map module that can have as keys tuples of project.id, entity.name, finance_code
    option, or PPF for short. *)
-module PPF = struct
+module PNF = struct
   type t = int * string * string option
 
   let compare = Stdlib.compare
 end
 
-module AssignmentMap = Map.Make (PPF)
+module AssignmentMap = Map.Make (PNF)
 module DateMap = Map.Make (CalendarLib.Date)
 
 (* Collect all the assignments related to a set of project, person, and finance code
    together, and join their allocations. *)
 let collate_allocations assignments =
   let f (m : assignment AssignmentMap.t) (a : assignment) =
-    let ppf = a.project.number, a.person.full_name, a.project.finance_code in
-    let existing_assignment_opt = AssignmentMap.find_opt ppf m in
+    let pnf = a.project.number, get_entity_name a.entity, a.project.finance_code in
+    let existing_assignment_opt = AssignmentMap.find_opt pnf m in
     let assignment_to_add =
       match existing_assignment_opt with
       (* If there is already an assignment in the map m with this ppf value, add a new
        allocation to it. *)
       | Some existing_assignment ->
         { project = a.project
-        ; person = a.person
-        ; allocation = Domain.combine_allocations a.allocation existing_assignment.allocation
+        ; entity = a.entity
+        ; allocation =
+            Domain.combine_allocations a.allocation existing_assignment.allocation
         }
       (* Otherwise add a new assignment to the map. *)
       | None -> a
     in
-    AssignmentMap.add ppf assignment_to_add m
+    AssignmentMap.add pnf assignment_to_add m
   in
   List.fold_left f AssignmentMap.empty assignments
   |> AssignmentMap.to_seq
@@ -426,7 +462,7 @@ let make_project_map projects_id : project IntMap.t =
 let get_the_schedule ~start_date ~end_date =
   let _, peopl, _, projs, asnts = Raw.get_the_schedule ~start_date ~end_date in
   let projects_id = IntMap.filter_map validate_project projs in
-  let people_id = IntMap.filter_map (fun _ p -> validate_person p) peopl in
+  let people_id = IntMap.filter_map (fun _ e -> validate_person e) peopl in
   let assignments =
     List.filter_map (validate_assignment people_id projects_id) asnts
     |> collate_allocations

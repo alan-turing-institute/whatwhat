@@ -48,8 +48,14 @@ module FTE : sig
   (** Retrieve the number of FTE-weeks wrapped in the [FTE.time]. As above,
       avoid using this where possible. *)
   val weeks_in : time -> float
-  (** Multiply an FTE-time period by a factor *)
+  (** Add two FTE-times. *)
+  val add_time : time -> time -> time
+  (** Subtract the second FTE-time from the first. *)
+  val sub_time : time -> time -> time
+  (** Multiply an FTE-time period by a factor. *)
   val mul_time : time -> float -> time
+  (** Get the ratio of two FTE-times. *)
+  val div_time : time -> time -> float
   (** Compare two FTE-time periods. Like the rest of the OCaml standard library,
       [compare_time a b] returns a positive integer for [a > b], negative for [a
       < b], and 0 for [a == b]. *)
@@ -154,12 +160,27 @@ type person =
   ; slack_handle : string option
   }
 
-(** An assignment of a person to a project for a specific allocation *)
+(** A placeholder on Forecast. *)
+type placeholder = 
+  { name : string }
+
+(** An entity is a person or a placeholder. *)
+type entity =
+  Person of person
+  | Placeholder of placeholder
+
+(** Get the name of an entity. *)
+val get_entity_name : entity -> string
+
+(** An assignment of an entity to a project for a specific allocation *)
 type assignment =
   { project : project
-  ; person : person
+  ; entity : entity
   ; allocation : allocation
   }
+
+(** Check whether an assignment is to a person. *)
+val is_person_assignment : assignment -> bool
 
 type schedule =
   { projects : project IntMap.t

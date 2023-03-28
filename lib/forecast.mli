@@ -14,6 +14,16 @@ type person = {
   email : string
 }
 
+(** An entity is a person or a placeholder. Placeholders are represented
+    directly using the [Domain.placeholder] type, because there is no extra
+    information about placeholders to be gained from GitHub. *)
+type entity =
+  | Person of person
+  | Placeholder of Domain.placeholder
+
+(** Get the name of an entity. *)
+val get_entity_name : entity -> string
+
 (** This type contains all the useful information about a project which can be
     extracted from Forecast.
     *)
@@ -26,7 +36,7 @@ type project =
 
 type assignment =
   { project : project
-  ; person : person
+  ; entity : entity
   ; allocation : Domain.allocation
   }
 

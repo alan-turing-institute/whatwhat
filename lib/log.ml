@@ -22,6 +22,7 @@ type entity =
   | RawForecastProject of string
   | ForecastProject of int
   | Project of int
+  | RawForecastPlaceholder of string
   | RawForecastPerson of string
   | ForecastPerson of string
   | Person of string
@@ -94,6 +95,7 @@ let extract_source event =
   | RawForecastProject _ -> "FCRaw:Project"
   | ForecastProject n -> Printf.sprintf "Issue %-5d" n
   | Project n -> Printf.sprintf "Issue %-5d" n
+  | RawForecastPlaceholder _ -> "FCRaw:Placeholder"
   | RawForecastPerson _ -> "FCRaw:Person"
   | ForecastPerson _ -> "Person"
   | Person _ -> "Person"

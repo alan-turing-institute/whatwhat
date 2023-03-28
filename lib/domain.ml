@@ -37,14 +37,21 @@ module FTE = struct
     FTE_weeks ((fte_days xs) /. 7.)
   ;;
 
+  let add_time tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in
+    FTE_weeks (w1 +. w2)
+
+  let sub_time tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in
+    FTE_weeks (w1 -. w2)
+
   let mul_time tm y =
     match tm with
     | FTE_weeks x -> FTE_weeks (x *. y)
     | FTE_months x -> FTE_months (x *. y)
 
-  let add_time tm1 tm2 =
-    let w1, w2 = weeks_in tm1, weeks_in tm2 in
-    FTE_weeks (w1 +. w2)
+  let div_time tm1 tm2 =
+    let w1, w2 = weeks_in tm1, weeks_in tm2 in w1 /. w2
 
   let compare_time tm1 tm2 =
     compare (weeks_in tm1) (weeks_in tm2)
@@ -157,11 +164,27 @@ type person =
   ; slack_handle : string option
   }
 
+type placeholder = 
+  { name : string }
+
+type entity =
+  Person of person
+  | Placeholder of placeholder
+
+let get_entity_name = function
+  | Person p -> p.full_name
+  | Placeholder p -> Printf.sprintf "Placeholder: %s" p.name
+
 type assignment =
   { project : project
-  ; person : person
+  ; entity : entity
   ; allocation : allocation
   }
+
+let is_person_assignment a =
+  match a.entity with
+  | Person _ -> true
+  | _ -> false
 
 type schedule =
   { projects : project IntMap.t

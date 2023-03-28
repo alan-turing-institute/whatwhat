@@ -28,6 +28,7 @@ type entity =
   | RawForecastProject of string (** Project name *)
   | ForecastProject of int (** The project number *)
   | Project of int (** The project number *)
+  | RawForecastPlaceholder of string (** Placeholder's name *)
   | RawForecastPerson of string (** Person's name *)
   | ForecastPerson of string (** Email address *)
   | Person of string (** email address *)

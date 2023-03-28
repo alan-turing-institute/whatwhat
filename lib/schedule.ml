@@ -10,14 +10,15 @@ type schedule_event =
   | FinanceCodeNotMatchingError of project (* E3002 *)
   | MissingForecastProjectWarning of project (* W3001 *)
   | AllocationEndsTooLateWarning of assignment (* W3002 *)
-  | AllocationStartsTooEarlyWarning of assignment (*W3003 *)
+  | AllocationStartsTooEarlyWarning of assignment (* W3003 *)
+  | FTEDiscrepancyWarning of project (* W3004 *)
   | ActiveProjectWithoutAssignmentWarning of project (* W3007 *)
   | ProjectStartOverdueWarning of project (* W3009 *)
   | NoMatchingGithubUserWarning of Forecast.person (* W3010 *)
   | DifferentClientWarning of project (* W3011 *)
   | DifferentNameWarning of project (* W3012 *)
   | AssignmentWithoutProjectDebug of Forecast.assignment
-  | AssignmentWithoutPersonDebug of Forecast.assignment
+  | AssignmentWithoutPersonDebug of Forecast.person
 
 let log_event (error : schedule_event) =
   match error with
@@ -53,7 +54,7 @@ let log_event (error : schedule_event) =
       ; message =
           Printf.sprintf
             "Assignment of <%s> ends after project latest end."
-            asn.person.full_name
+            (get_entity_name asn.entity)
       }
   | AllocationStartsTooEarlyWarning asn ->
     Log.log'
@@ -63,7 +64,14 @@ let log_event (error : schedule_event) =
       ; message =
           Printf.sprintf
             "Assignment of <%s> begins before project earliest start."
-            asn.person.full_name
+            (get_entity_name asn.entity)
+      }
+  | FTEDiscrepancyWarning proj ->
+    Log.log'
+      { level = Log.Warning 3004
+      ; source = Log.Schedule
+      ; entity = Log.Project proj.number
+      ; message = "Total allocations in Forecast do not match FTEs on GitHub metadata."
       }
   | ActiveProjectWithoutAssignmentWarning proj ->
     Log.log'
@@ -108,11 +116,11 @@ let log_event (error : schedule_event) =
       ; entity = Log.ForecastProject asn.project.number
       ; message = Printf.sprintf "Assignment made to project that has been deleted."
       }
-  | AssignmentWithoutPersonDebug asn ->
+  | AssignmentWithoutPersonDebug psn ->
     Log.log'
       { level = Log.Debug
       ; source = Log.Schedule
-      ; entity = Log.ForecastPerson asn.person.full_name
+      ; entity = Log.ForecastPerson psn.full_name
       ; message = Printf.sprintf "Assignment made to person that has been deleted."
       }
 ;;
@@ -226,19 +234,25 @@ let merge_projects
 (* MERGE ASSIGNMENTS FROM FORECAST AND GITHUB *)
 
 let check_end_date (prj : project) (asg : assignment) =
-  match prj.plan.latest_end_date with
-  | None -> ()
-  | Some latest_end_date ->
-    if get_last_day asg.allocation > latest_end_date
-    then log_event (AllocationEndsTooLateWarning asg)
+  match asg.entity with
+  | Placeholder _ -> ()
+  | Person _ ->
+    (match prj.plan.latest_end_date with
+     | None -> ()
+     | Some latest_end_date ->
+       if get_last_day asg.allocation > latest_end_date
+       then log_event (AllocationEndsTooLateWarning asg))
 ;;
 
 let check_start_date (prj : project) (asg : assignment) =
-  match prj.plan.earliest_start_date with
-  | None -> ()
-  | Some earliest_start_date ->
-    if get_first_day asg.allocation < earliest_start_date
-    then log_event (AllocationStartsTooEarlyWarning asg)
+  match asg.entity with
+  | Placeholder _ -> ()
+  | Person _ ->
+    (match prj.plan.earliest_start_date with
+     | None -> ()
+     | Some earliest_start_date ->
+       if get_first_day asg.allocation < earliest_start_date
+       then log_event (AllocationStartsTooEarlyWarning asg))
 ;;
 
 let merge_assignment people projects (asn : Forecast.assignment) : assignment option =
@@ -247,15 +261,26 @@ let merge_assignment people projects (asn : Forecast.assignment) : assignment op
     log_event (AssignmentWithoutProjectDebug asn);
     None
   | Some prj ->
-    (match List.find_opt (fun p -> p.full_name = asn.person.full_name) people with
-     | None ->
-       log_event (AssignmentWithoutPersonDebug asn);
-       None
-     | Some psn ->
-       let new_asn = { project = prj; person = psn; allocation = asn.allocation } in
+    (match asn.entity with
+     | Placeholder p ->
+       let new_asn =
+         { project = prj; entity = Placeholder p; allocation = asn.allocation }
+       in
        check_start_date prj new_asn;
        check_end_date prj new_asn;
-       Some new_asn)
+       Some new_asn
+     | Person asn_p ->
+       (match List.find_opt (fun p -> p.full_name = asn_p.full_name) people with
+        | None ->
+          log_event (AssignmentWithoutPersonDebug asn_p);
+          None
+        | Some psn ->
+          let new_asn =
+            { project = prj; entity = Person psn; allocation = asn.allocation }
+          in
+          check_start_date prj new_asn;
+          check_end_date prj new_asn;
+          Some new_asn))
 ;;
 
 (* ---------------------------------------------------------------------- *)
@@ -265,18 +290,19 @@ module IntMap = Map.Make (Int)
 
 let today = CalendarLib.Date.today ()
 
+(* Checks that projects that have been scheduled to start (as per
+   earliest-start-date) are active or later *)
 let check_is_overdue prj =
   if prj.plan.latest_start_date < today && prj.state < Active
   then log_event (ProjectStartOverdueWarning prj)
 ;;
 
-let check_projects_active (assignments_map : assignment list IntMap.t) (prj : project) =
+(* Checks that active (or later) projects have assignments currently scheduled
+   on Forecast *)
+let check_projects_active asns prj =
+  let today = CalendarLib.Date.today () in
   let has_active_assignments =
-    match IntMap.find_opt prj.number assignments_map with
-    | None -> false
-    | Some asns ->
-      let today = CalendarLib.Date.today () in
-      List.exists
+    List.exists
         (fun a ->
           get_first_day a.allocation <= today && get_last_day a.allocation >= today)
         asns
@@ -285,18 +311,44 @@ let check_projects_active (assignments_map : assignment list IntMap.t) (prj : pr
   then log_event (ActiveProjectWithoutAssignmentWarning prj)
 ;;
 
+(* Checks that the sum of FTEs assigned on Forecast matches the number of
+   FTE-weeks or FTE-months specified on GitHub metadata *)
+let check_assignment_sum asns prj =
+  let total_fte_time = asns |> List.map Project.ftes_of_assignment |> FTE.sum_time in
+  let budget = prj.plan.budget in
+  let discrepancy = FTE.div_time (FTE.sub_time total_fte_time budget) budget in
+  if discrepancy < -0.1 || discrepancy > 0.1
+  then log_event (FTEDiscrepancyWarning prj)
+  else ()
+;;
+
+(* Checks for People Required placeholders *)
+(* TODO: Implement *)
+let check_people_required asns prj =
+  ignore asns;
+  ignore prj;
+  ()
+
+(* Aggregates all the checks above *)
 let check_projects projects assignments =
-  let folder acc asg =
-    IntMap.update
-      asg.project.number
-      (function
-       | None -> Some [ asg ]
-       | Some other_asgs -> Some (asg :: other_asgs))
-      acc
+  let asns_map : assignment list IntMap.t =
+    assignments
+    |> Utils.sort_and_group_by (fun a -> a.project.number)
+    |> List.to_seq
+    |> IntMap.of_seq
   in
-  let assignments_by_project = List.fold_left folder IntMap.empty assignments in
-  IntMap.iter (fun _ p -> check_is_overdue p) projects;
-  IntMap.iter (fun _ p -> check_projects_active assignments_by_project p) projects
+  let run_all_checks _ p =
+    let this_proj_asns = match IntMap.find_opt p.number asns_map with
+    | Some asns -> asns
+    | None -> []
+    in
+    check_is_overdue p;
+    check_projects_active this_proj_asns p;
+    check_assignment_sum this_proj_asns p;
+    check_people_required this_proj_asns p;
+  in
+
+  IntMap.iter run_all_checks projects
 ;;
 
 (* ---------------------------------------------------------------------- *)
