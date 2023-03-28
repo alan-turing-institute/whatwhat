@@ -13,6 +13,7 @@ type schedule_event =
   | AllocationStartsTooEarlyWarning of assignment (* W3003 *)
   | FTEDiscrepancyWarning of project (* W3004 *)
   | ActiveProjectWithoutAssignmentWarning of project (* W3007 *)
+  | AssignmentsToInactiveProjectWarning of project (* W3008 *)
   | ProjectStartOverdueWarning of project (* W3009 *)
   | NoMatchingGithubUserWarning of Forecast.person (* W3010 *)
   | DifferentClientWarning of project (* W3011 *)
@@ -37,14 +38,14 @@ let log_event (error : schedule_event) =
       { level = Log.Error' 3002
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
-      ; message = Printf.sprintf "Finance codes on Forecast and GitHub do not match."
+      ; message = "Finance codes on Forecast and GitHub do not match."
       }
   | MissingForecastProjectWarning proj ->
     Log.log'
       { level = Log.Warning 3001
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
-      ; message = Printf.sprintf "No matching Forecast project found."
+      ; message = "No matching Forecast project found."
       }
   | AllocationEndsTooLateWarning asn ->
     Log.log'
@@ -71,21 +72,28 @@ let log_event (error : schedule_event) =
       { level = Log.Warning 3004
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
-      ; message = "Total allocations in Forecast do not match FTEs on GitHub metadata."
+      ; message = "Total allocations in Forecast differ from GitHub metadata."
       }
   | ActiveProjectWithoutAssignmentWarning proj ->
     Log.log'
       { level = Log.Warning 3007
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
-      ; message = Printf.sprintf "Project is Active (or later) but has no assignments."
+      ; message = "Project is Active but has no current assignments."
+      }
+  | AssignmentsToInactiveProjectWarning proj ->
+    Log.log'
+      { level = Log.Warning 3008
+      ; source = Log.Schedule
+      ; entity = Log.Project proj.number
+      ; message = "Project is not Active but has current assignments."
       }
   | ProjectStartOverdueWarning proj ->
     Log.log'
       { level = Log.Warning 3009
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
-      ; message = Printf.sprintf "Project is past latest start date, but not yet Active."
+      ; message = "Project is past latest start date but not yet Active."
       }
   | NoMatchingGithubUserWarning person ->
     Log.log'
@@ -100,28 +108,28 @@ let log_event (error : schedule_event) =
       { level = Log.Warning 3011
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
-      ; message = Printf.sprintf "Project programmes on Forecast and GitHub do not match."
+      ; message = "Project programmes on Forecast and GitHub do not match."
       }
   | DifferentNameWarning proj ->
     Log.log'
       { level = Log.Warning 3012
       ; source = Log.Schedule
       ; entity = Log.Project proj.number
-      ; message = Printf.sprintf "Project name does not match on Forecast and GitHub."
+      ; message = "Project names on Forecast and GitHub do not match."
       }
   | AssignmentWithoutProjectDebug asn ->
     Log.log'
       { level = Log.Debug
       ; source = Log.Schedule
       ; entity = Log.ForecastProject asn.project.number
-      ; message = Printf.sprintf "Assignment made to project that has been deleted."
+      ; message = "Assignment made to project that has been deleted."
       }
   | AssignmentWithoutPersonDebug psn ->
     Log.log'
       { level = Log.Debug
       ; source = Log.Schedule
       ; entity = Log.ForecastPerson psn.full_name
-      ; message = Printf.sprintf "Assignment made to person that has been deleted."
+      ; message = "Assignment made to person that has been deleted."
       }
 ;;
 
@@ -298,17 +306,18 @@ let check_is_overdue prj =
 ;;
 
 (* Checks that active (or later) projects have assignments currently scheduled
-   on Forecast *)
+   on Forecast, and vice versa *)
 let check_projects_active asns prj =
   let today = CalendarLib.Date.today () in
   let has_active_assignments =
     List.exists
-        (fun a ->
-          get_first_day a.allocation <= today && get_last_day a.allocation >= today)
-        asns
+      (fun a -> get_first_day a.allocation <= today && get_last_day a.allocation >= today)
+      asns
   in
-  if prj.state >= Active && not has_active_assignments
-  then log_event (ActiveProjectWithoutAssignmentWarning prj)
+  match prj.state = Active, has_active_assignments with
+  | true, false -> log_event (ActiveProjectWithoutAssignmentWarning prj)
+  | false, true -> log_event (AssignmentsToInactiveProjectWarning prj)
+  | _ -> ()
 ;;
 
 (* Checks that the sum of FTEs assigned on Forecast matches the number of
@@ -328,6 +337,7 @@ let check_people_required asns prj =
   ignore asns;
   ignore prj;
   ()
+;;
 
 (* Aggregates all the checks above *)
 let check_projects projects assignments =
@@ -338,14 +348,15 @@ let check_projects projects assignments =
     |> IntMap.of_seq
   in
   let run_all_checks _ p =
-    let this_proj_asns = match IntMap.find_opt p.number asns_map with
-    | Some asns -> asns
-    | None -> []
+    let this_proj_asns =
+      match IntMap.find_opt p.number asns_map with
+      | Some asns -> asns
+      | None -> []
     in
     check_is_overdue p;
     check_projects_active this_proj_asns p;
     check_assignment_sum this_proj_asns p;
-    check_people_required this_proj_asns p;
+    check_people_required this_proj_asns p
   in
 
   IntMap.iter run_all_checks projects
