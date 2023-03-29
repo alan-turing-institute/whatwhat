@@ -18,8 +18,6 @@ type notify_target =
   | Slack
   | All
 
-val extract_metadata_events : Log.event Seq.t -> Log.event list IntMap.t
-
 (** Format metadata reports in a suitable manner for posting to GitHub. *)
 val format_metadata_report_github : Log.event list -> string
 

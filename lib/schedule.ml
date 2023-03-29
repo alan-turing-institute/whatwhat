@@ -26,7 +26,6 @@ let log_event (error : schedule_event) =
   | MissingGithubProjectError fc_proj ->
     Log.log'
       { level = Log.Error' 3001
-      ; source = Log.Schedule
       ; entity = Log.Project fc_proj.number
       ; message =
           Printf.sprintf
@@ -36,21 +35,18 @@ let log_event (error : schedule_event) =
   | FinanceCodeNotMatchingError proj ->
     Log.log'
       { level = Log.Error' 3002
-      ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message = "Finance codes on Forecast and GitHub do not match."
       }
   | MissingForecastProjectWarning proj ->
     Log.log'
       { level = Log.Warning 3001
-      ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message = "No matching Forecast project found."
       }
   | AllocationEndsTooLateWarning asn ->
     Log.log'
       { level = Log.Warning 3002
-      ; source = Log.Schedule
       ; entity = Log.ForecastProject asn.project.number
       ; message =
           Printf.sprintf
@@ -60,7 +56,6 @@ let log_event (error : schedule_event) =
   | AllocationStartsTooEarlyWarning asn ->
     Log.log'
       { level = Log.Warning 3003
-      ; source = Log.Schedule
       ; entity = Log.ForecastProject asn.project.number
       ; message =
           Printf.sprintf
@@ -70,35 +65,30 @@ let log_event (error : schedule_event) =
   | FTEDiscrepancyWarning proj ->
     Log.log'
       { level = Log.Warning 3004
-      ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message = "Total allocations in Forecast differ from GitHub metadata."
       }
   | ActiveProjectWithoutAssignmentWarning proj ->
     Log.log'
       { level = Log.Warning 3007
-      ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message = "Project is Active but has no current assignments."
       }
   | AssignmentsToInactiveProjectWarning proj ->
     Log.log'
       { level = Log.Warning 3008
-      ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message = "Project is not Active but has current assignments."
       }
   | ProjectStartOverdueWarning proj ->
     Log.log'
       { level = Log.Warning 3009
-      ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message = "Project is past latest start date but not yet Active."
       }
   | NoMatchingGithubUserWarning person ->
     Log.log'
       { level = Log.Warning 3010
-      ; source = Log.Schedule
       ; entity = Log.ForecastPerson person.email
       ; message =
           Printf.sprintf "Could not find matching GitHub user for <%s>." person.full_name
@@ -106,28 +96,24 @@ let log_event (error : schedule_event) =
   | DifferentClientWarning proj ->
     Log.log'
       { level = Log.Warning 3011
-      ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message = "Project programmes on Forecast and GitHub do not match."
       }
   | DifferentNameWarning proj ->
     Log.log'
       { level = Log.Warning 3012
-      ; source = Log.Schedule
       ; entity = Log.Project proj.number
       ; message = "Project names on Forecast and GitHub do not match."
       }
   | AssignmentWithoutProjectDebug asn ->
     Log.log'
       { level = Log.Debug
-      ; source = Log.Schedule
       ; entity = Log.ForecastProject asn.project.number
       ; message = "Assignment made to project that has been deleted."
       }
   | AssignmentWithoutPersonDebug psn ->
     Log.log'
       { level = Log.Debug
-      ; source = Log.Schedule
       ; entity = Log.ForecastPerson psn.full_name
       ; message = "Assignment made to person that has been deleted."
       }

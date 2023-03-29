@@ -47,7 +47,6 @@ let log_event (fc_event : forecast_event) : unit =
   | NoProjectCodeError raw_proj ->
     Log.log'
       { level = Log.Error' 1001
-      ; source = Log.Forecast
       ; entity = Log.RawForecastProject raw_proj.name
       ; message =
           Printf.sprintf
@@ -57,7 +56,6 @@ let log_event (fc_event : forecast_event) : unit =
   | BadProjectCodeError (raw_proj, code) ->
     Log.log'
       { level = Log.Error' 1002
-      ; source = Log.Forecast
       ; entity = Log.RawForecastProject raw_proj.name
       ; message =
           Printf.sprintf
@@ -70,7 +68,6 @@ let log_event (fc_event : forecast_event) : unit =
     let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Error' 1003
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "No email found for person <%s>." name
       }
@@ -78,21 +75,18 @@ let log_event (fc_event : forecast_event) : unit =
     let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Error' 1004
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "Invalid email: <%s> found for person <%s>." email name
       }
   | NoClientError rp ->
     Log.log'
       { level = Log.Error' 1005
-      ; source = Log.Forecast
       ; entity = Log.RawForecastProject rp.name
       ; message = Printf.sprintf "Client for project <%s> not found." rp.name
       }
   | NoFinanceCodeWarning rp_or_p ->
     Log.log'
       { level = Log.Warning 1001
-      ; source = Log.Forecast
       ; entity =
           (match rp_or_p with
            | Left rp -> Log.RawForecastProject rp.name
@@ -106,7 +100,6 @@ let log_event (fc_event : forecast_event) : unit =
   | MultipleFinanceCodesWarning rp_or_p ->
     Log.log'
       { level = Log.Warning 1002
-      ; source = Log.Forecast
       ; entity =
           (match rp_or_p with
            | Left rp -> Log.RawForecastProject rp.name
@@ -122,7 +115,6 @@ let log_event (fc_event : forecast_event) : unit =
   | DuplicateIssueNumberWarning p ->
     Log.log'
       { level = Log.Warning 1003
-      ; source = Log.Forecast
       ; entity = Log.Project p.number
       ; message =
           "Another Forecast project with the same issue number but different name was \
@@ -131,7 +123,6 @@ let log_event (fc_event : forecast_event) : unit =
   | DuplicateIssueNumberNameWarning p ->
     Log.log'
       { level = Log.Warning 1003
-      ; source = Log.Forecast
       ; entity = Log.Project p.number
       ; message =
           "Another Forecast project with the same issue number and same name was found."
@@ -139,7 +130,6 @@ let log_event (fc_event : forecast_event) : unit =
   | AssignmentToRemovedPersonInfo raw_assignment ->
     Log.log'
       { level = Log.Info
-      ; source = Log.Forecast
       ; entity = Log.RawForecastAssignment raw_assignment.id
       ; message =
           Printf.sprintf
@@ -149,7 +139,6 @@ let log_event (fc_event : forecast_event) : unit =
   | AssignmentToRemovedProjectInfo raw_assignment ->
     Log.log'
       { level = Log.Info
-      ; source = Log.Forecast
       ; entity = Log.RawForecastAssignment raw_assignment.id
       ; message =
           Printf.sprintf
@@ -160,7 +149,6 @@ let log_event (fc_event : forecast_event) : unit =
     let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Info
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "Ignoring non-REG person <%s>." name
       }
@@ -168,7 +156,6 @@ let log_event (fc_event : forecast_event) : unit =
     let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Debug
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "Ignoring archived person <%s>." name
       }
@@ -176,14 +163,12 @@ let log_event (fc_event : forecast_event) : unit =
     let name = raw_placeholder.name in
     Log.log'
       { level = Log.Debug
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPlaceholder name
       ; message = Printf.sprintf "Ignoring archived person <%s>." name
       }
   | ChoseOneFinanceCodeDebug (rp_or_p, fcs, chosen_fc) ->
     Log.log'
       { level = Log.Debug
-      ; source = Log.Forecast
       ; entity =
           (match rp_or_p with
            | Left rp -> Log.RawForecastProject rp.name

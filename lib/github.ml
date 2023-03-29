@@ -23,77 +23,66 @@ let log_event (gh_event : github_event) : unit =
   | NoMetadataError raw_issue ->
     Log.log'
       { level = Log.Error' 2001
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "YAML metadata not found in issue body."
       }
   | YamlError raw_issue ->
     Log.log'
       { level = Log.Error' 2002
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Unable to parse metadata block as valid YAML."
       }
   | ExtraFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2003
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Unexpected field <%s> in metadata." fld
       }
   | InvalidFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2004
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> had an invalid value." fld
       }
   | DuplicateFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2005
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> was specified more than once." fld
       }
   | FTETimeUnderSpecifiedError raw_issue ->
     Log.log'
       { level = Log.Error' 2006
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Neither FTE-months nor FTE-weeks were specified."
       }
   | FTETimeOverSpecifiedError raw_issue ->
     Log.log'
       { level = Log.Error' 2007
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Both FTE-months and FTE-weeks were specified."
       }
   | NullFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2008
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> is null or empty." fld
       }
   | MissingCompulsoryFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2009
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> is not present." fld
       }
   | NoFinanceCodesError raw_issue ->
     Log.log'
       { level = Log.Error' 2010
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Finance codes in GitHub metadata were empty."
       }
   | NoFinanceCodesWarning raw_issue ->
     Log.log'
       { level = Log.Warning 2001
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Finance codes in GitHub metadata were empty."
       }

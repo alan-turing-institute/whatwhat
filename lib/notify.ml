@@ -1,23 +1,4 @@
-(** Notify is used to tell certain people about certain problems
-    
-   
-
-    The plan is to emit a GitHub comment of the following form:;
-    {v
-    Hi there, this is WhatWhat Bot. I'm a bot. Beep boop!
-
-    I am unable to read the metadata block for this project. Please see [url]
-    for details of how this block should be formatted. Among the problems I
-    encountered were:
-
-    I couldn't find the block at all. It should be in the body of the issue. 
-    I couldn't find these fields:
-       - etc
-    I couldn't understand the value of these fields:
-       - so forth    
-    v}
-    
- *)
+(** Pings people about problems on GitHub (and perhaps Slack, eventually). *)
 
 module IntMap = Map.Make (Int)
 
@@ -26,35 +7,6 @@ type notify_target =
   | Github
   | Slack
   | All
-
-(* From the log of events, produce a map Project Number => events for
-   those events that are related to the metadata of a project *)
-let extract_metadata_events (event_log : Log.event Seq.t) =
-  let extract_project_event (ev : Log.event) =
-    match ev.source with
-    | Log.GithubMetadata ->
-      (match ev.entity with
-       | Log.Project nmbr -> Some (nmbr, ev)
-       | _ -> None)
-    | _ -> None
-  in
-  (* Cons the event onto a list of events for this project, if this project
-     currently exists *)
-  let add_event_to_map m (nmbr, ev) =
-    let updater = function
-      | Some curr -> Some (ev :: curr)
-      | None -> Some (ev :: [])
-    in
-    IntMap.update nmbr updater m
-  in
-  event_log
-  |> Seq.filter_map extract_project_event
-  |> Seq.fold_left add_event_to_map IntMap.empty
-;;
-
-(* ------------------------------------------------------------
-   Reporting
- *)
 
 let format_metadata_report_github (events : Log.event list) : string =
   let errors = List.filter Log.isError events in
@@ -88,20 +40,21 @@ let format_metadata_report_github (events : Log.event list) : string =
 ;;
 
 let post_metadata_reports_github () =
-  let metadata_reports =
-    Log.get_the_log ()
-    |> extract_metadata_events
-    |> IntMap.map format_metadata_report_github
-    |> IntMap.to_seq
-  in
-  Printf.printf
-    "Posting metadata reports to the following %d projects:\n"
-    (Seq.length metadata_reports);
-  Seq.iter
-    (fun (nmbr, report) ->
-      Printf.printf "hut23-%d; " nmbr;
-      flush stdout;
-      ignore @@ GithubBot.github_post "Hut23" nmbr report;
-      Unix.sleep 2)
-    metadata_reports
-;;
+  failwith "Implement this"
+  (* let metadata_reports = *)
+  (*   Log.get_the_log () *)
+  (*   |> extract_metadata_events *)
+  (*   |> IntMap.map format_metadata_report_github *)
+  (*   |> IntMap.to_seq *)
+  (* in *)
+  (* Printf.printf *)
+  (*   "Posting metadata reports to the following %d projects:\n" *)
+  (*   (Seq.length metadata_reports); *)
+  (* Seq.iter *)
+  (*   (fun (nmbr, report) -> *)
+  (*     Printf.printf "hut23-%d; " nmbr; *)
+  (*     flush stdout; *)
+  (*     ignore @@ GithubBot.github_post "Hut23" nmbr report; *)
+  (*     Unix.sleep 2) *)
+  (*   metadata_reports *)
+(* ;; *)
