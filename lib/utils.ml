@@ -197,3 +197,21 @@ let prcol ~use_color styles string =
 let eprcol ~use_color styles string =
   if use_color then ANSITerminal.prerr_string styles string else prerr_string string
 ;;
+
+(** Escape a string such that characters show up correctly in (GitHub-Flavoured)
+    Markdown. Note: this means that formatting etc. will be lost in the
+    resulting post, and it'll purely appear as a string. *)
+let gfm_escape s =
+  let b = Buffer.create 80 in
+  String.iter (fun c -> match c with
+  (* This list of replacements is probably not exhaustive. *)
+    | '<' -> Buffer.add_string b {|\<|}
+    | '>' -> Buffer.add_string b {|\>|}
+    | '*' -> Buffer.add_string b {|\*|}
+    | '_' -> Buffer.add_string b {|\_|}
+    | '#' -> Buffer.add_string b {|\#|}
+    | '`' -> Buffer.add_string b {|\`|}
+    | '\\' -> Buffer.add_string b {|\\|}
+    | _ -> Buffer.add_char b c
+  ) s;
+  Buffer.contents b

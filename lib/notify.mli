@@ -18,8 +18,11 @@ type notify_target =
   | Slack
   | All
 
-(** Format metadata reports in a suitable manner for posting to GitHub. *)
-val format_metadata_report_github : Log.event list -> string
+val post_github_comment_async : int -> string -> unit Lwt.t
 
-(** Post metadata reports as GitHub issue comments. *)
-val post_metadata_reports_github : unit -> unit
+(** Post all logged events to GitHub. *)
+val post_github
+  :  verbose:int
+  -> restrict_codes:Log.code_spec
+  -> restrict_issues:int list option
+  -> unit

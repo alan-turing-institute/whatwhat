@@ -12,12 +12,16 @@ type http_method =
 
 (** Run a GitHub query, returning a promise for the body JSON.
 
-    - [params] are request header parameters.
+    - [as_bot] defaults to [false]. Set this to [true] if you want to interact
+      as the GitHub bot account (this requires that you have a token set up in
+      your secrets file).
+    - [params] are URL-encoded parameters.
     - [body] is the request body (used only for [POST] requests).
     - The mandatory argument is the URI.
     *)
 val run_github_query_async
-  :  ?http_method:http_method
+  :  ?as_bot:bool
+  -> ?http_method:http_method
   -> ?params:(string * string list) list
   -> ?body:string
   -> string
@@ -26,7 +30,8 @@ val run_github_query_async
 (** Run a GitHub query, returning the body JSON directly. All arguments are the
     same as in {!run_github_query_async}. *)
 val run_github_query
-  :  ?http_method:http_method
+  :  ?as_bot:bool
+  -> ?http_method:http_method
   -> ?params:(string * string list) list
   -> ?body:string
   -> string

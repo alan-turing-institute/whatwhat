@@ -41,7 +41,6 @@ to accomplish.
 
 {!modules:
     Whatwhat.ForecastExport
-    Whatwhat.GithubBot
     Whatwhat.Log
     Whatwhat.QueryReports
     Whatwhat.Notify

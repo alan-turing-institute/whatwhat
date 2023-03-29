@@ -8,9 +8,6 @@
       with
       - A {i message}: A string to show.
 
-    TODO: Decide if this setup is really necessary. For example, we don't use
-    the [source] anywhere.
-
     TODO: Decide if this setup is really sufficient. For example, do we need to
     provide more information so that things can be logged / notified properly.
       *)
@@ -21,6 +18,8 @@ type level =
   | Warning of int (** Likely to cause an error if not fixed *)
   | Info (** Information for end users *)
   | Debug (** Information for whatwhat developers *)
+
+val show_level : level -> string
 
 type entity =
   | RawForecastProject of string (** Project name *)
@@ -63,6 +62,15 @@ val gather_events
   -> restrict_codes:code_spec
   -> restrict_issues:int list option
   -> (int option * event) list
+
+(** The same as above, but events with the same issue number (or lack thereof)
+    are gathered into a single list. This lets you iterate over issue numbers
+    instead of events. *)
+val gather_events'
+  :  verbose:int
+  -> restrict_codes:code_spec
+  -> restrict_issues:int list option
+  -> (int option * event list) list
 
 (** Pretty-print all events in the log to standard output. *)
 val pretty_print

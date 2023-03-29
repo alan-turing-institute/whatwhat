@@ -11,6 +11,12 @@ type level =
   | Debug
 [@@deriving ord]
 
+let show_level = function
+  | Error' x -> "E" ^ string_of_int x
+  | Warning x -> "W" ^ string_of_int x
+  | Info -> "INFO"
+  | Debug -> "DEBUG"
+
 type entity =
   | RawForecastProject of string
   | ForecastProject of int
@@ -159,6 +165,12 @@ let gather_events ~verbose ~restrict_codes ~restrict_issues : (int option * even
   |> Seq.filter (should_be_shown ~verbose ~restrict_codes ~restrict_issues)
   |> List.of_seq
   |> List.stable_sort compare_events
+;;
+
+let gather_events' ~verbose ~restrict_codes ~restrict_issues : (int option * event list) list =
+  gather_events ~verbose ~restrict_codes ~restrict_issues
+  |> Utils.group_by (fun (i1, _) (i2, _) -> i1 = i2)
+  |> List.map (fun pairs -> (fst (List.hd pairs), (List.map snd pairs)))
 ;;
 
 let pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues =

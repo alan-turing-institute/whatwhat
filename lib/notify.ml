@@ -1,6 +1,27 @@
 (** Pings people about problems on GitHub (and perhaps Slack, eventually). *)
 
+open GithubRaw
 module IntMap = Map.Make (Int)
+
+let post_github_comment_async issue post_body =
+  let open Lwt.Syntax in
+  let uri =
+    String.concat
+      "/"
+      [ Config.get_github_url ()
+      ; "repos"
+      ; Config.get_github_repo_owner ()
+      ; Config.get_github_repo_name ()
+      ; "issues"
+      ; string_of_int issue
+      ; "comments"
+      ]
+  in
+  let body = `Assoc [ "body", `String post_body ] |> Yojson.Basic.to_string in
+  (* We don't need the return value. *)
+  let* _ = run_github_query_async ~as_bot:true ~http_method:POST ~body uri in
+  Lwt.return ()
+;;
 
 type notify_target =
   | NoTarget
@@ -8,53 +29,44 @@ type notify_target =
   | Slack
   | All
 
-let format_metadata_report_github (events : Log.event list) : string =
-  let errors = List.filter Log.isError events in
-  let warnings = List.filter Log.isWarning events in
-  let error_msgs = List.map (fun ev -> ev.Log.message) errors in
-  let warning_msgs = List.map (fun ev -> ev.Log.message) warnings in
-  let n_errors = List.length errors in
-  let n_warnings = List.length warnings in
+let make_github_message events =
   let buf = Buffer.create 128 in
-  Buffer.add_string buf "Beep boop! I'm a bot.\n\n";
-  if n_errors > 0
-  then (
-    Buffer.add_string
-      buf
-      "I was unable to read the [YAML metadata \
-       block](https://github.com/alan-turing-institute/Hut23/blob/master/.github/ISSUE_TEMPLATE/project.md) \
-       at the top of this issue because of the following **error(s)**:\n\n\
-       - ";
-    Buffer.add_string buf (String.concat "\n- " error_msgs))
-  else
-    Buffer.add_string
-      buf
-      "I had trouble reading the [YAML metadata \
-       block](https://github.com/alan-turing-institute/Hut23/blob/master/.github/ISSUE_TEMPLATE/project.md) \
-       at the top of this issue because of the following **problem(s)**:\n\n\
-       - ";
-  if n_errors > 0 && n_warnings > 0
-  then Buffer.add_string buf "\n\nIn addition, I had the following **problem**(s):\n\n- ";
-  if n_warnings > 0 then Buffer.add_string buf (String.concat "\n- " warning_msgs);
+  List.iter
+    (Buffer.add_string buf)
+    [ "Beep boop! I'm a bot.\n"
+    ; "\n"
+    ; "I encountered the following errors when parsing data about this project from \
+       GitHub and Forecast:\n"
+    ; "\n"
+    ];
+  events
+  |> List.map (fun (e : Log.event) ->
+       Printf.sprintf
+         " - **%s**: %s\n"
+         (Log.show_level e.level)
+         (Utils.gfm_escape e.message))
+  |> List.iter (Buffer.add_string buf);
+
+  List.iter
+    (Buffer.add_string buf)
+    [ "\n"
+    ; "You can get more info about how to fix these issues at: LINK.\n"
+    ; "Alternatively, get in touch with PERSON."
+    ];
   Buffer.contents buf
 ;;
 
-let post_metadata_reports_github () =
-  failwith "Implement this"
-  (* let metadata_reports = *)
-  (*   Log.get_the_log () *)
-  (*   |> extract_metadata_events *)
-  (*   |> IntMap.map format_metadata_report_github *)
-  (*   |> IntMap.to_seq *)
-  (* in *)
-  (* Printf.printf *)
-  (*   "Posting metadata reports to the following %d projects:\n" *)
-  (*   (Seq.length metadata_reports); *)
-  (* Seq.iter *)
-  (*   (fun (nmbr, report) -> *)
-  (*     Printf.printf "hut23-%d; " nmbr; *)
-  (*     flush stdout; *)
-  (*     ignore @@ GithubBot.github_post "Hut23" nmbr report; *)
-  (*     Unix.sleep 2) *)
-  (*   metadata_reports *)
-(* ;; *)
+let post_github ~verbose ~restrict_codes ~restrict_issues =
+  let pairs = Log.gather_events' ~verbose ~restrict_codes ~restrict_issues in
+  let requests =
+    List.map
+      (fun (issue_num_opt, events) ->
+        match issue_num_opt with
+        | None ->
+          Lwt.return ()
+          (* TODO: decide what to do with events that don't have an associated issue number *)
+        | Some num -> post_github_comment_async num (make_github_message events))
+      pairs
+  in
+  ignore (requests |> Utils.all_throttled |> Lwt_main.run)
+;;

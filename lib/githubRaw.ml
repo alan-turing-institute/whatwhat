@@ -11,14 +11,24 @@ type http_method =
   | GET
   | POST
 
-let run_github_query_async ?(http_method = GET) ?(params = []) ?(body = "") uri =
+let run_github_query_async
+  ?(as_bot = false)
+  ?(http_method = GET)
+  ?(params = [])
+  ?(body = "")
+  uri
+  =
   let open Cohttp in
   let open Cohttp_lwt_unix in
-  let github_token = Config.get_github_token () in
+  let github_token =
+    if as_bot then Config.get_githubbot_token () else Config.get_github_token ()
+  in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ github_token) in
   let header_obj =
+    (* This would be a lot cleaner if the functions in Cohttp.Header actually
+       put the header argument as the final one... *)
     Header.init ()
-    |> (fun header -> Header.add_authorization header auth_cred)
+    |> fun header -> Header.add_authorization header auth_cred
     |> fun header -> Header.prepend_user_agent header "Whatwhat"
   in
   let uri = Uri.add_query_params (Uri.of_string uri) params in
@@ -44,8 +54,14 @@ let run_github_query_async ?(http_method = GET) ?(params = []) ?(body = "") uri 
   Lwt.return body_json
 ;;
 
-let run_github_query ?(http_method = GET) ?(params = []) ?(body = "") uri =
-  run_github_query_async ~http_method ~params ~body uri |> Lwt_main.run
+let run_github_query
+  ?(as_bot = false)
+  ?(http_method = GET)
+  ?(params = [])
+  ?(body = "")
+  uri
+  =
+  run_github_query_async ~as_bot ~http_method ~params ~body uri |> Lwt_main.run
 ;;
 
 (** Users -------------------------------------------- *)
