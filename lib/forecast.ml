@@ -34,7 +34,6 @@ type forecast_event =
   | NoFinanceCodeWarning of (Raw.project, project) Either.t (* W1001 *)
   | MultipleFinanceCodesWarning of (Raw.project, project) Either.t (* W1002 *)
   | DuplicateIssueNumberWarning of project (* W1003 *)
-  | DuplicateIssueNumberNameWarning of project (* W1004 *)
   | AssignmentToRemovedPersonInfo of Raw.assignment
   | AssignmentToRemovedProjectInfo of Raw.assignment
   | NonREGPersonInfo of Raw.person
@@ -117,15 +116,7 @@ let log_event (fc_event : forecast_event) : unit =
       { level = Log.Warning 1003
       ; entity = Log.Project p.number
       ; message =
-          "Another Forecast project with the same issue number but different name was \
-           found."
-      }
-  | DuplicateIssueNumberNameWarning p ->
-    Log.log'
-      { level = Log.Warning 1003
-      ; entity = Log.Project p.number
-      ; message =
-          "Another Forecast project with the same issue number and same name was found."
+          "Another Forecast project with the same issue number was found."
       }
   | AssignmentToRemovedPersonInfo raw_assignment ->
     Log.log'
@@ -434,11 +425,10 @@ let make_project_map projects_id : project IntMap.t =
   let add_project m (_, (p : project)) =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
-    | Some existing_p ->
-      if p.name <> existing_p.name
-      then log_event (DuplicateIssueNumberWarning p)
-      else log_event (DuplicateIssueNumberNameWarning p);
-      m
+    | Some _ ->
+        if not (List.mem p.number Config.forecast_duplicates_okay) then
+        log_event (DuplicateIssueNumberWarning p);
+        m
   in
   Seq.fold_left add_project IntMap.empty (IntMap.to_seq projects_id)
 ;;

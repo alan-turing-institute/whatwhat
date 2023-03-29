@@ -23,6 +23,9 @@ let secrets_path = XDGBaseDir.default.config_home ^ "/whatwhat/secrets.json"
 let config_path = XDGBaseDir.default.config_home ^ "/whatwhat/config.json"
 let ( >>= ) = Option.bind
 
+(* List of issue numbers for which it's okay to have duplicate projects in Forecast *)
+let forecast_duplicates_okay = []
+
 (* These JSON parsers are more lenient than the ones in Yojson.Basic.Util: They return
    [None] if the JSON is of the wrong type, rather than erroring. *)
 let string_opt_of_json = function

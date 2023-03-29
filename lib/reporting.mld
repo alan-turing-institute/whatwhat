@@ -1,9 +1,8 @@
-{0 Logging and Notifications}
+{0 Reporting problems}
 
-{1 Caveat}
-
-The following is what {i ought} to happen. As of 2023-03-15, it is not yet what
-actually happens.
+If you are looking specifically for an error code, you can skip the discussion
+here: just use your browser's find function to navigate to the code of
+interest.
 
 {1 Overview}
 
@@ -22,8 +21,10 @@ We classify problems into {i errors} and {i warnings}:
 - A {i warning} (W-code) occurs when a valid representation is possible but is
   in some way or other problematic. Warnings should result in nudges for people
   to fix the problem.
-- An {i information message} (I-code) is used for commentary on potential
-  problems.
+- An {i information message} is used for commentary on potential problems.
+  There aren't many of these yet, because we haven't implemented them.
+- A {i debug message} is information intended purely for developer usage. There
+  aren't many of these either.
   
 All of these are passed to the logging system, whose job is to then communicate
 them to the appropriate target. Errors and warnings may arise in three places:
@@ -31,40 +32,81 @@ them to the appropriate target. Errors and warnings may arise in three places:
   + When reading the data from GitHub;
   + When combining the data from these two sources.
 
+The location at which these errors appear dictates the first number in the
+error code. So, for example, an issue with GitHub metadata usually has a code
+of the form E2xxx or W2xxx.
+
 
 {1 Reading data from Forecast}
-
-All error codes under this section should begin with the number 1.
 
 Forecast is authoritative for people and allocations, so the most likely
 sources of errors are projects. 
 
 {2 Errors}
 
-- {b E1001} The project code field (which ought to hold the issue number X in
-  the format "hut23-X") is null.
-- {b E1002} The project code is not null but does not have the correct format.
-- {b E1003} The person email field is null.
-- {b E1004} The person email field is not a valid email. 'Valid' in this case
-  means 'matching ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$', which is
-  not quite accurate (the technical definition is in
-  {{: https://www.rfc-editor.org/rfc/rfc5322 }RFC 5322}), but is really enough
-  to catch empty emails and other typos.
-- {b E1005} The project has no client on Forecast. This occurs naturally with
-  the built-in 'Time Off' project. To suppress this error, this project should
-  be added to the 'ignoredForecastProjects' configuration variable.
+{b E1001} The Forecast 'project code' field (which ought to hold the GitHub
+issue number X in the format [hut23-X]) is empty.
+
+ - {i Solution:} Add the project code. Note that the title of the Forecast
+   project does not need to contain this info.
+
+{b E1002} The Forecast 'project code' field but does not have the correct
+format.
+
+ - {i Solution:} Edit the project code to conform to the format [hut23-X],
+   where [X] is the GitHub issue number.
+
+{b E1003} The email field of a person tagged with the 'REG' role on Forecast is
+empty.
+
+ - {i Solution:} Add the email. If the person is not supposed to be part of
+   REG, then remove the tag from the person.
+ - Note that this error can naturally occur for people who have not yet started
+   (we create Forecast accounts ahead of time for new starters). In this case,
+   the error can be ignored.
+
+{b E1004} The email field of a person tagged with the 'REG' role on Forecast is
+not a valid email address.
+
+ - {i Solution:} Correct  the email. If the person is not supposed to be part of
+   REG, then remove the tag from the person.
+ - 'Valid' in this case means 'matching
+   [^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$]', which is not quite
+   accurate (the technical definition being {{:
+   https://www.rfc-editor.org/rfc/rfc5322 }RFC 5322}), but is enough to catch
+   empty emails and other typos. If you have a valid email that doesn't match
+   this regex, please raise an issue.
+
+{b E1005} The project on Forecast has no client (in Forecast, a 'client' refers
+to what we usually call a 'programme').
+
+ - {i Solution:} Add the client on Forecast.
+ - This occurs naturally with the built-in 'Time Off' project. If you are running [whatwhat], this error can be suppressed
+   by adding the ID of the 'Time Off' project to the [ignoredForecastProjects]
+   configuration variable. See the {{:
+   https://github.com/alan-turing-institute/whatwhat/wiki/Secrets-and-config-file}whatwhat
+   wiki} for suggested setup.
 
 {2 Warnings}
 
-- {b W1001} The project tags field (which ought to hold the finance code) is
-  empty. 
-- {b W1002} The project tags field has more than one entry.
-- {b W1003} Two projects exist with the same issue number in Forecast but a
-  different name.
-- {b W1003} Two projects exist with the same issue number in Forecast and the
-  same name. (In general, this should not be a problem as both projects in
-  Forecast will refer to the same real-world project. However, it's a useful
-  thing to be aware of.)
+{b W1001} The 'project tags' field (which ought to hold the finance code) is
+empty. 
+
+ - {i Solution:} Add the finance code (if known).
+
+{b W1002} The 'project tags' field has more than one entry.
+
+ - {i Solution:} Remove extraneous finance codes. If a project genuinely has
+   two finance codes, it should be split up into two Forecast projects. (This
+   will then raise a W1003.)
+
+{b W1003} Two projects exist with the same issue number in Forecast.
+
+ - {i Solution:} This happens naturally sometimes, e.g. when projects are split
+   up into multiple components on Forecast. Ensure that this is *supposed* to
+   be the case. If not, then fix it.
+ - If you know for sure that this is a spurious warning, a manual exception can
+   be added for specific Forecast projects; please raise an issue.
 
 {2 Info messages}
 
