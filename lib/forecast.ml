@@ -177,8 +177,6 @@ let log_event (fc_event : forecast_event) : unit =
 
 (* Projects *)
 
-let ignored_project_ids = Config.get_forecast_ignored_projects ()
-
 (** [extract_project_number p] inspects the Forecast project code and picks out
     the digits at the end if it satisfies the regex 'hut23-\d+'. *)
 let extract_project_number (p : Raw.project) =
@@ -238,7 +236,7 @@ let extract_finance_code (rp : Raw.project) =
     *)
 let validate_project _ (p : Raw.project) =
   (* silently remove *)
-  if p.archived || List.mem p.id ignored_project_ids
+  if p.archived || List.mem p.id Config.forecast_ignored_projects
   then None
   else (
     match p.client with

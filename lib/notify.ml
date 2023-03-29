@@ -8,7 +8,7 @@ let post_github_comment_async issue post_body =
   let uri =
     String.concat
       "/"
-      [ Config.get_github_url ()
+      [ Config.github_url
       ; "repos"
       ; Config.get_github_repo_owner ()
       ; Config.get_github_repo_name ()

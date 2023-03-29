@@ -124,20 +124,18 @@ module State = struct
     match t with
     | Suggested -> "Suggested"
     | Proposal -> "Proposal"
-    | ExtraInfoNeeded -> "ExtraInfoNeeded"
-    | ProjectAppraisal -> "ProjectAppraisal"
-    | AwaitingGoNogo -> "AwaitingGoNogo"
-    | FindingPeople -> "FindingPeople"
-    | AwaitingStart -> "AwaitingStart"
+    | ExtraInfoNeeded -> "Extra info needed"
+    | ProjectAppraisal -> "Project appraisal"
+    | AwaitingGoNogo -> "Awaiting go/no-go"
+    | FindingPeople -> "Finding people"
+    | AwaitingStart -> "Awaiting start"
     | Active -> "Active"
-    | CompletionReview -> "CompletionReview"
+    | CompletionReview -> "Completion review"
     | Done -> "Done"
     | Cancelled -> "Cancelled"
     | Rejected -> "Rejected"
   ;;
 end
-
-exception UnknownColumn of string
 
 let state_of_column col =
   match col with
@@ -153,7 +151,7 @@ let state_of_column col =
   | "Done" -> State.Done
   | "Cancelled" -> State.Cancelled
   | "Rejected" -> State.Rejected
-  | _ -> raise (UnknownColumn ("Unknown GitHub column: " ^ col))
+  | _ -> failwith ("Unknown GitHub column: " ^ col)
 ;;
 
 type project =
