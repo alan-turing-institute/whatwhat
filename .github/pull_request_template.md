@@ -1,1 +1,2 @@
-- [ ] Changed the command-line interface? Update `README.md`
+- [ ] Update `lib/reporting.mld` if you've added a new error code
+- [ ] Update `README.md` if you've changed the interface
