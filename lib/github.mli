@@ -47,7 +47,6 @@ type github_event =
   | NullFieldError of Raw.issue * string (* E2008 *)
   | MissingCompulsoryFieldError of Raw.issue * string (* E2009 *)
   | NoFinanceCodesError of Raw.issue (* E2010 *)
-  | NoFinanceCodesWarning of Raw.issue (* W2001 *)
 
 (* We reexport the Raw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)
