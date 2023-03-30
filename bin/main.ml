@@ -132,7 +132,7 @@ let ww_main
   codes_without
   codes_only
   issues
-  issues_github_only
+  all_github
   =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
@@ -156,10 +156,10 @@ let ww_main
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
     let restrict_issues =
-      match issues_github_only, issues with
-      | true, _ -> Some (projects |> Domain.IntMap.bindings |> List.map fst)
-      | false, Some ns -> Some ns
-      | false, None -> None
+      match all_github, issues with
+      | _, Some ns -> Some ns
+      | false, None -> Some (projects |> Domain.IntMap.bindings |> List.map fst)
+      | true, None -> None
     in
 
     (* Print output *)
@@ -309,15 +309,15 @@ let issues_arg =
         ~docv:"ISSUES")
 ;;
 
-let issues_github_only_arg =
+let all_github_arg =
   Arg.(
     value
     & flag
     & info
-        [ "G"; "only-github" ]
+        [ "all-github" ]
         ~doc:
-          "Only print notifications for projects on the specified columns of the GitHub \
-           project tracker.")
+          "Print notifications for *all* projects on GitHub, not just those on
+          the specified columns of the GitHub project tracker.")
 ;;
 
 let ww_main_term : unit Term.t =
@@ -332,7 +332,7 @@ let ww_main_term : unit Term.t =
     $ codes_without_arg
     $ codes_only_arg
     $ issues_arg
-    $ issues_github_only_arg)
+    $ all_github_arg)
 ;;
 
 (* ------------------------------- *)
