@@ -30,6 +30,9 @@ type notify_target =
   | All
 
 let make_github_message events =
+  let error_url =
+    "https://alan-turing-institute.github.io/whatwhat/whatwhat/reporting.html"
+  in
   let buf = Buffer.create 128 in
   List.iter
     (Buffer.add_string buf)
@@ -50,7 +53,9 @@ let make_github_message events =
   List.iter
     (Buffer.add_string buf)
     [ "\n"
-    ; "You can get more info about how to fix these issues at: LINK.\n"
+    ; "You can get more info about how to fix these issues at: "
+    ; error_url
+    ; "\n"
     ; "Alternatively, get in touch with PERSON."
     ];
   Buffer.contents buf
