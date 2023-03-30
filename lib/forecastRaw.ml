@@ -23,7 +23,7 @@ let forecast_request_async ?(query = []) endpoint =
       ]
   in
   let uri =
-    Uri.with_query' (Uri.of_string (Config.get_forecast_url () ^ "/" ^ endpoint)) query
+    Uri.with_query' (Uri.of_string (Config.forecast_url ^ "/" ^ endpoint)) query
   in
   let* body =
     Lwt.catch

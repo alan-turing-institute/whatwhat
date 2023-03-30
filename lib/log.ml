@@ -11,12 +11,11 @@ type level =
   | Debug
 [@@deriving ord]
 
-type source =
-  | Forecast
-  | ForecastRaw
-  | Github
-  | GithubMetadata
-  | Schedule
+let show_level = function
+  | Error' x -> "E" ^ string_of_int x
+  | Warning x -> "W" ^ string_of_int x
+  | Info -> "INFO"
+  | Debug -> "DEBUG"
 
 type entity =
   | RawForecastProject of string
@@ -32,7 +31,6 @@ type entity =
 
 type event =
   { level : level
-  ; source : source
   ; entity : entity
   ; message : string
   }
@@ -46,14 +44,6 @@ let the_log : event Stack.t = Stack.create ()
 
 let log' ev = Stack.push ev the_log
 let get_the_log () = Stack.to_seq the_log
-
-let show_source = function
-  | Forecast -> "Forecast"
-  | ForecastRaw -> "ForecastRaw"
-  | Github -> "GitHub"
-  | GithubMetadata -> "GitHub Metadata"
-  | Schedule -> "Schedule"
-;;
 
 let isError e =
   match e.level with
@@ -155,7 +145,7 @@ let pretty_print_event ~use_color (_, e) =
   Printf.printf "%s\n" e.message
 ;;
 
-let pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues =
+let gather_events ~verbose ~restrict_codes ~restrict_issues : (int option * event) list =
   let compare_events (n1, e1) (n2, e2) =
     (* Compare on issue number first, then error code *)
     let issue_number_cmp =
@@ -175,5 +165,15 @@ let pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues =
   |> Seq.filter (should_be_shown ~verbose ~restrict_codes ~restrict_issues)
   |> List.of_seq
   |> List.stable_sort compare_events
+;;
+
+let gather_events' ~verbose ~restrict_codes ~restrict_issues : (int option * event list) list =
+  gather_events ~verbose ~restrict_codes ~restrict_issues
+  |> Utils.group_by (fun (i1, _) (i2, _) -> i1 = i2)
+  |> List.map (fun pairs -> (fst (List.hd pairs), (List.map snd pairs)))
+;;
+
+let pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues =
+  gather_events ~verbose ~restrict_codes ~restrict_issues
   |> List.iter (pretty_print_event ~use_color)
 ;;

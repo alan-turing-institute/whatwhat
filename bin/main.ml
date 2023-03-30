@@ -129,18 +129,19 @@ let ww_main
   no_color
   quiet
   verbose
-  without_codes
-  only_codes
-  only_github_issues
+  codes_without
+  codes_only
+  issues
+  issues_github_only
   =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
   (* Decide which codes to show *)
   let restrict_codes =
-    match only_codes, without_codes with
-    | _ :: _, _ -> Log.Only only_codes
-    | _, _ :: _ -> Log.Without without_codes
+    match codes_only, codes_without with
+    | _ :: _, _ -> Log.Only codes_only
+    | _, _ :: _ -> Log.Without codes_without
     | _ -> Log.All
   in
 
@@ -155,9 +156,10 @@ let ww_main
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
     let restrict_issues =
-      if only_github_issues
-      then Some (projects |> Domain.IntMap.bindings |> List.map fst)
-      else None
+      match issues_github_only, issues with
+      | true, _ -> Some (projects |> Domain.IntMap.bindings |> List.map fst)
+      | false, Some ns -> Some ns
+      | false, None -> None
     in
 
     (* Print output *)
@@ -167,8 +169,7 @@ let ww_main
     (* Send notifications if requested *)
     (match notify with
      | Notify.NoTarget -> print_endline "No notifications requested."
-     | Notify.Github -> print_endline "CATCH: this would post reports to GitHub."
-     (* Notify.post_metadata_reports () *)
+     | Notify.Github -> Notify.post_github ~verbose ~restrict_codes ~restrict_issues
      | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
      | Notify.All -> print_endline "CATCH: this would post reports to everywhere!");
 
@@ -201,7 +202,10 @@ let notify_arg =
   in
   let doc =
     "Where to send notifications. $(docv) may be $(b,github), $(b,slack), $(b,all), or \
-     $(b,none). Note that terminal output is always enabled."
+     $(b,none). Note that terminal output is always enabled. This means that you can \
+     (for example) run `whatwhat OPTS` first as a dry run to see which errors are being \
+     logged, and then run `whatwhat OPTS --notify github` to post GitHub comments about \
+     those errors."
   in
   Arg.(value & opt tgs Notify.NoTarget & info [ "n"; "notify" ] ~docv:"NOTIFY" ~doc)
 ;;
@@ -248,7 +252,7 @@ let verbose_arg =
              DEBUG messages.")
 ;;
 
-let without_codes_arg =
+let codes_without_arg =
   let e = Tyre.((char 'e' *> int) --> fun i -> Log.Error' i) in
   let w = Tyre.((char 'w' *> int) --> fun i -> Log.Warning i) in
   let code_regex = Tyre.route [ e; w ] in
@@ -263,12 +267,12 @@ let without_codes_arg =
       value
       & opt (list string) []
       & info
-          [ "without" ]
+          [ "codes-without" ]
           ~doc:"Suppress specific error codes. See --only for more explanation."
           ~docv:"CODES")
 ;;
 
-let only_codes_arg =
+let codes_only_arg =
   let e = Tyre.((char 'e' *> int) --> fun i -> Log.Error' i) in
   let w = Tyre.((char 'w' *> int) --> fun i -> Log.Warning i) in
   let code_regex = Tyre.route [ e; w ] in
@@ -283,16 +287,29 @@ let only_codes_arg =
       value
       & opt (list string) []
       & info
-          [ "only" ]
+          [ "codes-only" ]
           ~doc:
             "Only show specific error codes. $(docv) should be passed as a \
-             comma-separated list, so for example, use --only=E3001,W3001 to only show \
-             those two types of messages. The argument is case-insensitive. Note that \
-             --only takes precedence over --without."
+             comma-separated list, so for example, use $(opt)=E3001,W3001 to\n\
+            \             only show those two types of messages. The argument is\n\
+            \             case-insensitive. Note that $(opt) takes precedence over\n\
+            \             --codes-without."
           ~docv:"CODES")
 ;;
 
-let only_github_issues_arg =
+let issues_arg =
+  Arg.(
+    value
+    & opt (some (list int)) None
+    & info
+        [ "issues" ]
+        ~doc:
+          "Only show errors for specific issue numbers, provided as a comma-separated \
+           list. Note that --only-github/-G takes precedence over this."
+        ~docv:"ISSUES")
+;;
+
+let issues_github_only_arg =
   Arg.(
     value
     & flag
@@ -312,9 +329,10 @@ let ww_main_term : unit Term.t =
     $ color_arg
     $ quiet_arg
     $ verbose_arg
-    $ without_codes_arg
-    $ only_codes_arg
-    $ only_github_issues_arg)
+    $ codes_without_arg
+    $ codes_only_arg
+    $ issues_arg
+    $ issues_github_only_arg)
 ;;
 
 (* ------------------------------- *)
@@ -327,7 +345,7 @@ let ww_test () =
   let end_date = add (today ()) (Period.year 1) in
   let _, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
 
-  let prj = Domain.IntMap.find 1205 projects in
+  let prj = Domain.IntMap.find 1206 projects in
   Project.print_assignments prj assignments
 ;;
 

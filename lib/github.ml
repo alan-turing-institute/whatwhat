@@ -15,7 +15,6 @@ type github_event =
   | NullFieldError of Raw.issue * string (* E2008 *)
   | MissingCompulsoryFieldError of Raw.issue * string (* E2009 *)
   | NoFinanceCodesError of Raw.issue (* E2010 *)
-  | NoFinanceCodesWarning of Raw.issue (* W2001 *)
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log_event (gh_event : github_event) : unit =
@@ -23,77 +22,60 @@ let log_event (gh_event : github_event) : unit =
   | NoMetadataError raw_issue ->
     Log.log'
       { level = Log.Error' 2001
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "YAML metadata not found in issue body."
       }
   | YamlError raw_issue ->
     Log.log'
       { level = Log.Error' 2002
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Unable to parse metadata block as valid YAML."
       }
   | ExtraFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2003
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Unexpected field <%s> in metadata." fld
       }
   | InvalidFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2004
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> had an invalid value." fld
       }
   | DuplicateFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2005
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> was specified more than once." fld
       }
   | FTETimeUnderSpecifiedError raw_issue ->
     Log.log'
       { level = Log.Error' 2006
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Neither FTE-months nor FTE-weeks were specified."
       }
   | FTETimeOverSpecifiedError raw_issue ->
     Log.log'
       { level = Log.Error' 2007
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Both FTE-months and FTE-weeks were specified."
       }
   | NullFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2008
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> is null or empty." fld
       }
   | MissingCompulsoryFieldError (raw_issue, fld) ->
     Log.log'
       { level = Log.Error' 2009
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = Printf.sprintf "Field <%s> is not present." fld
       }
   | NoFinanceCodesError raw_issue ->
     Log.log'
       { level = Log.Error' 2010
-      ; source = Log.GithubMetadata
-      ; entity = Log.Project raw_issue.number
-      ; message = "Finance codes in GitHub metadata were empty."
-      }
-  | NoFinanceCodesWarning raw_issue ->
-    Log.log'
-      { level = Log.Warning 2001
-      ; source = Log.GithubMetadata
       ; entity = Log.Project raw_issue.number
       ; message = "Finance codes in GitHub metadata were empty."
       }
@@ -162,10 +144,10 @@ let read_metadata_value ~compulsory prj (pairs : (string * Yaml.value) list) key
    error is logged explaining the issue.
 
    The [yaml] block is assumed to be of dictionary type. *)
-let read_float_field ?(compulsory = true) n yaml key =
+let read_nonneg_float_field ?(compulsory = true) n yaml key =
   let* value_result = read_metadata_value ~compulsory n yaml key in
   match value_result with
-  | Float value -> Ok (Some value)
+  | Float f when f >= 0. -> Ok (Some f)
   | Null | Missing -> Ok None
   | _ ->
     log_event (InvalidFieldError (n, key));
@@ -269,16 +251,16 @@ let metadata_of_yaml issue (pairs : (string * Yaml.value) list) =
     >>= enforce_non_null_field issue "turing-project-code"
   in
   let* latest_end_date = read_date_field issue pairs "latest-end-date" in
-  let* max_fte_percent_opt = read_float_field issue pairs "max-FTE-percent" in
-  let* min_fte_percent_opt = read_float_field issue pairs "min-FTE-percent" in
+  let* max_fte_percent_opt = read_nonneg_float_field issue pairs "max-FTE-percent" in
+  let* min_fte_percent_opt = read_nonneg_float_field issue pairs "min-FTE-percent" in
   let* nominal_fte_percent =
-    read_float_field issue pairs "nominal-FTE-percent"
+    read_nonneg_float_field issue pairs "nominal-FTE-percent"
     >>= enforce_non_null_field issue "nominal-FTE-percent"
   in
   let max_fte_percent = Option.value max_fte_percent_opt ~default:nominal_fte_percent in
   let min_fte_percent = Option.value min_fte_percent_opt ~default:nominal_fte_percent in
-  let* fte_months = read_float_field ~compulsory:false issue pairs "FTE-months" in
-  let* fte_weeks = read_float_field ~compulsory:false issue pairs "FTE-weeks" in
+  let* fte_months = read_nonneg_float_field ~compulsory:false issue pairs "FTE-months" in
+  let* fte_weeks = read_nonneg_float_field ~compulsory:false issue pairs "FTE-weeks" in
   let* budget =
     match fte_weeks, fte_months with
     | Some weeks, None -> Ok (FTE.Weeks weeks)
@@ -348,10 +330,8 @@ let validate_issue (col_name : string) (issue : Raw.issue) =
   | None -> None
   | Some plan ->
     let state = state_of_column col_name in
-    (match state >= State.FindingPeople, plan.finance_codes with
-    | false, [] -> log_event (NoFinanceCodesWarning issue)
-    | true, [] -> log_event (NoFinanceCodesError issue)
-    | _ -> ());
+    if state >= State.FindingPeople && List.length plan.finance_codes = 0
+    then log_event (NoFinanceCodesError issue);
     Some
       { number = issue.number
       ; name = issue.title

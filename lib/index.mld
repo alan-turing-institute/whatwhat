@@ -6,8 +6,8 @@ group} at The Alan Turing Institute.
 
 {1 Overview}
 
-{!page-"reporting"} contains a more thorough discussion of what [whatwhat] aims
-to accomplish.
+The {{!page-"reporting"}reporting page} contains a more thorough discussion of what [whatwhat] aims
+to accomplish, along with complete explanation of the error codes and how to fix them.
 
 {!modules:
     Whatwhat.Domain
@@ -41,7 +41,6 @@ to accomplish.
 
 {!modules:
     Whatwhat.ForecastExport
-    Whatwhat.GithubBot
     Whatwhat.Log
     Whatwhat.QueryReports
     Whatwhat.Notify

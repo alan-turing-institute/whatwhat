@@ -1,8 +1,5 @@
 run:
-	./_build/default/bin/main.exe
-
-print:
-	./_build/default/bin/main.exe --notify print
+	dune exec -- whatwhat
 
 install:
 	dune build

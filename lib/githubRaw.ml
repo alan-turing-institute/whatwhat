@@ -11,14 +11,24 @@ type http_method =
   | GET
   | POST
 
-let run_github_query_async ?(http_method = GET) ?(params = []) ?(body = "") uri =
+let run_github_query_async
+  ?(as_bot = false)
+  ?(http_method = GET)
+  ?(params = [])
+  ?(body = "")
+  uri
+  =
   let open Cohttp in
   let open Cohttp_lwt_unix in
-  let github_token = Config.get_github_token () in
+  let github_token =
+    if as_bot then Config.get_githubbot_token () else Config.get_github_token ()
+  in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ github_token) in
   let header_obj =
+    (* This would be a lot cleaner if the functions in Cohttp.Header actually
+       put the header argument as the final one... *)
     Header.init ()
-    |> (fun header -> Header.add_authorization header auth_cred)
+    |> fun header -> Header.add_authorization header auth_cred
     |> fun header -> Header.prepend_user_agent header "Whatwhat"
   in
   let uri = Uri.add_query_params (Uri.of_string uri) params in
@@ -44,8 +54,14 @@ let run_github_query_async ?(http_method = GET) ?(params = []) ?(body = "") uri 
   Lwt.return body_json
 ;;
 
-let run_github_query ?(http_method = GET) ?(params = []) ?(body = "") uri =
-  run_github_query_async ~http_method ~params ~body uri |> Lwt_main.run
+let run_github_query
+  ?(as_bot = false)
+  ?(http_method = GET)
+  ?(params = [])
+  ?(body = "")
+  uri
+  =
+  run_github_query_async ~as_bot ~http_method ~params ~body uri |> Lwt_main.run
 ;;
 
 (** Users -------------------------------------------- *)
@@ -71,7 +87,7 @@ let all_users =
       (Config.get_github_repo_owner ())
       (Config.get_github_repo_name ())
   in
-  let github_graph_ql_endpoint = Config.get_github_url () ^ "/graphql" in
+  let github_graph_ql_endpoint = Config.github_url ^ "/graphql" in
   let body_json =
     run_github_query ~http_method:POST ~body:query github_graph_ql_endpoint
   in
@@ -114,7 +130,7 @@ let get_issue_async id =
   let issue_uri =
     String.concat
       "/"
-      [ Config.get_github_url ()
+      [ Config.github_url
       ; "repos"
       ; Config.get_github_repo_owner ()
       ; Config.get_github_repo_name ()
@@ -162,7 +178,7 @@ let rec get_reactions_async ?(page = 1) id =
     let uri =
       String.concat
         "/"
-        [ Config.get_github_url ()
+        [ Config.github_url
         ; "repos"
         ; Config.get_github_repo_owner ()
         ; Config.get_github_repo_name ()
@@ -224,7 +240,7 @@ let rec get_issue_numbers_in_column_async ?(page = 1) col_id =
     let uri =
       String.concat
         "/"
-        [ Config.get_github_url (); "projects"; "columns"; string_of_int col_id; "cards" ]
+        [ Config.github_url; "projects"; "columns"; string_of_int col_id; "cards" ]
     in
     let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
     let* cards = run_github_query_async ~params uri in
@@ -298,7 +314,7 @@ let get_project_id project_name =
   let uri =
     String.concat
       "/"
-      [ Config.get_github_url ()
+      [ Config.github_url
       ; "repos"
       ; Config.get_github_repo_owner ()
       ; Config.get_github_repo_name ()
@@ -323,7 +339,7 @@ let get_column_names_and_ids project_id =
   let uri =
     String.concat
       "/"
-      [ Config.get_github_url (); "projects"; string_of_int project_id; "columns" ]
+      [ Config.github_url; "projects"; string_of_int project_id; "columns" ]
   in
   let* resp = run_github_query_async uri in
   let entries = resp |> Basic.Util.to_list in

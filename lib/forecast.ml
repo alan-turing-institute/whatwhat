@@ -34,7 +34,6 @@ type forecast_event =
   | NoFinanceCodeWarning of (Raw.project, project) Either.t (* W1001 *)
   | MultipleFinanceCodesWarning of (Raw.project, project) Either.t (* W1002 *)
   | DuplicateIssueNumberWarning of project (* W1003 *)
-  | DuplicateIssueNumberNameWarning of project (* W1004 *)
   | AssignmentToRemovedPersonInfo of Raw.assignment
   | AssignmentToRemovedProjectInfo of Raw.assignment
   | NonREGPersonInfo of Raw.person
@@ -47,7 +46,6 @@ let log_event (fc_event : forecast_event) : unit =
   | NoProjectCodeError raw_proj ->
     Log.log'
       { level = Log.Error' 1001
-      ; source = Log.Forecast
       ; entity = Log.RawForecastProject raw_proj.name
       ; message =
           Printf.sprintf
@@ -57,7 +55,6 @@ let log_event (fc_event : forecast_event) : unit =
   | BadProjectCodeError (raw_proj, code) ->
     Log.log'
       { level = Log.Error' 1002
-      ; source = Log.Forecast
       ; entity = Log.RawForecastProject raw_proj.name
       ; message =
           Printf.sprintf
@@ -70,7 +67,6 @@ let log_event (fc_event : forecast_event) : unit =
     let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Error' 1003
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "No email found for person <%s>." name
       }
@@ -78,21 +74,18 @@ let log_event (fc_event : forecast_event) : unit =
     let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Error' 1004
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "Invalid email: <%s> found for person <%s>." email name
       }
   | NoClientError rp ->
     Log.log'
       { level = Log.Error' 1005
-      ; source = Log.Forecast
       ; entity = Log.RawForecastProject rp.name
       ; message = Printf.sprintf "Client for project <%s> not found." rp.name
       }
   | NoFinanceCodeWarning rp_or_p ->
     Log.log'
       { level = Log.Warning 1001
-      ; source = Log.Forecast
       ; entity =
           (match rp_or_p with
            | Left rp -> Log.RawForecastProject rp.name
@@ -106,7 +99,6 @@ let log_event (fc_event : forecast_event) : unit =
   | MultipleFinanceCodesWarning rp_or_p ->
     Log.log'
       { level = Log.Warning 1002
-      ; source = Log.Forecast
       ; entity =
           (match rp_or_p with
            | Left rp -> Log.RawForecastProject rp.name
@@ -122,24 +114,13 @@ let log_event (fc_event : forecast_event) : unit =
   | DuplicateIssueNumberWarning p ->
     Log.log'
       { level = Log.Warning 1003
-      ; source = Log.Forecast
       ; entity = Log.Project p.number
       ; message =
-          "Another Forecast project with the same issue number but different name was \
-           found."
-      }
-  | DuplicateIssueNumberNameWarning p ->
-    Log.log'
-      { level = Log.Warning 1003
-      ; source = Log.Forecast
-      ; entity = Log.Project p.number
-      ; message =
-          "Another Forecast project with the same issue number and same name was found."
+          "Another Forecast project with the same issue number was found."
       }
   | AssignmentToRemovedPersonInfo raw_assignment ->
     Log.log'
       { level = Log.Info
-      ; source = Log.Forecast
       ; entity = Log.RawForecastAssignment raw_assignment.id
       ; message =
           Printf.sprintf
@@ -149,7 +130,6 @@ let log_event (fc_event : forecast_event) : unit =
   | AssignmentToRemovedProjectInfo raw_assignment ->
     Log.log'
       { level = Log.Info
-      ; source = Log.Forecast
       ; entity = Log.RawForecastAssignment raw_assignment.id
       ; message =
           Printf.sprintf
@@ -160,7 +140,6 @@ let log_event (fc_event : forecast_event) : unit =
     let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Info
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "Ignoring non-REG person <%s>." name
       }
@@ -168,7 +147,6 @@ let log_event (fc_event : forecast_event) : unit =
     let name = Raw.make_person_name raw_person in
     Log.log'
       { level = Log.Debug
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPerson name
       ; message = Printf.sprintf "Ignoring archived person <%s>." name
       }
@@ -176,14 +154,12 @@ let log_event (fc_event : forecast_event) : unit =
     let name = raw_placeholder.name in
     Log.log'
       { level = Log.Debug
-      ; source = Log.Forecast
       ; entity = Log.RawForecastPlaceholder name
       ; message = Printf.sprintf "Ignoring archived person <%s>." name
       }
   | ChoseOneFinanceCodeDebug (rp_or_p, fcs, chosen_fc) ->
     Log.log'
       { level = Log.Debug
-      ; source = Log.Forecast
       ; entity =
           (match rp_or_p with
            | Left rp -> Log.RawForecastProject rp.name
@@ -200,8 +176,6 @@ let log_event (fc_event : forecast_event) : unit =
 (* Utilities for converting raw entities to nicer ones *)
 
 (* Projects *)
-
-let ignored_project_ids = Config.get_forecast_ignored_projects ()
 
 (** [extract_project_number p] inspects the Forecast project code and picks out
     the digits at the end if it satisfies the regex 'hut23-\d+'. *)
@@ -262,7 +236,7 @@ let extract_finance_code (rp : Raw.project) =
     *)
 let validate_project _ (p : Raw.project) =
   (* silently remove *)
-  if p.archived || List.mem p.id ignored_project_ids
+  if p.archived || List.mem p.id Config.forecast_ignored_projects
   then None
   else (
     match p.client with
@@ -449,11 +423,10 @@ let make_project_map projects_id : project IntMap.t =
   let add_project m (_, (p : project)) =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
-    | Some existing_p ->
-      if p.name <> existing_p.name
-      then log_event (DuplicateIssueNumberWarning p)
-      else log_event (DuplicateIssueNumberNameWarning p);
-      m
+    | Some _ ->
+        if not (List.mem p.number Config.forecast_duplicates_okay) then
+        log_event (DuplicateIssueNumberWarning p);
+        m
   in
   Seq.fold_left add_project IntMap.empty (IntMap.to_seq projects_id)
 ;;

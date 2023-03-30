@@ -7,12 +7,9 @@ type t =
   ; github_repo_name : string option
   ; github_repo_owner : string option
   ; github_token : string option
-  ; github_url : string option
   ; githubbot_token : string option
   ; forecast_id : string option
-  ; forecast_ignored_projects : int list option
   ; forecast_token : string option
-  ; forecast_url : string option
   ; slack_token : string option
   }
 
@@ -22,6 +19,14 @@ exception MissingConfig of string
 let secrets_path = XDGBaseDir.default.config_home ^ "/whatwhat/secrets.json"
 let config_path = XDGBaseDir.default.config_home ^ "/whatwhat/config.json"
 let ( >>= ) = Option.bind
+
+(* Constants which are going to be the same on every run *)
+let github_url = "https://api.github.com"
+let forecast_url = "https://api.forecastapp.com"
+(* 'Time off' Forecast project which doesn't have a client *)
+let forecast_ignored_projects = [1684536]
+(* List of issue numbers for which it's okay to have duplicate projects in Forecast *)
+let forecast_duplicates_okay = []
 
 (* These JSON parsers are more lenient than the ones in Yojson.Basic.Util: They return
    [None] if the JSON is of the wrong type, rather than erroring. *)
@@ -97,15 +102,11 @@ let load_settings () : t =
   ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
   ; github_repo_owner = find_setting string_opt_of_json "githubRepoOwner" config_json_opt
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
-  ; github_url = find_setting string_opt_of_json "githubUrl" config_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
   ; github_project_columns =
       find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
-  ; forecast_ignored_projects =
-      find_setting int_list_opt_of_json "forecastIgnoredProjects" config_json_opt
   ; forecast_token = find_setting string_opt_of_json "forecastToken" secrets_json_opt
-  ; forecast_url = find_setting string_opt_of_json "forecastUrl" config_json_opt
   ; slack_token = find_setting string_opt_of_json "slackToken" secrets_json_opt
   }
 ;;
@@ -138,12 +139,6 @@ let get_github_token () =
   | None -> raise (MissingSecret "githubToken")
 ;;
 
-let get_github_url () =
-  match settings.github_url with
-  | Some value -> value
-  | None -> raise (MissingConfig "githubUrl")
-;;
-
 let get_githubbot_token () =
   match settings.githubbot_token with
   | Some value -> value
@@ -156,22 +151,10 @@ let get_forecast_id () =
   | None -> raise (MissingConfig "forecastId")
 ;;
 
-let get_forecast_ignored_projects () =
-  match settings.forecast_ignored_projects with
-  | Some value -> value
-  | None -> raise (MissingConfig "forecastIgnoredProjects")
-;;
-
 let get_forecast_token () =
   match settings.forecast_token with
   | Some value -> value
   | None -> raise (MissingSecret "forecastToken")
-;;
-
-let get_forecast_url () =
-  match settings.forecast_url with
-  | Some value -> value
-  | None -> raise (MissingConfig "forecastUrl")
 ;;
 
 let get_slack_token () =

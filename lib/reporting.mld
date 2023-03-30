@@ -1,9 +1,12 @@
-{0 Logging and Notifications}
+{0 Reporting problems}
 
-{1 Caveat}
+If you are looking specifically for an error code, you can skip the discussion
+here: just use your browser's find function to navigate to the code of
+interest.
 
-The following is what {i ought} to happen. As of 2023-03-15, it is not yet what
-actually happens.
+Some error messages are quite self-explanatory so do not contain any
+suggestions for fixing them. If the guidance here is insufficient, please
+consider making an issue or PR to help the next person!
 
 {1 Overview}
 
@@ -17,13 +20,15 @@ We classify problems into {i errors} and {i warnings}:
 - An {i error} (E-code) occurs when the data retrieved from the data sources,
   while valid in the domain model of the data source, is not valid in the
   domain model of whatwhat and cannot be represented as a type returned by the
-  library. When an error occurs, the entity causing the error is typically
-  ignored thereafter, which may lead to subsequent errors or warnings.
+  library. When an error occurs, the entity causing the error is often ignored
+  thereafter, which may lead to subsequent errors or warnings.
 - A {i warning} (W-code) occurs when a valid representation is possible but is
   in some way or other problematic. Warnings should result in nudges for people
   to fix the problem.
-- An {i information message} (I-code) is used for commentary on potential
-  problems.
+- An {i information message} is used for commentary on potential problems.
+  There aren't many of these yet, because we haven't implemented them.
+- A {i debug message} is information intended purely for developer usage. There
+  aren't many of these either.
   
 All of these are passed to the logging system, whose job is to then communicate
 them to the appropriate target. Errors and warnings may arise in three places:
@@ -31,40 +36,76 @@ them to the appropriate target. Errors and warnings may arise in three places:
   + When reading the data from GitHub;
   + When combining the data from these two sources.
 
+The location at which these errors appear dictates the first number in the
+error code. So, for example, an issue with GitHub metadata usually has a code
+of the form E2xxx or W2xxx.
+
 
 {1 Reading data from Forecast}
-
-All error codes under this section should begin with the number 1.
 
 Forecast is authoritative for people and allocations, so the most likely
 sources of errors are projects. 
 
 {2 Errors}
 
-- {b E1001} The project code field (which ought to hold the issue number X in
-  the format "hut23-X") is null.
-- {b E1002} The project code is not null but does not have the correct format.
-- {b E1003} The person email field is null.
-- {b E1004} The person email field is not a valid email. 'Valid' in this case
-  means 'matching ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$', which is
-  not quite accurate (the technical definition is in
-  {{: https://www.rfc-editor.org/rfc/rfc5322 }RFC 5322}), but is really enough
-  to catch empty emails and other typos.
-- {b E1005} The project has no client on Forecast. This occurs naturally with
-  the built-in 'Time Off' project. To suppress this error, this project should
-  be added to the 'ignoredForecastProjects' configuration variable.
+{b E1001} The Forecast 'project code' field (which ought to hold the GitHub
+issue number X in the format [hut23-X]) is empty.
+
+ - {i Solution:} Add the project code. Note that the title of the Forecast
+   project does not need to contain this info.
+
+{b E1002} The Forecast 'project code' field but does not have the correct
+format.
+
+ - {i Solution:} Edit the project code to conform to the format [hut23-X],
+   where [X] is the GitHub issue number.
+
+{b E1003} The email field of a person tagged with the 'REG' role on Forecast is
+empty.
+
+ - {i Solution:} Add the email. If the person is not supposed to be part of
+   REG, then remove the tag from the person.
+ - Note that this error can naturally occur for people who have not yet started
+   (we create Forecast accounts ahead of time for new starters). In this case,
+   the error can be ignored.
+
+{b E1004} The email field of a person tagged with the 'REG' role on Forecast is
+not a valid email address.
+
+ - {i Solution:} Correct  the email. If the person is not supposed to be part of
+   REG, then remove the tag from the person.
+ - 'Valid' in this case means 'matching
+   [^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$]', which is not quite
+   accurate (the technical definition being {{:
+   https://www.rfc-editor.org/rfc/rfc5322 }RFC 5322}). However, it is enough to
+   catch empty emails and other typos. If you have a valid email that doesn't
+   match this regex, please raise an issue.
+
+{b E1005} The project on Forecast has no client (in Forecast, a 'client' refers
+to what we usually call a 'programme').
+
+ - {i Solution:} Add the client on Forecast.
 
 {2 Warnings}
 
-- {b W1001} The project tags field (which ought to hold the finance code) is
-  empty. 
-- {b W1002} The project tags field has more than one entry.
-- {b W1003} Two projects exist with the same issue number in Forecast but a
-  different name.
-- {b W1003} Two projects exist with the same issue number in Forecast and the
-  same name. (In general, this should not be a problem as both projects in
-  Forecast will refer to the same real-world project. However, it's a useful
-  thing to be aware of.)
+{b W1001} The 'project tags' field (which ought to hold the finance code) is
+empty. 
+
+ - {i Solution:} Add the finance code (if known).
+
+{b W1002} The 'project tags' field has more than one entry.
+
+ - {i Solution:} Remove extraneous finance codes. If a project genuinely has
+   two finance codes, it should be split up into two Forecast projects. (This
+   will then raise a W1003.)
+
+{b W1003} Two projects exist with the same issue number in Forecast.
+
+ - {i Solution:} This happens naturally sometimes, e.g. when projects are split
+   up into multiple components on Forecast. Ensure that this is {i supposed} to
+   be the case. If not, then fix it.
+ - If you know for sure that this is a spurious warning, a manual exception can
+   be added for specific Forecast projects; please raise an issue.
 
 {2 Info messages}
 
@@ -73,6 +114,7 @@ sources of errors are projects.
 - When deleting an assignment to a project that has been removed.
 
 {2 Debug messages}
+
 - When ignoring an archived person.
 
 
@@ -99,62 +141,54 @@ For reference, the stages of a project, in order, are presently:
 
 and the YAML data block has the following fields:
 
-- [turing-project-code] {i (Should be deprecated?)}
-  - Must be present
-  - May be null, when the finance code is not known yet.
-- [earliest-start-date]
-  - Must be present
-  - May be null, when there is "no earliest start date"
-- [latest-start-date]
-  - Must be present
-  - May not be null
-- [latest-end-date]
-  - Must be present
-  - May be null, when there is "no latest end date"
-- [nominal-FTE-percent]
-  - Must be present
-  - Must be an integer between 0 and 100
-- [max-FTE-percent]
-  - Must be present
-  - May be null, meaning "same as nominal"
-  - If present, must be an integer between 0 and 100
-- [min-FTE-percent]
-  - Must be present
-  - May be null, meaning "same as nominal"
-  - If present, must be an integer between 0 and 100
-- [FTE-months]
-  - Must be present if [FTE-weeks] is not
-  - Must be an integer
-- [FTE-weeks]
-  - Must be present if [FTE-months] is not
-  - Must be an integer
+- [turing-project-code] {i (Should be deprecated?)} Must be present; may be
+  null, when the finance code is not known yet.
+- [earliest-start-date] Must be present; may be null, when there is "no
+  earliest start date".
+- [latest-start-date] Must be present; may not be null.
+- [latest-end-date] Must be present; may be null, when there is "no latest end
+  date".
+- [nominal-FTE-percent] Must be present; must be a non-negative number. A value
+  of 100 represents 1 FTE.
+- [max-FTE-percent] Must be present; may be null, meaning "same as nominal". If
+  present, must be a non-negative number.
+- [min-FTE-percent] Must be present; may be null, meaning "same as nominal". If
+  present, must be a non-negative number.
+- [FTE-months] OR [FTE-weeks] One (and only one) of these must be present. Must
+  be an non-negative number.
 
 {2 Errors}
 
-A malformed YAML block halts parsing of the entire block. Possible reasons for
-error are:
+{b E2001} A metadata block cannot be found at all.
 
-- {b E2001} A metadata block cannot be found at all.
-- {b E2002} A metadata block was found, but is not valid YAML.
-- {b E2003} An unexpected metadata field is present.
-- {b E2004} A metadata field cannot be parsed because its value is invalid
-  (e.g. the wrong type).
-- {b E2005} A metadata field is specified more than once.
-- {b E2006} Neither [FTE-months] nor [FTE-weeks] are given.
-- {b E2007} Both [FTE-months] and [FTE-weeks] are given.
-- {b E2008} A metadata field that cannot be null or empty is null or empty.
-- {b E2009} A compulsory metadata field is not present.
-- {b E2010} A project is in 'Finding People' or later, but the finance code is
-  null or empty.
+ - {i Solution:} Add the metadata block. If it's already there, it's probably
+   not being recognised. The metadata block must be separated from the rest of
+   the issue description by three consecutive plus signs, i.e. [+++]. See any
+   other project issue for an example.
+
+{b E2002} A metadata block was found, but is not valid YAML.
+
+{b E2003} An unexpected metadata field is present.
+
+{b E2004} A metadata field cannot be parsed because its value is invalid (e.g.
+the wrong type).
+
+{b E2005} A metadata field is specified more than once.
+
+{b E2006} Neither [FTE-months] nor [FTE-weeks] are given.
+
+{b E2007} Both [FTE-months] and [FTE-weeks] are given.
+
+{b E2008} A metadata field that cannot be null or empty is null or empty.
+
+{b E2009} A compulsory metadata field is not present.
+
+{b E2010} A project is in 'Finding People' or later, but the finance code is
+null or empty.
 
 {2 Warnings}
 
-- {b W2001} A project is not yet in 'Finding People' or later, but the finance
-  code is null or empty.
-
-
-
-
+None yet.
 
 {1 Combining data}
 
@@ -165,48 +199,75 @@ model, we may still have problems when they are combined.
 
 {2 Errors}
 
-- {b E3001} A project on Forecast has a Hut23 issue number that is not present in
-  the GitHub project tracker.
-- {b E3002} A project on Forecast has a finance code that is not contained in the
-  list of finance codes in the GitHub metadata.
+{b E3001} A project on Forecast has a Hut23 issue number that is not found on
+the Hut23 GitHub repository.
+
+ - {i Solution:} If the project should be on there, move it there.
+ - There is currently a bug in that [whatwhat] only fetches issues on the four
+   'main' columns of the project tracker (from Awaiting go/no-go through
+   Active). So, E3001 will be issued for any project *not* on those four
+   columns. It is not obvious exactly how to fix this.
+
+{b E3002} A project on Forecast has a finance code that is not contained in the
+list of finance codes in the GitHub metadata.
+
+ - {i Solution:} Check Forecast and GitHub projects for consistency.
 
 {2 Warnings}
 
 Warnings occur when the allocations in Forecast do not match what is implied by
 the GitHub metadata.
 
-- {b W3001} A project is in "Looking for people" or later, but has no matching
-  Forecast project.
-- {b W3002} There are allocations to a project beyond its latest end date.
-- {b W3003} There are allocations to a project before its earliest start date.
-- {b W3004} The total resource allocated exceeds the FTE-weeks or FTE-months.
-- {b W3005} The run-rate resource at any time is lower than min-FTE-percent or
-  higher than max-FTE-percent.
-- {b W3006} An individual has an allocation that is greater than 100%.
-- {b W3007} The project is in the "Active" column but there are no present
-  allocations on Forecast.
-- {b W3008} There are allocations to a project but the project is not in the
-  "Active" column.
-- {b W3009} The project is past its latest start date but is not in the
-  "Active" column.
-- {b W3010} A Forecast user could not be matched to a user on GitHub.
-- {b W3011} The project programme ('client' on Forecast, 'tags' on GitHub) could
-  not be matched.
-- {b W3012} The project names on Forecast and GitHub could not be matched.
+{b W3001} A project is in "Looking for people" or later, but has no matching
+Forecast project.
+
+ - {i Solution:} Create a project on Forecast (or if it already exists, make
+   sure its project code is correctly set; see also E1001).
+
+{b W3002} There are allocations to a project beyond its latest end date.
+
+{b W3003} There are allocations to a project before its earliest start date.
+
+ - {i Solution:} Check that this is supposed to be the case. Adjust the
+   allocations or the start/end date as necessary.
+
+{b W3004} The total resources allocated on Forecast deviates from the FTE-weeks
+or FTE-months specified on GitHub by more than 10%.
+
+ - {i Solution:} Speak to the person in charge of scheduling about it. Likely
+   Forecast allocations need to be edited. To see [whatwhat]'s exact breakdown
+   of the Forecast allocations, you can run [whatwhat project N] where [N] is
+   the GitHub issue number.
+
+{b W3005} The run-rate resource at any time is lower than min-FTE-percent or
+higher than max-FTE-percent. {i This warning is not yet implemented.}
+
+{b W3006} An individual has an allocation that is greater than 100%. {i This
+warning is not yet implemented.}
+
+{b W3007} The project is in the "Active" column but there are no present
+allocations on Forecast.
+
+{b W3008} There are allocations to a project but the project is not in the
+"Active" column.
+
+{b W3009} The project is past its latest start date but is not in the "Active"
+column.
+
+{b W3010} A Forecast user could not be matched to a user on GitHub.
+
+ - There are plans to eliminate this error entirely by maintaining a lookup
+   table of Forecast emails (i.e. Turing emails) to GitHub usernames.
+
+{b W3011} The project programme ('client' on Forecast, 'tags' on GitHub)
+could not be matched.
+
+{b W3012} The project names on Forecast and GitHub could not be matched.
 
 
-{1 Reporting}
+{2 Other ideas}
 
-If whatwhat is run in "report" mode, it issues a report on likely
-problems. These are of two kinds: problems that exist now, and problems that
-will exist in the future if left uncorrected.
-
-{2 Things that will become problems if left unattended}
-
-- A project is active but the total allocation to the project is less than the
-  FTE-weeks (within some delta)
-
-{2 Informational messages}
+None of these are implemented yet.
 
 - A project is within T + delta of its latest start date but there are no
   allocations
@@ -221,23 +282,22 @@ will exist in the future if left uncorrected.
 
 {1 Notifications}
 
-{b TODO}
+Currently, notifications are posted as GitHub comments on the issue belonging
+to the respective project.
+
+Issues that cannot be easily tied to a specific project are currently not
+reported to anybody (although they can be seen in the terminal output). This is
+probably a bug.
    
-The following individuals may receive messages:
+Other possibilities for notifications (which are not implemented yet) are:
 
-    - Fallback (email): A hard-coded person if the Scheduler cannot be found
-
-    - The Scheduler (GitHub): The people listed in the GitHub service area for
-      Scheduling
-
-    - Project Shepherd (GitHub): Anyone listed in the project GitHub issue
-
-    - Project Team (email): Anyone allocated to the project in the next six
-      months
-
-    - Programme Shepherd (GitHub): Anyone listed in the Programme Service area
-
-    - Programe Lead (Forecast): Anyone allocated to the Programme Service area
-      in the next six months.
-
-    - The On-Call (Forecast): The person referred to by a particular assignment
+- Fallback (email): A hard-coded person if the Scheduler cannot be found
+- The Scheduler (GitHub): The people listed in the GitHub service area for
+  Scheduling
+- Project Shepherd (GitHub): Anyone listed in the project GitHub issue
+- Project Team (email): Anyone allocated to the project in the next six
+  months
+- Programme Shepherd (GitHub): Anyone listed in the Programme Service area
+- Programe Lead (Forecast): Anyone allocated to the Programme Service area
+  in the next six months.
+- The On-Call (Forecast): The person referred to by a particular assignment
