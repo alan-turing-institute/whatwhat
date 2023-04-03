@@ -1,6 +1,7 @@
 open Cohttp
 
 exception HttpError of string
+exception GithubRateLimitError of string
 
 (** Redefine date type (and provide a pretty-printing function in order to
     cleanly derive [show]. *)
@@ -25,8 +26,21 @@ let date_of_string (str : string) =
   | _ -> Error ()
 ;;
 
-(** Raise a HttpError if the API request response indicates failure. *)
+(** Raise an appropriate error if the API request response indicates failure. *)
 let check_http_response response =
+  let show_time (t : Unix.tm) : string =
+    Printf.sprintf "%02d:%02d:%02d" t.Unix.tm_hour t.Unix.tm_min t.Unix.tm_sec
+  in
+  let headers = Response.headers response in
+  (* Check GitHub rate limit *)
+  (match
+     Header.get headers "x-ratelimit-remaining", Header.get headers "x-ratelimit-reset"
+   with
+   | Some "0", Some s ->
+     let time = Unix.localtime (float_of_string s) in
+     raise @@ GithubRateLimitError (show_time time)
+   | _ -> ());
+  (* Check other HTTP problems *)
   if Response.status response |> Code.code_of_status |> Code.is_success |> not
   then (
     let code_string = Response.status response |> Code.string_of_status in
@@ -203,15 +217,18 @@ let eprcol ~use_color styles string =
     resulting post, and it'll purely appear as a string. *)
 let gfm_escape s =
   let b = Buffer.create 80 in
-  String.iter (fun c -> match c with
-  (* This list of replacements is probably not exhaustive. *)
-    | '<' -> Buffer.add_string b {|\<|}
-    | '>' -> Buffer.add_string b {|\>|}
-    | '*' -> Buffer.add_string b {|\*|}
-    | '_' -> Buffer.add_string b {|\_|}
-    | '#' -> Buffer.add_string b {|\#|}
-    | '`' -> Buffer.add_string b {|\`|}
-    | '\\' -> Buffer.add_string b {|\\|}
-    | _ -> Buffer.add_char b c
-  ) s;
+  String.iter
+    (fun c ->
+      match c with
+      (* This list of replacements is probably not exhaustive. *)
+      | '<' -> Buffer.add_string b {|\<|}
+      | '>' -> Buffer.add_string b {|\>|}
+      | '*' -> Buffer.add_string b {|\*|}
+      | '_' -> Buffer.add_string b {|\_|}
+      | '#' -> Buffer.add_string b {|\#|}
+      | '`' -> Buffer.add_string b {|\`|}
+      | '\\' -> Buffer.add_string b {|\\|}
+      | _ -> Buffer.add_char b c)
+    s;
   Buffer.contents b
+;;
