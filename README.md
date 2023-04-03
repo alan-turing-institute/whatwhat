@@ -108,7 +108,7 @@ However, this should be enough to get started.
 
  - `dune exec --whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
  - `dune exec --whatwhat --notify github`: Same as above, but additionally post GitHub comments on all of those issues.
- - `dune exec --whatwhat export`: Create Forecast project export CSV file. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
+ - `dune exec --whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
 
 ## Documentation
 

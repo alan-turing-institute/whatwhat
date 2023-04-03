@@ -33,12 +33,22 @@ let ww_open_cmd : unit Cmd.t =
     Term.(const ww_open $ issue_num_arg)
 ;;
 
-(* ------------------------------- *)
-(* ------ whatwhat export -------- *)
+(* -------------------------------------- *)
+(* --- whatwhat export-{team,project} --- *)
+
+type fc_export =
+  | Project
+  | Team
+
+let show_fc_export = function
+  | Project -> "project"
+  | Team -> "team"
+;;
 
 let ww_export
-  (start_date_in : string option)
-  (end_date_in : string option)
+  (export : fc_export)
+  (start_date_in : CalendarLib.Date.t)
+  (end_date_in : CalendarLib.Date.t)
   (output_file : string option)
   : unit
   =
@@ -46,25 +56,16 @@ let ww_export
      must be a Monday and the end a Sunday. This mimics the interface provided
      on the Forecast website. *)
   let open CalendarLib.Date in
-  let start_date =
-    Utils.rollback_week
-      (match start_date_in with
-       | None -> Utils.default_start_date ()
-       | Some "_" -> Utils.default_start_date ()
-       | Some s -> Utils.parse_date s)
-  in
-  let end_date =
-    Utils.rollforward_week
-      ~with_weekend:true
-      (match end_date_in with
-       | None -> Utils.default_end_date ()
-       | Some "_" -> Utils.default_end_date ()
-       | Some s -> Utils.parse_date s)
-  in
-  if start_date >= end_date then failwith "Start date cannot be before end date!" else ();
+  let start_date = Utils.rollback_week start_date_in in
+  let end_date = Utils.rollforward_week ~with_weekend:true end_date_in in
+  if start_date >= end_date then failwith "Start date cannot be before end date!";
 
   (* Calculate the schedule *)
-  let csv = ForecastExport.export_schedule ~start_date ~end_date in
+  let csv =
+    match export with
+    | Project -> ForecastExport.export_project_schedule ~start_date ~end_date
+    | Team -> ForecastExport.export_team_schedule ~start_date ~end_date
+  in
 
   (* Determine output file *)
   let output =
@@ -72,15 +73,20 @@ let ww_export
     | Some "" ->
       let start_str = CalendarLib.Printer.Date.sprint "%Y-%m-%d" start_date in
       let end_str = CalendarLib.Printer.Date.sprint "%Y-%m-%d" end_date in
-      Some ("forecast-project-export-from-" ^ start_str ^ "-to-" ^ end_str ^ ".csv")
+      Some
+        (Printf.sprintf
+           "forecast-%s-export-from-%s-to-%s.csv"
+           (show_fc_export export)
+           start_str
+           end_str)
     | Some f -> Some f
     | None -> None
   in
 
   (* Print some useful info *)
   let module ANSI = ANSITerminal in
-  ANSI.eprintf [ Bold ] "Forecast export\n";
-  ANSI.eprintf [ Bold ] "---------------\n";
+  ANSI.eprintf [ Bold ] "Forecast %s export\n" (show_fc_export export);
+  ANSI.eprintf [ Bold ] "-----------------------\n";
   ANSI.eprintf [ Bold ] "Start date      ";
   ANSI.eprintf [] "%s\n" (CalendarLib.Printer.Date.to_string start_date);
   ANSI.eprintf [ Bold ] "End date        ";
@@ -95,12 +101,40 @@ let ww_export
   Printf.eprintf "Done.\n"
 ;;
 
-let start_date_arg : string option Term.t =
-  Arg.(value & pos 0 (some string) None & info ~docv:"START" ~doc:"Start date" [])
+let start_date_arg : CalendarLib.Date.t Term.t =
+  let default_start_date = Utils.default_start_date () in
+  let parser s =
+    match s with
+    | "" -> Ok default_start_date
+    | "_" -> Ok default_start_date
+    | s -> Utils.parse_date s
+  in
+  let printer f d = Format.pp_print_string f (CalendarLib.Printer.Date.to_string d) in
+  Arg.(
+    value
+    & pos 0 (conv (parser, printer)) default_start_date
+    & info
+        ~docv:"START"
+        ~doc:
+          "Start date. Defaults to the 1st of the previous month. If you want to specify \
+           a custom end date but leave the start date as the default, pass a single \
+           underscore."
+        [])
 ;;
 
-let end_date_arg : string option Term.t =
-  Arg.(value & pos 1 (some string) None & info ~docv:"END" ~doc:"End date" [])
+let end_date_arg : CalendarLib.Date.t Term.t =
+  let default_end_date = Utils.default_end_date () in
+  let parser s =
+    match s with
+    | "" -> Ok default_end_date
+    | "_" -> Ok default_end_date
+    | s -> Utils.parse_date s
+  in
+  let printer f d = Format.pp_print_string f (CalendarLib.Printer.Date.to_string d) in
+  Arg.(
+    value
+    & pos 1 (conv (parser, printer)) default_end_date
+    & info ~docv:"END" ~doc:"End date. Defaults to the last day of the next month." [])
 ;;
 
 (** Returns [None] if the [-o] option was completely absent, [Some ""] if the
@@ -110,13 +144,22 @@ let output_file_arg : string option Term.t =
   Arg.(
     value
     & opt ~vopt:(Some "") (some string) None
-    & info ~docv:"OUTPUT" ~doc:"Output file" [ "o"; "output" ])
+    & info
+        ~docv:"OUTPUT"
+        ~doc:"File to output CSV to. By default, the CSV is printed to standard output."
+        [ "o"; "output" ])
 ;;
 
-let ww_export_cmd : unit Cmd.t =
+let ww_export_project_cmd : unit Cmd.t =
   Cmd.v
-    (Cmd.info "export" ~doc:"Export Forecast CSVs")
-    Term.(const ww_export $ start_date_arg $ end_date_arg $ output_file_arg)
+    (Cmd.info "export-project" ~doc:"Export Forecast project CSVs")
+    Term.(const (ww_export Project) $ start_date_arg $ end_date_arg $ output_file_arg)
+;;
+
+let ww_export_team_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "export-team" ~doc:"Export Forecast team CSVs")
+    Term.(const (ww_export Team) $ start_date_arg $ end_date_arg $ output_file_arg)
 ;;
 
 (* ------------------------------- *)
@@ -127,7 +170,17 @@ type project_subset =
   | SelectedColumnsOnly
   | Specific of int list
 
-let ww_main notify person issue no_color quiet verbose codes_without codes_only project_subset =
+let ww_main
+  notify
+  person
+  issue
+  no_color
+  quiet
+  verbose
+  codes_without
+  codes_only
+  project_subset
+  =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
@@ -143,7 +196,9 @@ let ww_main notify person issue no_color quiet verbose codes_without codes_only 
     let open CalendarLib.Date in
     let start_date = make 2016 1 1 in
     let end_date = add (today ()) (Period.year 1) in
-    let people, projects, assignments, github_project_numbers = Schedule.get_the_schedule ~start_date ~end_date in
+    let people, projects, assignments, github_project_numbers =
+      Schedule.get_the_schedule ~start_date ~end_date
+    in
     print_endline "Whatwhat downloaded:";
     Printf.printf "%d people; " (List.length people);
     Printf.printf "%d projects; and " (Domain.IntMap.cardinal projects);
@@ -288,10 +343,11 @@ let projects_arg =
     match String.lowercase_ascii s with
     | "all" -> Ok AllProjects
     | "github" -> Ok SelectedColumnsOnly
-    | s -> let reg = Tyre.(compile (int <&> rep (char ',' *> int))) in
-      match Tyre.exec reg s with
-      | Ok (first, last) -> Ok (Specific (first :: List.of_seq last))
-      | Error _ -> Error (`Msg "Invalid value")
+    | s ->
+      let reg = Tyre.(compile (int <&> rep (char ',' *> int))) in
+      (match Tyre.exec reg s with
+       | Ok (first, last) -> Ok (Specific (first :: List.of_seq last))
+       | Error _ -> Error (`Msg "Invalid value"))
   in
   let show_selected_project_arg = function
     | AllProjects -> "all"
@@ -361,7 +417,7 @@ let cmd : unit Cmd.t =
   Cmd.group
     ~default:ww_main_term
     (Cmd.info "whatwhat" ~doc:"Report current project status")
-    [ ww_export_cmd; ww_open_cmd; ww_test_cmd ]
+    [ ww_export_project_cmd; ww_export_team_cmd; ww_open_cmd; ww_test_cmd ]
 ;;
 
 let () = exit (Cmd.eval cmd)

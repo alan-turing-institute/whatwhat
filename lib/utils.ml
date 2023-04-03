@@ -65,18 +65,18 @@ let is_digit c =
     Non-digit characters are ignored. *)
 let parse_date s =
   let digits = s |> String.to_seq |> Seq.filter is_digit |> String.of_seq in
-  let yyyy, mm, dd =
-    match String.length digits with
-    | 8 ->
+  match String.length digits with
+  | 8 ->
+    let yyyy, mm, dd =
       ( int_of_string (String.sub digits 0 4)
       , int_of_string (String.sub digits 4 2)
       , int_of_string (String.sub digits 6 2) )
-    | _ -> failwith ("Unrecognised date: " ^ s)
-  in
-  let open CalendarLib.Date in
-  if is_valid_date yyyy mm dd
-  then make yyyy mm dd
-  else failwith ("Date '" ^ s ^ "' is not valid!")
+    in
+    let open CalendarLib.Date in
+    if is_valid_date yyyy mm dd
+    then Ok (make yyyy mm dd)
+    else Error (`Msg ("Date '" ^ s ^ "' is not valid!"))
+  | _ -> Error (`Msg ("Unrecognised date: " ^ s))
 ;;
 
 (** Calculate the default start date for Forecast export, which is the 1st of the
