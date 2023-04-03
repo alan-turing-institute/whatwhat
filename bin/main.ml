@@ -122,18 +122,12 @@ let ww_export_cmd : unit Cmd.t =
 (* ------------------------------- *)
 (* ---------- whatwhat ----------- *)
 
-let ww_main
-  notify
-  person
-  issue
-  no_color
-  quiet
-  verbose
-  codes_without
-  codes_only
-  issues
-  all_github
-  =
+type project_subset =
+  | AllProjects
+  | SelectedColumnsOnly
+  | Specific of int list
+
+let ww_main notify person issue no_color quiet verbose codes_without codes_only project_subset =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
@@ -149,17 +143,17 @@ let ww_main
     let open CalendarLib.Date in
     let start_date = make 2016 1 1 in
     let end_date = add (today ()) (Period.year 1) in
-    let people, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
+    let people, projects, assignments, github_project_numbers = Schedule.get_the_schedule ~start_date ~end_date in
     print_endline "Whatwhat downloaded:";
     Printf.printf "%d people; " (List.length people);
     Printf.printf "%d projects; and " (Domain.IntMap.cardinal projects);
     Printf.printf "%d assignments\n\n" (List.length assignments);
 
     let restrict_issues =
-      match all_github, issues with
-      | _, Some ns -> Some ns
-      | false, None -> Some (projects |> Domain.IntMap.bindings |> List.map fst)
-      | true, None -> None
+      match project_subset with
+      | AllProjects -> None
+      | SelectedColumnsOnly -> Some github_project_numbers
+      | Specific ps -> Some ps
     in
 
     (* Print output *)
@@ -252,15 +246,16 @@ let verbose_arg =
              DEBUG messages.")
 ;;
 
-let codes_without_arg =
+let parse_code c =
   let e = Tyre.((char 'e' *> int) --> fun i -> Log.Error' i) in
   let w = Tyre.((char 'w' *> int) --> fun i -> Log.Warning i) in
   let code_regex = Tyre.route [ e; w ] in
-  let parse_code c =
-    match Tyre.exec code_regex (String.lowercase_ascii c) with
-    | Ok code -> Some code
-    | Error _ -> None
-  in
+  match Tyre.exec code_regex (String.lowercase_ascii c) with
+  | Ok code -> Some code
+  | Error _ -> None
+;;
+
+let codes_without_arg =
   Term.app
     (Term.const (List.filter_map parse_code))
     Arg.(
@@ -273,14 +268,6 @@ let codes_without_arg =
 ;;
 
 let codes_only_arg =
-  let e = Tyre.((char 'e' *> int) --> fun i -> Log.Error' i) in
-  let w = Tyre.((char 'w' *> int) --> fun i -> Log.Warning i) in
-  let code_regex = Tyre.route [ e; w ] in
-  let parse_code c =
-    match Tyre.exec code_regex (String.lowercase_ascii c) with
-    | Ok code -> Some code
-    | Error _ -> None
-  in
   Term.app
     (Term.const (List.filter_map parse_code))
     Arg.(
@@ -290,34 +277,39 @@ let codes_only_arg =
           [ "codes-only" ]
           ~doc:
             "Only show specific error codes. $(docv) should be passed as a \
-             comma-separated list, so for example, use $(opt)=E3001,W3001 to\n\
-            \             only show those two types of messages. The argument is\n\
-            \             case-insensitive. Note that $(opt) takes precedence over\n\
-            \             --codes-without."
+             comma-separated list, so for example, use $(opt)$(b,=E3001,W3001) to only \
+             show those two types of messages. The argument is case-insensitive. Note \
+             that $(opt) takes precedence over --codes-without."
           ~docv:"CODES")
 ;;
 
-let issues_arg =
+let projects_arg =
+  let parser s =
+    match String.lowercase_ascii s with
+    | "all" -> Ok AllProjects
+    | "github" -> Ok SelectedColumnsOnly
+    | s -> let reg = Tyre.(compile (int <&> rep (char ',' *> int))) in
+      match Tyre.exec reg s with
+      | Ok (first, last) -> Ok (Specific (first :: List.of_seq last))
+      | Error _ -> Error (`Msg "Invalid value")
+  in
+  let show_selected_project_arg = function
+    | AllProjects -> "all"
+    | SelectedColumnsOnly -> "github"
+    | Specific issues -> String.concat "," (List.map string_of_int issues)
+  in
+  let printer f i = Format.pp_print_string f (show_selected_project_arg i) in
   Arg.(
     value
-    & opt (some (list int)) None
+    & opt (conv (parser, printer)) SelectedColumnsOnly
     & info
-        [ "issues" ]
+        [ "projects" ]
         ~doc:
-          "Only show errors for specific issue numbers, provided as a comma-separated \
-           list. Note that --only-github/-G takes precedence over this."
-        ~docv:"ISSUES")
-;;
-
-let all_github_arg =
-  Arg.(
-    value
-    & flag
-    & info
-        [ "all-github" ]
-        ~doc:
-          "Print notifications for *all* projects on GitHub, not just those on
-          the specified columns of the GitHub project tracker.")
+          "Decide which projects to display errors for in the output, and notify for (if \
+           requested). Permitted values are: $(b,all) (runs over all projects in \
+           Forecast), $(b,github) (default; runs over all issues in the specified GitHub \
+           columns), or a comma-separated list of issue numbers."
+        ~docv:"PROJECTS")
 ;;
 
 let ww_main_term : unit Term.t =
@@ -331,8 +323,7 @@ let ww_main_term : unit Term.t =
     $ verbose_arg
     $ codes_without_arg
     $ codes_only_arg
-    $ issues_arg
-    $ all_github_arg)
+    $ projects_arg)
 ;;
 
 (* ------------------------------- *)
@@ -343,7 +334,7 @@ let ww_test () =
   let open CalendarLib.Date in
   let start_date = make 2016 1 1 in
   let end_date = add (today ()) (Period.year 1) in
-  let _, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
+  let _, projects, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
 
   let prj = Domain.IntMap.find 1206 projects in
   Project.print_assignments prj assignments
