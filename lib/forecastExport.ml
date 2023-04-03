@@ -19,30 +19,36 @@ let ndays_of_week_in ?(include_weekends = false) d start_date end_date =
   else Period.nb_days (sub last_weekday first_weekday) + 1
 ;;
 
-(** [asns] is a group of assignments belonging to the same client, project, and
-    Forecast entity. They should be summed up to obtain the number of hours per
-    week. *)
+(** [asns] is a list of assignments which are grouped together on some basis.
+    This function returns the total number of hours included in these
+    assignments in a given week starting on date [d]. [d] must be a Monday. *)
 let get_hours_per_week (d : CalendarLib.Date.t) (asns : assignment list) : float =
   let open CalendarLib.Date in
-  (* [d] must be a Monday! *)
   (match day_of_week d with
    | Mon -> ()
    | _ -> failwith "get_hours_per_week needs a Monday!");
-  let a = List.hd asns in
-  let is_placeholder =
-    match a.entity with
-    | Placeholder _ -> true
-    | Person _ -> false
-  in
-  let get_hours_per_week_single (d : CalendarLib.Date.t) (a : assignment) =
-    let ndays =
-      ndays_of_week_in ~include_weekends:is_placeholder d a.start_date a.end_date
+  let active_asns = asns |> List.filter (fun a -> not a.project.archived) in
+  match active_asns with
+  | [] -> 0.
+  | a :: _ ->
+    let is_placeholder =
+      match a.entity with
+      | Placeholder _ -> true
+      | Person _ -> false
     in
-    let hours_per_day = Float.of_int a.allocation /. 3600. in
-    Float.of_int ndays *. hours_per_day
-  in
-  asns |> List.map (get_hours_per_week_single d) |> Utils.sum
+    let get_hours_per_week_single (d : CalendarLib.Date.t) (a : assignment) =
+      let ndays =
+        ndays_of_week_in ~include_weekends:is_placeholder d a.start_date a.end_date
+      in
+      let hours_per_day = Float.of_int a.allocation /. 3600. in
+      Float.of_int ndays *. hours_per_day
+    in
+    active_asns |> List.map (get_hours_per_week_single d) |> Utils.sum
 ;;
+
+(* -------------- *)
+(* Project export *)
+(* -------------- *)
 
 (** [asns] is a group of assignments belonging to the same client, project, and
     Forecast entity. Each group of assignments corresponds to one row in the CSV
@@ -88,8 +94,8 @@ let get_mondays_between ~start_date ~end_date =
   List.rev (acc first_monday [])
 ;;
 
-(** The main function *)
-let export_schedule ~start_date ~end_date =
+(** Export the project schedule between the given dates. *)
+let export_project_schedule ~start_date ~end_date =
   let _, _, _, _, assignments = ForecastRaw.get_the_schedule ~start_date ~end_date in
   let weeks = get_mondays_between ~start_date ~end_date in
 
@@ -137,4 +143,55 @@ let export_schedule ~start_date ~end_date =
     |> List.map (make_assignment_output weeks)
   in
   header :: data
+;;
+
+(* ----------- *)
+(* Team export *)
+(* ----------- *)
+
+let make_entity_row entity weeks assignments =
+  let name = get_entity_name entity in
+  let roles = get_entity_roles entity |> List.sort compare |> String.concat ", " in
+  let assignments_to_this =
+    assignments |> List.filter (fun a -> a.entity = entity)
+  in
+  let capacity = match entity with
+  | Placeholder _ -> ""
+  | Person p -> Printf.sprintf "%.1f" (p.weekly_capacity /. 3600.)
+  in
+  let hours_per_week =
+    weeks
+    |> List.map (fun w -> get_hours_per_week w assignments_to_this)
+    |> List.map (fun f -> Printf.sprintf "%.1f" f)
+  in
+  name :: roles :: capacity :: hours_per_week
+;;
+
+(** Export the team schedule between the given dates. *)
+let export_team_schedule ~start_date ~end_date =
+  let _, people, placeholders, _, assignments =
+    ForecastRaw.get_the_schedule ~start_date ~end_date
+  in
+  let weeks = get_mondays_between ~start_date ~end_date in
+  let header =
+    [ "Person"; "Roles"; "Capacity" ]
+    @ List.map (CalendarLib.Printer.Date.sprint "%Y-%m-%d") weeks
+  in
+  let placeholder_rows =
+    placeholders
+    |> IntMap.bindings
+    |> List.map snd
+    |> List.filter (fun (p : placeholder) -> not p.archived)
+    |> List.sort (fun p1 p2 -> compare p1.name p2.name)
+    |> List.map (fun p -> make_entity_row (Placeholder p) weeks assignments)
+  in
+  let people_rows = 
+    people 
+    |> IntMap.bindings
+    |> List.map snd
+    |> List.filter (fun (p : person) -> not p.archived)
+    |> List.sort (fun p1 p2 -> compare (make_person_name p1) (make_person_name p2))
+    |> List.map (fun p -> make_entity_row (Person p) weeks assignments)
+  in
+  header :: (placeholder_rows @ people_rows)
 ;;

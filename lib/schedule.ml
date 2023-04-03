@@ -16,8 +16,8 @@ type schedule_event =
   | AssignmentsToInactiveProjectWarning of project (* W3008 *)
   | ProjectStartOverdueWarning of project (* W3009 *)
   | NoMatchingGithubUserWarning of Forecast.person (* W3010 *)
-  | DifferentClientWarning of project (* W3011 *)
-  | DifferentNameWarning of project (* W3012 *)
+  | DifferentClientWarning of project * string * string option (* W3011 *)
+  | DifferentNameWarning of project * string * string (* W3012 *)
   | AssignmentWithoutProjectDebug of Forecast.assignment
   | AssignmentWithoutPersonDebug of Forecast.person
 
@@ -93,17 +93,27 @@ let log_event (error : schedule_event) =
       ; message =
           Printf.sprintf "Could not find matching GitHub user for <%s>." person.full_name
       }
-  | DifferentClientWarning proj ->
+  | DifferentClientWarning (proj, fc_name, gh_name) ->
     Log.log'
       { level = Log.Warning 3011
       ; entity = Log.Project proj.number
-      ; message = "Project programmes on Forecast and GitHub do not match."
+      ; message =
+          Printf.sprintf
+            "Project programmes on Forecast (%s) and GitHub (%s) do not match."
+            fc_name
+            (match gh_name with
+             | Some s -> s
+             | None -> "absent")
       }
-  | DifferentNameWarning proj ->
+  | DifferentNameWarning (proj, fc_name, gh_name) ->
     Log.log'
       { level = Log.Warning 3012
       ; entity = Log.Project proj.number
-      ; message = "Project names on Forecast and GitHub do not match."
+      ; message =
+          Printf.sprintf
+            "Project names on Forecast (%s) and GitHub (%s) do not match."
+            fc_name
+            gh_name
       }
   | AssignmentWithoutProjectDebug asn ->
     Log.log'
@@ -209,9 +219,10 @@ let merge_projects
     | Pair (Some fc_p, Some gh_p) ->
       (* Check that their client/programme match *)
       if Some fc_p.programme <> gh_p.programme
-      then log_event (DifferentClientWarning gh_p);
+      then log_event (DifferentClientWarning (gh_p, fc_p.programme, gh_p.programme));
       (* Check that their names match *)
-      if fc_p.name <> gh_p.name then log_event (DifferentNameWarning gh_p);
+      if fc_p.name <> gh_p.name
+      then log_event (DifferentNameWarning (gh_p, fc_p.name, gh_p.name));
       (* Check that their project codes match *)
       let finance_codes_match =
         match fc_p.finance_code with
@@ -356,17 +367,15 @@ let get_the_schedule ~start_date ~end_date =
     Forecast.get_the_schedule ~start_date ~end_date
   in
   let fc_people = fc_people' |> Forecast.StringMap.bindings |> List.map snd in
-  let gh_issues =
-    Github.get_project_issues ()
-    |> List.map (fun i -> i.number, i)
-    |> List.to_seq
-    |> IntMap.of_seq
+  let gh_issues, gh_project_numbers = Github.get_project_issues () in
+  let gh_issues_map =
+    gh_issues |> List.map (fun i -> i.number, i) |> List.to_seq |> IntMap.of_seq
   in
   let gh_people = Github.all_users in
   let people = merge_people fc_people gh_people in
-  let projects = merge_projects fc_projects gh_issues in
+  let projects = merge_projects fc_projects gh_issues_map in
   let assignments = List.filter_map (merge_assignment people projects) fc_assignments in
   check_projects projects assignments;
 
-  people, projects, assignments
+  people, projects, assignments, gh_project_numbers
 ;;

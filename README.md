@@ -28,8 +28,8 @@ Setup for some editors (others can be set up in an analogous way):
 
  - (Emacs) `opam install tuareg`
  - (Neovim) The easiest way is to use
-   [`lspconfig`](https://github.com/neovim/nvim-lspconfig), and add
-   `require'lspconfig'.ocamllsp.setup{on_attach = on_attach}` to your config.
+   [`lspconfig`](https://github.com/neovim/nvim-lspconfig), and add something like
+   `require'lspconfig'.ocamllsp.setup{}` to your config.
 
 ## Installation and configuration
 
@@ -99,15 +99,16 @@ You shouldn't need to change any of the other settings here.
 
 ## Usage
 
-For extensive usage options, do `dune exec -- whatwhat --help`, or `dune exec -- whatwhat <COMMAND> --help` for the subcommands.
-However, this should be enough to get started.
-Note that, to compile and execute the source code *in your working directory*, all commands here should be prefixed with `dune exec -- `.
-Just running `whatwhat` will use the installed version inside `~/.opam`.
+Note that, to compile and execute the source code *in your working directory*, `whatwhat` should always be run using `dune exec -- whatwhat [options]`.
+Just running `whatwhat [options]` will use the installed version inside `~/.opam` (if it exists).
 (You can create a shell alias if you're lazy: something like `alias dew='dune exec -- whatwhat'`).
 
- - `whatwhat`: Report errors on all projects. Print output to terminal.
- - `whatwhat --notify github`: Report errors by posting GitHub comments on all projects on the four main columns of the issue tracker.
- - `whatwhat export`: Create Forecast project export CSV file. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
+For extensive usage options, do `dune exec -- whatwhat --help`, or `dune exec -- whatwhat <COMMAND> --help` for the subcommands.
+However, this should be enough to get started.
+
+ - `dune exec --whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
+ - `dune exec --whatwhat --notify github`: Same as above, but additionally post GitHub comments on all of those issues.
+ - `dune exec --whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
 
 ## Documentation
 

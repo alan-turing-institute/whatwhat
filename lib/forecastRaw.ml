@@ -73,6 +73,7 @@ type person =
   ; login : string
   ; roles : string list
   ; archived : bool
+  ; weekly_capacity : float (* Seconds per week *)
   }
 [@@deriving show, of_yojson] [@@yojson.allow_extra_fields]
 

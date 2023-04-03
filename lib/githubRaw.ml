@@ -47,6 +47,7 @@ let run_github_query_async
       (function
        | Failure _ -> failwith "GitHub HTTP request failed."
        | Utils.HttpError e -> failwith ("GitHub HTTP request failed: " ^ e)
+       | Utils.GithubRateLimitError e -> failwith ("Hit GitHub rate limit. Try again at " ^ e)
        | exn -> Lwt.fail exn)
   in
   let* body_string = Cohttp_lwt.Body.to_string body in
