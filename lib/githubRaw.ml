@@ -84,11 +84,20 @@ let person_of_json json =
 ;;
 
 let get_all_users_async =
+  (* These lines allow errors in missing config/secrets to be deferred until
+     this promise is actually run. Otherwise, a missing config/secret file will
+     cause the programme to fail even when the config/secret is not needed, e.g.
+     when using the --help option. See #84. *)
+  let* github_repo_owner, github_repo_name =
+    try Lwt.return (Config.get_github_repo_owner (), Config.get_github_repo_name ()) with
+    | Config.MissingConfig s -> Lwt.fail (Config.MissingConfig s)
+    | Config.MissingSecret s -> Lwt.fail (Config.MissingSecret s)
+  in
   let query =
     Printf.sprintf
       {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
-      (Config.get_github_repo_owner ())
-      (Config.get_github_repo_name ())
+      github_repo_owner
+      github_repo_name
   in
   let github_graph_ql_endpoint = Config.github_url ^ "/graphql" in
   let* body_json =
