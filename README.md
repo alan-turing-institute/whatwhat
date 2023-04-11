@@ -1,7 +1,7 @@
 # WhatWhat
 
 `whatwhat` is an OCaml command-line tool to help monitor project status and allocations in the [Research Engineering Group](https://www.turing.ac.uk/research-engineering), aka Hut23.
-It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwhat) (F#) and [WhatNow](https://github.com/alan-turing-institute/whatnow) (Racket).
+It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwhat) (F#) and [WhatNow](https://github.com/alan-turing-institute/whatnow) (Racket); the latter contains [an illuminating backbrief](https://github.com/alan-turing-institute/whatnow/blob/main/backbrief/backbrief.org) describing the history of project allocations in REG.
 
 ## Contents
 
@@ -60,7 +60,9 @@ dune exec -- whatwhat
 It will most likely complain about a missing configuration or missing secret.
 To get around this, you will have to set up two files, one containing secrets and one containing other non-sensitive info.
 
-**Secrets.** Put this in `~/.config/whatwhat/secrets.json` (and **make sure that it is not stored in source control**, e.g. in your personal dotfiles / config!):
+### Secrets
+
+Put this in `~/.config/whatwhat/secrets.json` (and **make sure that it is not stored in source control**, e.g. in your personal dotfiles / config!):
 
 ```json
 {
@@ -78,7 +80,9 @@ To get around this, you will have to set up two files, one containing secrets an
    (ask someone else on the `whatwhat` developer team to add you, e.g. the person who most recently committed to `main`).
    However, for initial development purposes, it suffices to use an empty string, because these tokens are only used if you wish to actually post to GitHub or Slack respectively.
 
-**Config.** Separately, place this in `~/.config/whatwhat/config.json`:
+### Configuration
+
+Separately, place this in `~/.config/whatwhat/config.json`:
 
 ```json
 {
@@ -147,12 +151,9 @@ See the [Documentation wiki page](https://github.com/alan-turing-institute/whatw
 
 ### Books and documentation
 
-- [OCaml Programming: Correct + Efficient +
-  Beautiful](https://cs3110.github.io/textbook/cover.html) (A nice textbook
-  with accompanying lecture series.)
+- [OCaml Programming: Correct + Efficient + Beautiful](https://cs3110.github.io/textbook/cover.html)
+  (A nice textbook with accompanying lecture series.)
 - [Real World OCaml (Jane Street)](https://dev.realworldocaml.org/index.html)
-  (Goes faster and is more in-depth, so quite good if you have some experience
-  with functional programming. However, note that it relies on Jane Street's
-  alternative standard library, which `whatwhat` doesn't use.)
-- [Developing Applications with Objective Caml
-  (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
+  (Goes faster and is more in-depth, so quite good if you have some experience with functional programming.
+  However, note that it relies on Jane Street's alternative standard library, which `whatwhat` doesn't use.)
+- [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
