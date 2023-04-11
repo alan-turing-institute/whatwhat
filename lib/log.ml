@@ -16,6 +16,7 @@ let show_level = function
   | Warning x -> "W" ^ string_of_int x
   | Info -> "INFO"
   | Debug -> "DEBUG"
+;;
 
 type entity =
   | RawForecastProject of string
@@ -167,10 +168,12 @@ let gather_events ~verbose ~restrict_codes ~restrict_issues : (int option * even
   |> List.stable_sort compare_events
 ;;
 
-let gather_events' ~verbose ~restrict_codes ~restrict_issues : (int option * event list) list =
+let gather_events' ~verbose ~restrict_codes ~restrict_issues
+  : (int option * event list) list
+  =
   gather_events ~verbose ~restrict_codes ~restrict_issues
   |> Utils.group_by (fun (i1, _) (i2, _) -> i1 = i2)
-  |> List.map (fun pairs -> (fst (List.hd pairs), (List.map snd pairs)))
+  |> List.map (fun pairs -> fst (List.hd pairs), List.map snd pairs)
 ;;
 
 let pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues =

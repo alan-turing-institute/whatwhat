@@ -152,12 +152,11 @@ let export_project_schedule ~start_date ~end_date =
 let make_entity_row entity weeks assignments =
   let name = get_entity_name entity in
   let roles = get_entity_roles entity |> List.sort compare |> String.concat ", " in
-  let assignments_to_this =
-    assignments |> List.filter (fun a -> a.entity = entity)
-  in
-  let capacity = match entity with
-  | Placeholder _ -> ""
-  | Person p -> Printf.sprintf "%.1f" (p.weekly_capacity /. 3600.)
+  let assignments_to_this = assignments |> List.filter (fun a -> a.entity = entity) in
+  let capacity =
+    match entity with
+    | Placeholder _ -> ""
+    | Person p -> Printf.sprintf "%.1f" (p.weekly_capacity /. 3600.)
   in
   let hours_per_week =
     weeks
@@ -185,8 +184,8 @@ let export_team_schedule ~start_date ~end_date =
     |> List.sort (fun p1 p2 -> compare p1.name p2.name)
     |> List.map (fun p -> make_entity_row (Placeholder p) weeks assignments)
   in
-  let people_rows = 
-    people 
+  let people_rows =
+    people
     |> IntMap.bindings
     |> List.map snd
     |> List.filter (fun (p : person) -> not p.archived)

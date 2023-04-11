@@ -1,7 +1,6 @@
 open Domain
-let ftes_of_assignments (prj : project) (asns : assignment list)
-  : (string * FTE.t) list
-  =
+
+let ftes_of_assignments (prj : project) (asns : assignment list) : (string * FTE.t) list =
   asns
   |> List.filter (fun a -> a.project.number = prj.number)
   |> List.map (fun a -> get_entity_name a.entity, Domain.ftes_of_assignment a)
@@ -24,7 +23,7 @@ let print_assignments_to (prj : project) (asns : assignment list) : unit =
 
 let print_project_header prj =
   let open ANSITerminal in
-  printf [Bold] "Project %d: %s\n" prj.number prj.name
+  printf [ Bold ] "Project %d: %s\n" prj.number prj.name
 ;;
 
 let print_assignments (prj : project) (asns : assignment list) =
@@ -35,7 +34,10 @@ let print_assignments (prj : project) (asns : assignment list) =
   print_project_header prj;
   print_assignments_to prj asns;
   print_endline (String.make 77 '-');
-  Printf.printf "%-32s %18s (%+.2f%%)\n" "Allocations found" (FTE.show_t total_fte_time) (100. *. discrepancy);
-  Printf.printf "%-32s %18s\n" "Allocations expected" (FTE.show_t
-  budget);
+  Printf.printf
+    "%-32s %18s (%+.2f%%)\n"
+    "Allocations found"
+    (FTE.show_t total_fte_time)
+    (100. *. discrepancy);
+  Printf.printf "%-32s %18s\n" "Allocations expected" (FTE.show_t budget)
 ;;

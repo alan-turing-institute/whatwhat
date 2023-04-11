@@ -1,9 +1,6 @@
 module Raw = GithubRaw
 open Domain
 
-(* Re-exporting for convenience of modules that import this one. *)
-let all_users = Raw.all_users
-
 type github_event =
   | NoMetadataError of Raw.issue (* E2001 *)
   | YamlError of Raw.issue (* E2002 *)
@@ -15,6 +12,9 @@ type github_event =
   | NullFieldError of Raw.issue * string (* E2008 *)
   | MissingCompulsoryFieldError of Raw.issue * string (* E2009 *)
   | NoFinanceCodesError of Raw.issue (* E2010 *)
+
+(** Re-exporting for convenience *)
+let get_all_users_async = Raw.get_all_users_async
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log_event (gh_event : github_event) : unit =
@@ -345,7 +345,7 @@ let get_project_issues () =
   let project = Raw.get_project () in
   let pair_issues (col : Raw.column) = List.map (fun i -> col.name, i) col.issues in
   let pairs = project.columns |> List.concat_map pair_issues in
-  let issue_numbers = pairs |> List.map (fun (_, (i : Raw.issue))-> i.number) in
+  let issue_numbers = pairs |> List.map (fun (_, (i : Raw.issue)) -> i.number) in
   let filtered_issues = pairs |> List.filter_map (fun (c, i) -> validate_issue c i) in
   filtered_issues, issue_numbers
 ;;

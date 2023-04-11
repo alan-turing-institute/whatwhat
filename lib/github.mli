@@ -64,5 +64,6 @@ val show_person : person -> string
     board. *)
 val get_project_issues : unit -> Domain.project list * int list
 
-(** Return all the users in the Alan Turing Institute Github organisation. *)
-val all_users : person list
+(** This is re-exported from [GithubRaw] for convenience. See
+    {!GithubRaw.get_all_users_async}. *)
+val get_all_users_async : person list Lwt.t
