@@ -6,10 +6,9 @@ It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwha
 ## Contents
 
 1. [Setting up OCaml on macOS](#setting-up-ocaml-on-macos)
-1. [Installation](#installation)
-1. [Usage](#-usage)
-1. [Resources for getting started with OCaml](#4-resources-for-getting-started-with-ocaml)
-1. [Glossary](#5-glossary)
+1. [Installation and configuration](#installation-and-configuration)
+1. [Usage](#usage)
+1. [Resources for getting started with OCaml](#resources-for-getting-started-with-ocaml)
 
 ## Setting up OCaml on macOS
 
@@ -83,11 +82,11 @@ To get around this, you will have to set up two files, one containing secrets an
 
 ```json
 {
-    "githubProjectName"       : "Project Tracker",
-    "githubProjectColumns"    : ["Active", "Awaiting start", "Finding people", "Awaiting go/no-go"],
-    "forecastId"              : "<yours here>",
-    "forecastUrl"             : "https://api.forecastapp.com",
-    "githubRepoName"          : "Hut23",
+    "githubProjectName"    : "Project Tracker",
+    "githubProjectColumns" : ["Active", "Awaiting start", "Finding people", "Awaiting go/no-go"],
+    "forecastId"           : "<yours here>",
+    "githubRepoName"       : "Hut23",
+    "githubRepoOwner"      : "alan-turing-institute"
 }
 ```
 
