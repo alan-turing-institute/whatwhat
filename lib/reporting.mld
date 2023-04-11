@@ -254,10 +254,14 @@ allocations on Forecast.
 {b W3009} The project is past its latest start date but is not in the "Active"
 column.
 
-{b W3010} A Forecast user could not be matched to a user on GitHub.
+{b W3010} A GitHub account could not be found for an active REG person on
+Forecast (i.e. having the 'REG' role, and not assigned to UNAVAILABLE).
 
- - There are plans to eliminate this error entirely by maintaining a lookup
-   table of Forecast emails (i.e. Turing emails) to GitHub usernames.
+ - {i Solution:} If the person is not in REG any more, then adjust their
+   Forecast assignments. If they are not on the Turing GitHub organisation yet,
+   get them added. If neither of those are applicable, a manual exception must
+   be added inside the [Schedule.get_matching_gh_person_opt] function: let the
+   [whatwhat] developers know.
 
 {b W3011} The project programme ('client' on Forecast, 'tags' on GitHub)
 could not be matched.

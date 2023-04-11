@@ -22,7 +22,8 @@ type level =
 val show_level : level -> string
 
 type entity =
-  | RawForecastProject of string (** Project name *)
+  | RawForecastProject of (string, int) Either.t
+      (** Project name, or issue number if it could be found. *)
   | ForecastProject of int (** The project number *)
   | Project of int (** The project number *)
   | RawForecastPlaceholder of string (** Placeholder's name *)

@@ -133,22 +133,42 @@ let log_event (error : schedule_event) =
 (* MERGE PEOPLE FROM FORECAST AND GITHUB *)
 
 (** Find the matching Github user for Forecast user fc_p.*)
-let get_matching_gh_person_opt (gh_people : Github.person list) (fc_p : Forecast.person) =
+let get_matching_gh_person_opt
+  (gh_people : Github.person list)
+  (fc_p : Forecast.person)
+  (fc_assignments : Forecast.assignment list)
+  =
+  let is_available (fc_p : Forecast.person) =
+    (* Has REG role *)
+    List.mem "REG" fc_p.roles
+    && (* Is currently assigned to something that isn't just UNAVAILABLE *)
+    List.exists
+      (fun (a : Forecast.assignment) ->
+        get_first_day a.allocation < CalendarLib.Date.today ()
+        && get_last_day a.allocation > CalendarLib.Date.today ()
+        && a.entity = Person fc_p
+        && a.project.programme <> "UNAVAILABLE")
+      fc_assignments
+  in
   let person_matches (gh_p : Github.person) =
     gh_p.email = Some fc_p.email || gh_p.name = Some fc_p.full_name
   in
-  let gh_person = List.find_opt person_matches gh_people in
-  if gh_person = None then log_event (NoMatchingGithubUserWarning fc_p);
-  gh_person
+  let gh_p = List.find_opt person_matches gh_people in
+  if gh_p = None && is_available fc_p then log_event (NoMatchingGithubUserWarning fc_p);
+  gh_p
 ;;
 
 (** Create a list of all people, merging data from Forecast and Github. *)
-let merge_people (fc_people : Forecast.person list) (gh_people : Github.person list) =
+let merge_people
+  (fc_people : Forecast.person list)
+  (gh_people : Github.person list)
+  (fc_assignments : Forecast.assignment list)
+  =
   (* We map over Forecast people, looking for the matching Github person for
      each, since Forecast is considered authoritative for people. *)
   (* TODO: Get Slack handle. *)
   let merge_person (fc_p : Forecast.person) =
-    let gh_p_opt = get_matching_gh_person_opt gh_people fc_p in
+    let gh_p_opt = get_matching_gh_person_opt gh_people fc_p fc_assignments in
     let login_opt =
       match gh_p_opt with
       | Some gh_p -> Some gh_p.login
@@ -372,7 +392,7 @@ let get_the_schedule ~start_date ~end_date =
     gh_issues |> List.map (fun i -> i.number, i) |> List.to_seq |> IntMap.of_seq
   in
   let gh_people = Github.get_all_users_async |> Lwt_main.run in
-  let people = merge_people fc_people gh_people in
+  let people = merge_people fc_people gh_people fc_assignments in
   let projects = merge_projects fc_projects gh_issues_map in
   let assignments = List.filter_map (merge_assignment people projects) fc_assignments in
   check_projects projects assignments;
