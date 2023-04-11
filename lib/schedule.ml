@@ -371,7 +371,7 @@ let get_the_schedule ~start_date ~end_date =
   let gh_issues_map =
     gh_issues |> List.map (fun i -> i.number, i) |> List.to_seq |> IntMap.of_seq
   in
-  let gh_people = Github.all_users in
+  let gh_people = Github.get_all_users_async |> Lwt_main.run in
   let people = merge_people fc_people gh_people in
   let projects = merge_projects fc_projects gh_issues_map in
   let assignments = List.filter_map (merge_assignment people projects) fc_assignments in

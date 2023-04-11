@@ -28,7 +28,8 @@ let run_github_query_async
     (* This would be a lot cleaner if the functions in Cohttp.Header actually
        put the header argument as the final one... *)
     Header.init ()
-    |> fun header -> Header.add_authorization header auth_cred
+    |> fun header ->
+    Header.add_authorization header auth_cred
     |> fun header -> Header.prepend_user_agent header "Whatwhat"
   in
   let uri = Uri.add_query_params (Uri.of_string uri) params in
@@ -47,7 +48,8 @@ let run_github_query_async
       (function
        | Failure _ -> failwith "GitHub HTTP request failed."
        | Utils.HttpError e -> failwith ("GitHub HTTP request failed: " ^ e)
-       | Utils.GithubRateLimitError e -> failwith ("Hit GitHub rate limit. Try again at " ^ e)
+       | Utils.GithubRateLimitError e ->
+         failwith ("Hit GitHub rate limit. Try again at " ^ e)
        | exn -> Lwt.fail exn)
   in
   let* body_string = Cohttp_lwt.Body.to_string body in
@@ -81,7 +83,7 @@ let person_of_json json =
   }
 ;;
 
-let all_users =
+let get_all_users_async =
   let query =
     Printf.sprintf
       {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
@@ -89,19 +91,23 @@ let all_users =
       (Config.get_github_repo_name ())
   in
   let github_graph_ql_endpoint = Config.github_url ^ "/graphql" in
-  let body_json =
-    run_github_query ~http_method:POST ~body:query github_graph_ql_endpoint
+  let* body_json =
+    run_github_query_async ~http_method:POST ~body:query github_graph_ql_endpoint
   in
   let open Yojson.Basic.Util in
-  body_json
-  |> member "data"
-  |> member "repository"
-  |> member "assignableUsers"
-  |> member "edges"
-  |> convert_each (fun json -> json |> member "node" |> person_of_json)
+  Lwt.return
+    (body_json
+    |> member "data"
+    |> member "repository"
+    |> member "assignableUsers"
+    |> member "edges"
+    |> convert_each (fun json -> json |> member "node" |> person_of_json))
 ;;
 
-let find_person_by_login login = List.find_opt (fun p -> p.login = login) all_users
+let find_person_by_login login =
+  let* all_users = get_all_users_async in
+  Lwt.return (List.find_opt (fun p -> p.login = login) all_users)
+;;
 
 (** Issues ------------------------------------------- *)
 
@@ -140,17 +146,20 @@ let get_issue_async id =
       ]
   in
   let* issue_json = run_github_query_async issue_uri in
+  let assignee_usernames =
+    issue_json
+    |> member "assignees"
+    |> to_list
+    |> List.map (fun a -> a |> member "login" |> to_string)
+  in
+  let* assignee_opts = assignee_usernames |> List.map find_person_by_login |> Lwt.all in
+  let assignees = assignee_opts |> List.filter_map Fun.id in
   Lwt.return
     { number = id
     ; title = issue_json |> member "title" |> to_string
     ; body = issue_json |> member "body" |> to_string
     ; state = issue_json |> member "state" |> to_string |> state_of_string
-    ; assignees =
-        issue_json
-        |> member "assignees"
-        |> to_list
-        |> List.filter_map (fun a ->
-             a |> member "login" |> to_string |> find_person_by_login)
+    ; assignees
     ; labels =
         issue_json
         |> member "labels"
@@ -195,17 +204,19 @@ let rec get_reactions_async ?(page = 1) id =
       let login = r |> member "user" |> member "login" in
       (* Deleted users have no login *)
       if login = `Null
-      then None
+      then Lwt.return None
       else (
         let rxn = r |> member "content" |> to_string in
-        let psn = login |> to_string |> find_person_by_login in
+        let* psn = login |> to_string |> find_person_by_login in
         match rxn, psn with
-        | p, Some q -> Some (p, q)
-        | p, None -> Some (p, { login = login |> to_string; name = None; email = None }))
+        | p, Some q -> Lwt.return (Some (p, q))
+        | p, None ->
+          Lwt.return (Some (p, { login = login |> to_string; name = None; email = None })))
     in
-    let reactions =
-      reactions_json |> Basic.Util.to_list |> List.filter_map parse_reaction
+    let* reactions_opt =
+      reactions_json |> Basic.Util.to_list |> List.map parse_reaction |> Lwt.all
     in
+    let reactions = List.filter_map Fun.id reactions_opt in
     Lwt.return reactions
   in
   let* first_batch = batch_get page id in
