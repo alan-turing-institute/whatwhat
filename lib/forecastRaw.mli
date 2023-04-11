@@ -48,7 +48,8 @@ type person =
   ; login : string
   ; roles : string list
   ; archived : bool
-  ; weekly_capacity : float  (** Seconds per week. This is not used except in Forecast team export. *)
+  ; weekly_capacity : float
+      (** Seconds per week. This is not used except in Forecast team export. *)
   }
 
 val show_person : person -> string

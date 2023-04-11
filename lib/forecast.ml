@@ -115,8 +115,7 @@ let log_event (fc_event : forecast_event) : unit =
     Log.log'
       { level = Log.Warning 1003
       ; entity = Log.Project p.number
-      ; message =
-          "Another Forecast project with the same issue number was found."
+      ; message = "Another Forecast project with the same issue number was found."
       }
   | AssignmentToRemovedPersonInfo raw_assignment ->
     Log.log'
@@ -424,9 +423,9 @@ let make_project_map projects_id : project IntMap.t =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
     | Some _ ->
-        if not (List.mem p.number Config.forecast_duplicates_okay) then
-        log_event (DuplicateIssueNumberWarning p);
-        m
+      if not (List.mem p.number Config.forecast_duplicates_okay)
+      then log_event (DuplicateIssueNumberWarning p);
+      m
   in
   Seq.fold_left add_project IntMap.empty (IntMap.to_seq projects_id)
 ;;

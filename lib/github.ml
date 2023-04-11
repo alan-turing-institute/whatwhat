@@ -345,7 +345,7 @@ let get_project_issues () =
   let project = Raw.get_project () in
   let pair_issues (col : Raw.column) = List.map (fun i -> col.name, i) col.issues in
   let pairs = project.columns |> List.concat_map pair_issues in
-  let issue_numbers = pairs |> List.map (fun (_, (i : Raw.issue))-> i.number) in
+  let issue_numbers = pairs |> List.map (fun (_, (i : Raw.issue)) -> i.number) in
   let filtered_issues = pairs |> List.filter_map (fun (c, i) -> validate_issue c i) in
   filtered_issues, issue_numbers
 ;;

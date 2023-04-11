@@ -3,16 +3,15 @@
 module IntMap : module type of Map.Make (Int)
 module StringMap : module type of Map.Make (String)
 
-
 (** The types in this module represent all the useful information we can
     obtain from Forecast (after validation). They are not the same as the types
     in the Domain module: those represent all possible information on a person /
     project / etc. after merging data from GitHub and Forecast.
     *)
-type person = {
-  full_name : string;
-  email : string
-}
+type person =
+  { full_name : string
+  ; email : string
+  }
 
 (** An entity is a person or a placeholder. Placeholders are represented
     directly using the [Domain.placeholder] type, because there is no extra

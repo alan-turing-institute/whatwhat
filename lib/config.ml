@@ -23,8 +23,10 @@ let ( >>= ) = Option.bind
 (* Constants which are going to be the same on every run *)
 let github_url = "https://api.github.com"
 let forecast_url = "https://api.forecastapp.com"
+
 (* 'Time off' Forecast project which doesn't have a client *)
-let forecast_ignored_projects = [1684536]
+let forecast_ignored_projects = [ 1684536 ]
+
 (* List of issue numbers for which it's okay to have duplicate projects in Forecast *)
 let forecast_duplicates_okay = []
 
