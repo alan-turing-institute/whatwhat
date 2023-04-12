@@ -232,3 +232,26 @@ let gfm_escape s =
     s;
   Buffer.contents b
 ;;
+
+(** Get the maximum of a list using a key function *)
+let rec max_by ~(default : 'b) (f : 'a -> 'b) (xs : 'a list) : 'b =
+  match xs with
+  | [] -> default
+  | x :: xs -> max (f x) (max_by ~default f xs)
+;;
+
+(** Right-pad a string *)
+let pad ?(fill_char = ' ') (n : int) (s : string) : string =
+  let len = String.length s in
+  if len >= n then s else s ^ String.make (n - len) fill_char
+;;
+
+(** Check if s2 is a substring of s1 *)
+let contains s1 s2 =
+  let re = Str.regexp_string s2 in
+  try
+    ignore (Str.search_forward re s1 0);
+    true
+  with
+  | Not_found -> false
+;;
