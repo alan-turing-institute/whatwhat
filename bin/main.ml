@@ -170,17 +170,7 @@ type project_subset =
   | SelectedColumnsOnly
   | Specific of int list
 
-let ww_main
-  notify
-  person
-  issue
-  no_color
-  quiet
-  verbose
-  codes_without
-  codes_only
-  project_subset
-  =
+let ww_main notify no_color quiet verbose codes_without codes_only project_subset =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
@@ -216,21 +206,11 @@ let ww_main
     then Log.pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues;
 
     (* Send notifications if requested *)
-    (match notify with
-     | Notify.NoTarget -> print_endline "No notifications requested."
-     | Notify.Github -> Notify.post_github ~verbose ~restrict_codes ~restrict_issues
-     | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
-     | Notify.All -> print_endline "CATCH: this would post reports to everywhere!");
-
-    (* Query a person's reactions *)
-    if person <> "none"
-    then QueryReports.individuals_reactions person
-    else print_endline "No person queried.";
-
-    (* Query reactions on an issue *)
-    if issue <> "none"
-    then QueryReports.issues_reactions issue
-    else print_endline "No issue queried."
+    match notify with
+    | Notify.NoTarget -> print_endline "No notifications requested."
+    | Notify.Github -> Notify.post_github ~verbose ~restrict_codes ~restrict_issues
+    | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
+    | Notify.All -> print_endline "CATCH: this would post reports to everywhere!"
   with
   | Failure msg ->
     let open ANSITerminal in
@@ -259,21 +239,7 @@ let notify_arg =
   Arg.(value & opt tgs Notify.NoTarget & info [ "n"; "notify" ] ~docv:"NOTIFY" ~doc)
 ;;
 
-let person_arg =
-  let doc = "Name of person to query. $(docv) must be a string argument." in
-  Arg.(value & opt string "none" & info [ "p"; "person" ] ~docv:"PERSON" ~doc)
-;;
-
-let issue_arg =
-  let doc =
-    "Issue to query for team reactions. \n\
-    \             Can be entered as issue title or number, \n\
-    \             but must be a string argument."
-  in
-  Arg.(value & opt string "none" & info [ "i"; "issue" ] ~docv:"ISSUE" ~doc)
-;;
-
-let color_arg =
+let no_color_arg =
   Arg.(
     value
     & flag
@@ -372,14 +338,58 @@ let ww_main_term : unit Term.t =
   Term.(
     const ww_main
     $ notify_arg
-    $ person_arg
-    $ issue_arg
-    $ color_arg
+    $ no_color_arg
     $ quiet_arg
     $ verbose_arg
     $ codes_without_arg
     $ codes_only_arg
     $ projects_arg)
+;;
+
+(* ------------------------------- *)
+(* ------ whatwhat project ------- *)
+
+let ww_project project_name_or_number no_color =
+  (* Use color if output is to a terminal and --no-color flag was absent. *)
+  let use_color = Unix.isatty Unix.stdout && not no_color in
+  ignore use_color;
+
+  (* Query reactions on an issue *)
+  QueryReports.issues_reactions project_name_or_number
+;;
+
+let project_arg =
+  let doc = "Identifier of a project. Can either be an issue number or issue title." in
+  Arg.(required & pos 0 (some string) None & info ~docv:"PROJECT" ~doc [])
+;;
+
+let ww_project_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "project" ~doc:"Provide an overview of a project.")
+    Term.(const ww_project $ project_arg $ no_color_arg)
+;;
+
+(* ------------------------------- *)
+(* ------ whatwhat person -------- *)
+
+let ww_person person no_color =
+  (* Use color if output is to a terminal and --no-color flag was absent. *)
+  let use_color = Unix.isatty Unix.stdout && not no_color in
+  ignore use_color;
+
+  (* Query a person's reactions *)
+  QueryReports.individuals_reactions person
+;;
+
+let person_arg =
+  let doc = "Full name, Turing username, or GitHub username of a person." in
+  Arg.(required & pos 0 (some string) None & info ~docv:"PERSON" ~doc [])
+;;
+
+let ww_person_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "person" ~doc:"Provide an overview of a person.")
+    Term.(const ww_person $ person_arg $ no_color_arg)
 ;;
 
 (* ------------------------------- *)
@@ -417,7 +427,13 @@ let cmd : unit Cmd.t =
   Cmd.group
     ~default:ww_main_term
     (Cmd.info "whatwhat" ~doc:"Report current project status")
-    [ ww_export_project_cmd; ww_export_team_cmd; ww_open_cmd; ww_test_cmd ]
+    [ ww_export_project_cmd
+    ; ww_export_team_cmd
+    ; ww_open_cmd
+    ; ww_project_cmd
+    ; ww_person_cmd
+    ; ww_test_cmd
+    ]
 ;;
 
 let () = exit (Cmd.eval cmd)
