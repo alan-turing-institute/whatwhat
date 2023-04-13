@@ -42,11 +42,19 @@ type forecast_event =
   | ChoseOneFinanceCodeDebug of (Raw.project, project) Either.t * string list * string
 
 let log_event (fc_event : forecast_event) : unit =
+  let make_log_raw_project (raw_proj : Raw.project) =
+    match raw_proj.code with
+    | None -> Log.RawForecastProject (Either.Left raw_proj.name)
+    | Some c ->
+      (match Tyre.(exec (compile (str "hut23-" *> int))) c with
+       | Ok issue_number -> Log.RawForecastProject (Either.Right issue_number)
+       | Error _ -> Log.RawForecastProject (Either.Left raw_proj.name))
+  in
   match fc_event with
   | NoProjectCodeError raw_proj ->
     Log.log'
       { level = Log.Error' 1001
-      ; entity = Log.RawForecastProject raw_proj.name
+      ; entity = make_log_raw_project raw_proj
       ; message =
           Printf.sprintf
             "Project code (i.e. GitHub issue number) not found in project <%s>."
@@ -55,7 +63,7 @@ let log_event (fc_event : forecast_event) : unit =
   | BadProjectCodeError (raw_proj, code) ->
     Log.log'
       { level = Log.Error' 1002
-      ; entity = Log.RawForecastProject raw_proj.name
+      ; entity = make_log_raw_project raw_proj
       ; message =
           Printf.sprintf
             "Malformed project code (i.e. GitHub issue number) <%s> found in project \
@@ -80,7 +88,7 @@ let log_event (fc_event : forecast_event) : unit =
   | NoClientError rp ->
     Log.log'
       { level = Log.Error' 1005
-      ; entity = Log.RawForecastProject rp.name
+      ; entity = make_log_raw_project rp
       ; message = Printf.sprintf "Client for project <%s> not found." rp.name
       }
   | NoFinanceCodeWarning rp_or_p ->
@@ -88,7 +96,7 @@ let log_event (fc_event : forecast_event) : unit =
       { level = Log.Warning 1001
       ; entity =
           (match rp_or_p with
-           | Left rp -> Log.RawForecastProject rp.name
+           | Left rp -> make_log_raw_project rp
            | Right p -> Log.Project p.number)
       ; message =
           (match rp_or_p with
@@ -101,7 +109,7 @@ let log_event (fc_event : forecast_event) : unit =
       { level = Log.Warning 1002
       ; entity =
           (match rp_or_p with
-           | Left rp -> Log.RawForecastProject rp.name
+           | Left rp -> make_log_raw_project rp
            | Right p -> Log.Project p.number)
       ; message =
           (match rp_or_p with
@@ -161,7 +169,7 @@ let log_event (fc_event : forecast_event) : unit =
       { level = Log.Debug
       ; entity =
           (match rp_or_p with
-           | Left rp -> Log.RawForecastProject rp.name
+           | Left rp -> make_log_raw_project rp
            | Right p -> Log.Project p.number)
       ; message =
           Printf.sprintf
@@ -263,6 +271,7 @@ let validate_project _ (p : Raw.project) =
 type person =
   { full_name : string
   ; email : string
+  ; roles : string list
   }
 
 (** An entity is a person or a placeholder. Placeholders are represented
@@ -306,7 +315,7 @@ let validate_person (p : Raw.person) : person option =
        | Error _ ->
          log_event (InvalidEmailError (p, email));
          None
-       | Ok _ -> Some { email; full_name = Raw.make_person_name p }))
+       | Ok _ -> Some { email; full_name = Raw.make_person_name p; roles = p.roles }))
 ;;
 
 (* Allocations *)

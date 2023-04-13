@@ -202,16 +202,6 @@ let rec all_throttled ?(max_concurrent = 150) (reqs : 'a Lwt.t list) =
     Lwt.return (first_batch @ the_rest)
 ;;
 
-(** Prints a string with or without colour *)
-let prcol ~use_color styles string =
-  if use_color then ANSITerminal.print_string styles string else print_string string
-;;
-
-(** Same as above but to stderr *)
-let eprcol ~use_color styles string =
-  if use_color then ANSITerminal.prerr_string styles string else prerr_string string
-;;
-
 (** Escape a string such that characters show up correctly in (GitHub-Flavoured)
     Markdown. Note: this means that formatting etc. will be lost in the
     resulting post, and it'll purely appear as a string. *)
@@ -231,4 +221,62 @@ let gfm_escape s =
       | _ -> Buffer.add_char b c)
     s;
   Buffer.contents b
+;;
+
+(** Get the maximum of a list using a key function *)
+let rec max_by ~(default : 'b) (f : 'a -> 'b) (xs : 'a list) : 'b =
+  match xs with
+  | [] -> default
+  | x :: xs -> max (f x) (max_by ~default f xs)
+;;
+
+(** Check if s2 is a substring of s1 *)
+let contains ?(case_sensitive = true) s1 s2 =
+  let re =
+    if case_sensitive then Str.regexp_string s2 else Str.regexp_string_case_fold s2
+  in
+  try
+    ignore (Str.search_forward re s1 0);
+    true
+  with
+  | Not_found -> false
+;;
+
+(** Take the first n elements of a list *)
+let rec take n xs =
+  match n, xs with
+  | _, [] -> []
+  | 1, x :: _ -> [ x ]
+  | n, x :: xs -> x :: take (n - 1) xs
+;;
+
+(** Drop the first n elements of a list *)
+let rec drop n xs =
+  match n, xs with
+  | _, [] -> []
+  | 1, _ :: xs -> xs
+  | n, _ :: xs -> drop (n - 1) xs
+;;
+
+(** Split a list after n elements. Effectively, [split_at n xs] returns [(take n
+    xs, drop n xs)]. *)
+let rec split_at (n : int) (xs : 'a list) : 'a list * 'a list =
+  match n, xs with
+  | _, [] -> [], []
+  | 1, x :: xs -> [ x ], xs
+  | n, x :: xs ->
+    let ys, zs = split_at (n - 1) xs in
+    x :: ys, zs
+;;
+
+(** Transpose a list of lists *)
+let transpose (ls : 'a list list) : 'a list list =
+  let rec transpose_rec acc = function
+    (* Finished going through lists. Just reverse the accumulator *)
+    | [] -> List.rev acc
+    | [] :: _ -> List.rev acc
+    (* Cons the first element of each list onto the accumulator *)
+    | ls -> transpose_rec (List.map List.hd ls :: acc) (List.map List.tl ls)
+  in
+  transpose_rec [] ls
 ;;

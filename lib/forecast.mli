@@ -11,6 +11,7 @@ module StringMap : module type of Map.Make (String)
 type person =
   { full_name : string
   ; email : string
+  ; roles : string list
   }
 
 (** An entity is a person or a placeholder. Placeholders are represented

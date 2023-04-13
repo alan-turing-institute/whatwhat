@@ -1,5 +1,6 @@
 (executable
  (public_name whatwhat)
+ (package whatwhat)
  (name main)
  (modules Main)
  (libraries whatwhat cmdliner))

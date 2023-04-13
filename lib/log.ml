@@ -19,7 +19,7 @@ let show_level = function
 ;;
 
 type entity =
-  | RawForecastProject of string
+  | RawForecastProject of (string, int) Either.t
   | ForecastProject of int
   | Project of int
   | RawForecastPlaceholder of string
@@ -75,6 +75,7 @@ let isDebug e =
 (* TODO implement this function properly *)
 let extract_issue_number event =
   match event.entity with
+  | RawForecastProject (Right n) -> Some n
   | ForecastProject n -> Some n
   | Project n -> Some n
   | _ -> None
@@ -83,7 +84,8 @@ let extract_issue_number event =
 (* TODO implement this function properly *)
 let extract_source event =
   match event.entity with
-  | RawForecastProject _ -> "FCRaw:Project"
+  | RawForecastProject (Right n) -> Printf.sprintf "Issue %-5d" n
+  | RawForecastProject (Left _) -> "FCRaw:Project"
   | ForecastProject n -> Printf.sprintf "Issue %-5d" n
   | Project n -> Printf.sprintf "Issue %-5d" n
   | RawForecastPlaceholder _ -> "FCRaw:Placeholder"
@@ -107,7 +109,7 @@ let should_be_shown ~verbose ~restrict_codes ~restrict_issues (issue_number, eve
   let pred1 =
     match restrict_issues, issue_number with
     | None, _ -> true
-    | Some _, None -> false
+    | Some _, None -> true
     | Some numbers, Some n -> List.mem n numbers
   in
   (* Check that the error code is consistent with restrict_codes *)
@@ -139,9 +141,9 @@ let pretty_print_event ~use_color (_, e) =
     | Debug -> "DEBUG", []
   in
 
-  Utils.prcol ~use_color [ Bold ] header;
+  Pretty.prout ~use_color [ Bold ] header;
   Printf.printf " ";
-  Utils.prcol ~use_color error_style error_code;
+  Pretty.prout ~use_color error_style error_code;
   Printf.printf " ";
   Printf.printf "%s\n" e.message
 ;;
@@ -152,12 +154,15 @@ let gather_events ~verbose ~restrict_codes ~restrict_issues : (int option * even
     let issue_number_cmp =
       match n1, n2 with
       | None, None -> 0
-      | None, Some _ -> -1
-      | Some _, None -> 1
+      | None, Some _ -> 1
+      | Some _, None -> -1
       | Some x, Some y -> Stdlib.compare x y
     in
     match issue_number_cmp with
-    | 0 -> compare_level e1.level e2.level
+    | 0 ->
+      (match compare_level e1.level e2.level with
+       | 0 -> Stdlib.compare e1.message e2.message
+       | n -> n)
     | n -> n
   in
   the_log

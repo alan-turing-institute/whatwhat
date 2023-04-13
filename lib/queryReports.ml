@@ -54,30 +54,6 @@ let test_person_name (name : string) (i : Raw.issue_r) =
   if List.mem formatted_name all_names then Some i else None
 ;;
 
-(* Get the issue summary: number, title, state, column*)
-let issue_summary lookup_term =
-  let proj = GithubRaw.get_project_r () in
-  let cols = proj.columns_r in
-  let make_issues (col : Raw.column_r) = List.map (fun i -> col.name, i) col.issues_r in
-  let issues = List.concat_map make_issues cols in
-  let issues_subset =
-    if String.for_all Utils.is_digit lookup_term
-    then
-      List.filter
-        (fun x -> x |> snd |> test_issue_number (int_of_string lookup_term))
-        issues
-    else List.filter (fun x -> x |> snd |> test_issue_title lookup_term) issues
-  in
-  match issues_subset with
-  | [] ->
-    failwith
-      (Printf.sprintf
-         "No issue found for %s. Make sure you are searching by issue number (e.g. 1214) \
-          or issue title (e.g. Molecular Biology).\n"
-         lookup_term)
-  | x :: _ -> x
-;;
-
 type emoji =
   | LAUGH
   | THUMBS_UP
@@ -158,39 +134,6 @@ let header_line (max_name_length : int) (max_emoji_length : int) =
   ^ " | other "
   ^ String.make (max_emoji_length - String.length "other") ' '
   ^ " |"
-;;
-
-(* Get the reactions *)
-(* 
-  TODO: collapse people with multiple reactions (example: issue 1216) 
-  This probably involves counting the reactions instead
-  then refactoring the table according to the counts. 
-*)
-let get_reaction_table (issue : Raw.issue_r) =
-  (* Get issue reactions then sort by most love -> least love, 
-     then alphabetically *)
-  let issue_reactions =
-    issue.reactions
-    |> List.sort (fun (_, n1) (_, n2) -> compare_names n1 n2)
-    |> List.sort (fun (e1, _) (e2, _) -> compare_emojis e1 e2)
-  in
-
-  (* Get all emoji reactions and names *)
-  let all_emoji, all_names = List.split issue_reactions in
-  let all_emoji = List.map refactor_emoji all_emoji in
-  let all_names = List.map get_name all_names in
-
-  (* Find the longest name for cell size *)
-  let max_name_length = List.fold_left (fun x y -> max x (String.length y)) 0 all_names in
-
-  (* table format emojis*)
-  let table_format_emojis = List.map get_outcome all_emoji in
-  let table_body = List.map2 (body_list max_name_length) all_names table_format_emojis in
-
-  let bl = border_line max_name_length max_emoji_length in
-  let hl = header_line max_name_length max_emoji_length in
-
-  bl, hl, table_body
 ;;
 
 let get_person_reaction (i : Raw.issue_r) (name : string) =
@@ -282,25 +225,4 @@ let individuals_reactions target =
     ^ string_of_int (List.length difference)
     ^ " issues: "
     ^ String.concat ", " difference)
-;;
-
-let issues_reactions target =
-  let col_name, issue = issue_summary target in
-
-  print_endline "";
-  print_issue ~col_name issue;
-
-  let bl, hl, table_body = get_reaction_table issue in
-
-  print_endline
-    ("There are "
-    ^ string_of_int (List.length table_body)
-    ^ " reactions for this issue:\n");
-
-  (* Print the table *)
-  print_endline bl;
-  print_endline hl;
-  print_endline bl;
-  List.iter print_endline table_body;
-  print_endline bl
 ;;

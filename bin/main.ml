@@ -170,17 +170,7 @@ type project_subset =
   | SelectedColumnsOnly
   | Specific of int list
 
-let ww_main
-  notify
-  person
-  issue
-  no_color
-  quiet
-  verbose
-  codes_without
-  codes_only
-  project_subset
-  =
+let ww_main notify no_color quiet verbose codes_without codes_only project_subset =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
@@ -216,26 +206,16 @@ let ww_main
     then Log.pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues;
 
     (* Send notifications if requested *)
-    (match notify with
-     | Notify.NoTarget -> print_endline "No notifications requested."
-     | Notify.Github -> Notify.post_github ~verbose ~restrict_codes ~restrict_issues
-     | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
-     | Notify.All -> print_endline "CATCH: this would post reports to everywhere!");
-
-    (* Query a person's reactions *)
-    if person <> "none"
-    then QueryReports.individuals_reactions person
-    else print_endline "No person queried.";
-
-    (* Query reactions on an issue *)
-    if issue <> "none"
-    then QueryReports.issues_reactions issue
-    else print_endline "No issue queried."
+    match notify with
+    | Notify.NoTarget -> print_endline "No notifications requested."
+    | Notify.Github -> Notify.post_github ~verbose ~restrict_codes ~restrict_issues
+    | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
+    | Notify.All -> print_endline "CATCH: this would post reports to everywhere!"
   with
   | Failure msg ->
     let open ANSITerminal in
     Log.pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues:None;
-    Utils.eprcol ~use_color [ Bold; Foreground Red ] "Fatal error: ";
+    Pretty.prerr ~use_color [ Bold; Foreground Red ] "Fatal error: ";
     Printf.eprintf "%s\n" msg;
     exit Cmd.Exit.internal_error (* Defined as 125. *)
 ;;
@@ -259,21 +239,7 @@ let notify_arg =
   Arg.(value & opt tgs Notify.NoTarget & info [ "n"; "notify" ] ~docv:"NOTIFY" ~doc)
 ;;
 
-let person_arg =
-  let doc = "Name of person to query. $(docv) must be a string argument." in
-  Arg.(value & opt string "none" & info [ "p"; "person" ] ~docv:"PERSON" ~doc)
-;;
-
-let issue_arg =
-  let doc =
-    "Issue to query for team reactions. \n\
-    \             Can be entered as issue title or number, \n\
-    \             but must be a string argument."
-  in
-  Arg.(value & opt string "none" & info [ "i"; "issue" ] ~docv:"ISSUE" ~doc)
-;;
-
-let color_arg =
+let no_color_arg =
   Arg.(
     value
     & flag
@@ -372,9 +338,7 @@ let ww_main_term : unit Term.t =
   Term.(
     const ww_main
     $ notify_arg
-    $ person_arg
-    $ issue_arg
-    $ color_arg
+    $ no_color_arg
     $ quiet_arg
     $ verbose_arg
     $ codes_without_arg
@@ -383,18 +347,91 @@ let ww_main_term : unit Term.t =
 ;;
 
 (* ------------------------------- *)
-(* ------- whatwhat test --------- *)
-(* - Use this for experimenting! - *)
+(* ------ whatwhat project ------- *)
 
-let ww_test () =
+let ww_project project_name_or_number no_color =
+  (* Use color if output is to a terminal and --no-color flag was absent. *)
+  let use_color = Unix.isatty Unix.stdout && not no_color in
+  ignore use_color;
+
   let open CalendarLib.Date in
   let start_date = make 2016 1 1 in
   let end_date = add (today ()) (Period.year 1) in
   let _, projects, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
 
-  let prj = Domain.IntMap.find 1206 projects in
-  Project.print_assignments prj assignments
+  match project_name_or_number with
+  (* Searched for project number *)
+  | Either.Left n ->
+    (match Domain.IntMap.find_opt n projects with
+     | Some prj -> Project.print ~use_color prj assignments
+     | None -> Printf.printf "No project with number %d was found.\n" n)
+  (* Searched for project name *)
+  | Either.Right s ->
+    let matched_projects =
+      projects
+      |> Domain.IntMap.to_seq
+      |> List.of_seq
+      |> List.filter (fun (_, (p : Domain.project)) ->
+           Utils.contains ~case_sensitive:false p.name s)
+      |> List.map snd
+    in
+    (match matched_projects with
+     | [ prj ] -> Project.print ~use_color prj assignments
+     | [] -> Printf.printf "No project with '%s' in its name was found.\n" s
+     | _ ->
+       Printf.printf "Multiple projects were found matching the string '%s':\n" s;
+       List.iter
+         (fun (p : Domain.project) -> Printf.printf "#%-5d %s\n" p.number p.name)
+         matched_projects)
 ;;
+
+let parse_int_or_string s =
+  match int_of_string_opt s with
+  | Some i -> Either.Left i
+  | None -> Either.Right s
+;;
+
+let project_arg =
+  let doc = "Identifier of a project. Can either be an issue number or issue title." in
+  Term.app
+    (Term.const parse_int_or_string)
+    Arg.(required & pos 0 (some string) None & info ~docv:"PROJECT" ~doc [])
+;;
+
+let ww_project_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "project" ~doc:"Provide an overview of a project.")
+    Term.(const ww_project $ project_arg $ no_color_arg)
+;;
+
+(* ------------------------------- *)
+(* ------ whatwhat person -------- *)
+
+let ww_person person no_color =
+  (* Use color if output is to a terminal and --no-color flag was absent. *)
+  let use_color = Unix.isatty Unix.stdout && not no_color in
+  ignore use_color;
+
+  (* Query a person's reactions *)
+  QueryReports.individuals_reactions person
+;;
+
+let person_arg =
+  let doc = "Full name, Turing username, or GitHub username of a person." in
+  Arg.(required & pos 0 (some string) None & info ~docv:"PERSON" ~doc [])
+;;
+
+let ww_person_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "person" ~doc:"Provide an overview of a person.")
+    Term.(const ww_person $ person_arg $ no_color_arg)
+;;
+
+(* ------------------------------- *)
+(* ------- whatwhat test --------- *)
+(* - Use this for experimenting! - *)
+
+let ww_test () = print_endline "You've reached whatwhat test."
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v
@@ -417,7 +454,13 @@ let cmd : unit Cmd.t =
   Cmd.group
     ~default:ww_main_term
     (Cmd.info "whatwhat" ~doc:"Report current project status")
-    [ ww_export_project_cmd; ww_export_team_cmd; ww_open_cmd; ww_test_cmd ]
+    [ ww_export_project_cmd
+    ; ww_export_team_cmd
+    ; ww_open_cmd
+    ; ww_project_cmd
+    ; ww_person_cmd
+    ; ww_test_cmd
+    ]
 ;;
 
 let () = exit (Cmd.eval cmd)
