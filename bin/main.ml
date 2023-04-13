@@ -360,32 +360,36 @@ let ww_project project_name_or_number no_color =
   let _, projects, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
 
   (* Find the project issue number if necessary *)
-  let prj_option = match project_name_or_number with
-  | Either.Left n -> Domain.IntMap.find_opt n projects
-  | Either.Right s -> projects |> Domain.IntMap.to_seq |> List.of_seq
-    |> List.find_opt (fun (_, (p : Domain.project)) -> p.name = s)
-    |> Option.map snd
+  let prj_option =
+    match project_name_or_number with
+    | Either.Left n -> Domain.IntMap.find_opt n projects
+    | Either.Right s ->
+      projects
+      |> Domain.IntMap.to_seq
+      |> List.of_seq
+      |> List.find_opt (fun (_, (p : Domain.project)) -> p.name = s)
+      |> Option.map snd
   in
 
   match prj_option with
-  | Some prj ->
-      Project.print ~use_color prj assignments;
+  | Some prj -> Project.print ~use_color prj assignments
   | None ->
-      (match project_name_or_number with
-      | Either.Left n -> Printf.printf "Project with number %d not found.\n" n
-      | Either.Right s -> Printf.printf "Project with name %s not found.\n" s);
+    (match project_name_or_number with
+     | Either.Left n -> Printf.printf "Project with number %d not found.\n" n
+     | Either.Right s -> Printf.printf "Project with name %s not found.\n" s)
 ;;
 
 let parse_int_or_string s =
   match int_of_string_opt s with
   | Some i -> Either.Left i
   | None -> Either.Right s
+;;
 
 let project_arg =
   let doc = "Identifier of a project. Can either be an issue number or issue title." in
   Term.app
-  (Term.const parse_int_or_string)
-  (Arg.(required & pos 0 (some string) None & info ~docv:"PROJECT" ~doc []))
+    (Term.const parse_int_or_string)
+    Arg.(required & pos 0 (some string) None & info ~docv:"PROJECT" ~doc [])
 ;;
 
 let ww_project_cmd : unit Cmd.t =
@@ -421,9 +425,7 @@ let ww_person_cmd : unit Cmd.t =
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
-let ww_test () =
-  print_endline "You've reached whatwhat test."
-;;
+let ww_test () = print_endline "You've reached whatwhat test."
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v

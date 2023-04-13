@@ -1,6 +1,6 @@
 (** Module for terminal pretty-printing utilities *)
 
-open Utf8
+open Wcwidth
 module ANSI = ANSITerminal
 
 (** ----- String manipulation ---------- *)

@@ -1,19 +1,3 @@
-(** Returns a list of Unicode code points for each character in a string *)
-let to_utf8 (s : string) : Uchar.t list =
-  let len = String.length s in
-  (* Number of bytes *)
-  let rec aux n accum =
-    if n >= len
-    then List.rev accum
-    else (
-      let decode = String.get_utf_8_uchar s n in
-      let uc = Uchar.utf_decode_uchar decode in
-      let sz = Uchar.utf_decode_length decode in
-      aux (n + sz) (uc :: accum))
-  in
-  aux 0 []
-;;
-
 type interval =
   { first : int
   ; last : int
@@ -1029,8 +1013,27 @@ let wcwidth (c : Uchar.t) =
   | _ -> 1
 ;;
 
+let to_reversed_utf8 (s : string) : Uchar.t list =
+  (* Number of bytes *)
+  let len = String.length s in
+  let rec aux n accum =
+    if n >= len
+    then accum
+    else (
+      let decode = String.get_utf_8_uchar s n in
+      let uc = Uchar.utf_decode_uchar decode in
+      let sz = Uchar.utf_decode_length decode in
+      aux (n + sz) (uc :: accum))
+  in
+  aux 0 []
+;;
+
+let to_utf8 (s : string) : Uchar.t list = List.rev (to_reversed_utf8 s)
+
 let wcswidth (s : string) =
-  let uchars = to_utf8 s in
+  (* We can use the reversed sequence of characters here because it's faster,
+     and their order doesn't really matter once we sum them up. *)
+  let uchars = to_reversed_utf8 s in
   List.fold_right
     (fun uc acc ->
       let w = wcwidth uc in

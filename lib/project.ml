@@ -2,7 +2,7 @@
 
 open Domain
 open Pretty
-open Utf8
+open Wcwidth
 module ANSI = ANSITerminal
 
 let ftes_of_assignments (prj : project) (asns : assignment list) : (string * FTE.t) list =

@@ -1,7 +1,8 @@
 (library
- (name Whatwhat)
+ (name whatwhat)
  (public_name whatwhat)
  (libraries
+  wcwidth
   xdg-basedir
   yojson
   lwt
