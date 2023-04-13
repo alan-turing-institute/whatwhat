@@ -8,5 +8,7 @@ val to_utf8 : string -> Uchar.t list
 val wcwidth : Uchar.t -> int
 
 (** Get the display width of a string. Returns -1 if any of the characters
-    within it are unprintable. *)
+    within it are unprintable. Note especially that line feeds and carriage
+    returns WILL return -1, so make sure the string you're passing doesn't
+    contain those. *)
 val wcswidth : string -> int

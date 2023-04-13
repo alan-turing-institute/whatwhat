@@ -431,7 +431,7 @@ let ww_person_cmd : unit Cmd.t =
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
-let ww_test () = print_endline "You've reached whatwhat test."
+let ww_test () = print_endline "Hello, world."
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v

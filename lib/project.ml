@@ -2,7 +2,6 @@
 
 open Domain
 open Pretty
-open Wcwidth
 module ANSI = ANSITerminal
 
 let ftes_of_assignments (prj : project) (asns : assignment list) : (string * FTE.t) list =
@@ -11,33 +10,63 @@ let ftes_of_assignments (prj : project) (asns : assignment list) : (string * FTE
   |> List.map (fun a -> get_entity_name a.entity, Domain.ftes_of_assignment a)
 ;;
 
+type time_status =
+  | Current
+  | Past
+  | Future
+
+let get_time_status (asn : assignment) : time_status =
+  let open CalendarLib in
+  let today = Date.today () in
+  let start_date = get_first_day asn.allocation in
+  let end_date = get_last_day asn.allocation in
+  if Date.compare today start_date < 0
+  then Future
+  else if Date.compare today end_date > 0
+  then Past
+  else Current
+;;
+
+let show_time_status = function
+  | Current -> "current"
+  | Past -> "past"
+  | Future -> "future"
+;;
+
 let print_budget_and_assignments ~use_color (prj : project) (asns : assignment list) =
   let total_fte_time = ftes_of_assignments prj asns |> List.map snd |> FTE.sum in
   let budget = prj.plan.budget in
   let discrepancy = FTE.div (FTE.sub total_fte_time budget) budget in
 
-  print_heading ~use_color "Current assignments on Forecast";
+  print_heading ~use_color "Assignments on Forecast";
 
-  (* Print all current assignments on Forecast *)
+  (* Print all assignments found on Forecast *)
+  let alloc_found = "Allocations found" in
+  let alloc_expected = "Allocations expected" in
   let this_project_asns = asns |> List.filter (fun a -> a.project.number = prj.number) in
   match this_project_asns with
   | [] -> Printf.printf "None found.\n"
   | this_asns ->
     (* The assignments themselves *)
     let entity_names = List.map (fun a -> get_entity_name a.entity) this_asns in
-    let name_fieldwidth = Utils.max_by ~default:0 wcswidth entity_names in
+    let name_fieldwidth =
+      Utils.max_by ~default:0 wcswidth (alloc_found :: alloc_expected :: entity_names)
+    in
     let print_and_return_string asn =
       let name = get_entity_name asn.entity in
       let is_people_required = Utils.contains name "People Required" in
+      let is_current = get_time_status asn = Current in
       let string =
         Printf.sprintf
-          "%s  %18s, %s to %s\n"
+          "%9s %s  %18s, %s to %s"
+          ("(" ^ show_time_status (get_time_status asn) ^ ")")
           (pad name_fieldwidth (get_entity_name asn.entity))
           (FTE.show_t (ftes_of_assignment asn))
           (CalendarLib.Printer.Date.to_string (get_first_day asn.allocation))
           (CalendarLib.Printer.Date.to_string (get_last_day asn.allocation))
       in
-      prout ~use_color:(use_color && is_people_required) [ ANSI.red ] string;
+      prout ~use_color:(use_color && is_people_required && is_current) [ ANSI.red ] string;
+      print_endline "";
       string
     in
     let assignment_strings = List.map print_and_return_string this_asns in
@@ -46,8 +75,9 @@ let print_budget_and_assignments ~use_color (prj : project) (asns : assignment l
     print_endline (String.make max_length '-');
     (* Then the comparison of assignments vs budget *)
     Printf.printf
-      "%s  %18s"
-      (pad name_fieldwidth "Allocations found")
+      "%9s %s  %18s"
+      ""
+      (pad name_fieldwidth alloc_found)
       (FTE.show_t total_fte_time);
     prout
       ~use_color:(use_color && Float.abs discrepancy > 0.1)
@@ -55,8 +85,9 @@ let print_budget_and_assignments ~use_color (prj : project) (asns : assignment l
       (Printf.sprintf " (%+.2f%%)" (100. *. discrepancy));
     print_endline "";
     Printf.printf
-      "%s  %18s\n"
-      (pad name_fieldwidth "Allocations expected")
+      "%9s %s  %18s\n"
+      ""
+      (pad name_fieldwidth alloc_expected)
       (FTE.show_t budget)
 ;;
 

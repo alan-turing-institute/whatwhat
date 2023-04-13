@@ -1,7 +1,11 @@
 (** Module for terminal pretty-printing utilities *)
 
-open Wcwidth
 module ANSI = ANSITerminal
+
+(** ----- Re-export -------------------- *)
+
+let wcwidth = Wcwidth.wcwidth
+let wcswidth = Wcwidth.wcswidth
 
 (** ----- String manipulation ---------- *)
 
