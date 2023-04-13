@@ -231,8 +231,10 @@ let rec max_by ~(default : 'b) (f : 'a -> 'b) (xs : 'a list) : 'b =
 ;;
 
 (** Check if s2 is a substring of s1 *)
-let contains s1 s2 =
-  let re = Str.regexp_string s2 in
+let contains ?(case_sensitive = true) s1 s2 =
+  let re =
+    if case_sensitive then Str.regexp_string s2 else Str.regexp_string_case_fold s2
+  in
   try
     ignore (Str.search_forward re s1 0);
     true

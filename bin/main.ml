@@ -359,24 +359,30 @@ let ww_project project_name_or_number no_color =
   let end_date = add (today ()) (Period.year 1) in
   let _, projects, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
 
-  (* Find the project issue number if necessary *)
-  let prj_option =
-    match project_name_or_number with
-    | Either.Left n -> Domain.IntMap.find_opt n projects
-    | Either.Right s ->
+  match project_name_or_number with
+  (* Searched for project number *)
+  | Either.Left n ->
+    (match Domain.IntMap.find_opt n projects with
+     | Some prj -> Project.print ~use_color prj assignments
+     | None -> Printf.printf "No project with number %d was found.\n" n)
+  (* Searched for project name *)
+  | Either.Right s ->
+    let matched_projects =
       projects
       |> Domain.IntMap.to_seq
       |> List.of_seq
-      |> List.find_opt (fun (_, (p : Domain.project)) -> p.name = s)
-      |> Option.map snd
-  in
-
-  match prj_option with
-  | Some prj -> Project.print ~use_color prj assignments
-  | None ->
-    (match project_name_or_number with
-     | Either.Left n -> Printf.printf "Project with number %d not found.\n" n
-     | Either.Right s -> Printf.printf "Project with name %s not found.\n" s)
+      |> List.filter (fun (_, (p : Domain.project)) ->
+           Utils.contains ~case_sensitive:false p.name s)
+      |> List.map snd
+    in
+    (match matched_projects with
+     | [ prj ] -> Project.print ~use_color prj assignments
+     | [] -> Printf.printf "No project with '%s' in its name was found.\n" s
+     | _ ->
+       Printf.printf "Multiple projects were found matching the string '%s':\n" s;
+       List.iter
+         (fun (p : Domain.project) -> Printf.printf "#%-5d %s\n" p.number p.name)
+         matched_projects)
 ;;
 
 let parse_int_or_string s =
