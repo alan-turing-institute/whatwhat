@@ -215,7 +215,7 @@ let ww_main notify no_color quiet verbose codes_without codes_only project_subse
   | Failure msg ->
     let open ANSITerminal in
     Log.pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues:None;
-    Utils.eprcol ~use_color [ Bold; Foreground Red ] "Fatal error: ";
+    Pretty.prerr ~use_color [ Bold; Foreground Red ] "Fatal error: ";
     Printf.eprintf "%s\n" msg;
     exit Cmd.Exit.internal_error (* Defined as 125. *)
 ;;

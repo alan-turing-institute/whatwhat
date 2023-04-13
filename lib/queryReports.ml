@@ -136,7 +136,6 @@ let header_line (max_name_length : int) (max_emoji_length : int) =
   ^ " |"
 ;;
 
-
 let get_person_reaction (i : Raw.issue_r) (name : string) =
   (* Get only the reactions of the person *)
   i.reactions

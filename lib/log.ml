@@ -141,9 +141,9 @@ let pretty_print_event ~use_color (_, e) =
     | Debug -> "DEBUG", []
   in
 
-  Utils.prcol ~use_color [ Bold ] header;
+  Pretty.prout ~use_color [ Bold ] header;
   Printf.printf " ";
-  Utils.prcol ~use_color error_style error_code;
+  Pretty.prout ~use_color error_style error_code;
   Printf.printf " ";
   Printf.printf "%s\n" e.message
 ;;
