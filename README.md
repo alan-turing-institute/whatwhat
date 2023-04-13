@@ -106,12 +106,13 @@ Note that, to compile and execute the source code *in your working directory*, `
 Just running `whatwhat [options]` will use the installed version inside `~/.opam` (if it exists).
 (You can create a shell alias if you're lazy: something like `alias dew='dune exec -- whatwhat'`).
 
+The following examples can get you started.
 For extensive usage options, do `dune exec -- whatwhat --help`, or `dune exec -- whatwhat <COMMAND> --help` for the subcommands.
-However, this should be enough to get started.
 
  - `dune exec --whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
  - `dune exec --whatwhat --notify github`: Same as above, but additionally post GitHub comments on all of those issues.
  - `dune exec --whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
+ - `dune exec --whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
 
 ## Documentation
 
