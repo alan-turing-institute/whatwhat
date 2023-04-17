@@ -4,6 +4,8 @@ module IntMap = Map.Make (Int)
 module StringMap = Map.Make (String)
 module DateMap = Map.Make (CalendarLib.Date)
 
+(** --- FTEs and times ----------------------- *)
+
 module FTE = struct
   type hour = Hour of float
 
@@ -64,6 +66,8 @@ module FTE = struct
   let sum tms = List.fold_left add (Weeks 0.) tms
 end
 
+(** --- Allocations -------------------------- *)
+
 type allocation = FTE.hour DateMap.t
 
 let make_allocation ~with_weekends start_date end_date fte =
@@ -91,6 +95,8 @@ let combine_allocations a1 a2 =
 
 let get_first_day a1 = DateMap.min_binding a1 |> fst
 let get_last_day a1 = DateMap.max_binding a1 |> fst
+
+(** --- Project metadata --------------------- *)
 
 type project_plan =
   { budget : FTE.t
@@ -162,6 +168,8 @@ type project =
   ; plan : project_plan
   }
 
+(** --- Entities ----------------------------- *)
+
 type person =
   { email : string (** Email is the primary key for persons *)
   ; full_name : string
@@ -180,25 +188,72 @@ let get_entity_name = function
   | Placeholder p -> Printf.sprintf "Placeholder: %s" p.name
 ;;
 
+(** --- Emoji reactions ---------------------- *)
+
+type emoji =
+  | Laugh
+  | ThumbsUp
+  | ThumbsDown
+  | Other  (** We don't actually care about the rest. *)
+
+let parse_emoji e =
+  match e with
+  | "laugh" -> Laugh
+  | "+1" -> ThumbsUp
+  | "-1" -> ThumbsDown
+  | _ -> Other
+;;
+
+(** --- Assignments -------------------------- *)
+
 type assignment =
   { project : project
   ; entity : entity
   ; allocation : allocation
   }
 
-let is_person_assignment a =
-  match a.entity with
-  | Person _ -> true
-  | _ -> false
-;;
+module Assignment = struct
+  type t = assignment
 
-let ftes_of_assignment asn =
-  let is_placeholder = not (is_person_assignment asn) in
-  asn.allocation |> DateMap.bindings |> List.map snd |> FTE.sum_to_weeks ~is_placeholder
-;;
+  type time =
+    | Current
+    | Past
+    | Future
+
+  let is_person (asn : t) =
+    match asn.entity with
+    | Person _ -> true
+    | _ -> false
+  ;;
+
+  let to_fte_weeks (asn : t) =
+    let is_placeholder = not (is_person asn) in
+    asn.allocation |> DateMap.bindings |> List.map snd |> FTE.sum_to_weeks ~is_placeholder
+  ;;
+
+  let get_entity_name (asn : t) = get_entity_name asn.entity
+
+  let get_time_status (asn : t) =
+    let open CalendarLib in
+    let today = Date.today () in
+    let start_date = get_first_day asn.allocation in
+    let end_date = get_last_day asn.allocation in
+    if Date.compare today start_date < 0
+    then Future
+    else if Date.compare today end_date > 0
+    then Past
+    else Current
+  ;;
+
+  let show_time_status (asn : t) =
+    match get_time_status asn with
+    | Current -> "current"
+    | Past -> "past"
+    | Future -> "future"
+end
 
 type schedule =
   { projects : project IntMap.t
   ; people : person StringMap.t
-  ; assignments : assignment list
+  ; assignments : Assignment.t list
   }

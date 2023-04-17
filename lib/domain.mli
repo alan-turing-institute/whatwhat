@@ -25,30 +25,40 @@ module FTE : sig
       creation of [FTE.hour] values. The only way to create a new value with
       type [FTE.hour] is to use the [from_forecast_rate] 'smart constructor'. *)
   val from_forecast_rate : int -> hour
+
   val add_hours : hour -> hour -> hour
 
   (** [FTE.t] represent products of FTEs and a time period. 40 hours corresponds
       to 1 FTE-week. The conversion factor between FTE-weeks and FTE-months is
       12/52. *)
-  type t = Weeks of float | Months of float
+  type t =
+    | Weeks of float
+    | Months of float
+
   (** [show_t t] prints "t FTE-weeks" where t is rounded to 2 decimal places.
       If [t] is in FTE-months it is converted first. *)
   val show_t : t -> string
 
   (** Convert a list of hours to an FTE-week quantity. *)
   val sum_to_weeks : ?is_placeholder:bool -> hour list -> t
+
   (** Add two FTE-ts. *)
   val add : t -> t -> t
+
   (** Subtract the second FTE.t from the first. *)
   val sub : t -> t -> t
+
   (** Multiply an FTE.t period by a factor. *)
   val mul : t -> float -> t
+
   (** Get the ratio of two FTE.ts. *)
   val div : t -> t -> float
+
   (** Compare two FTE.t periods. Like the rest of the OCaml standard library,
       [compare_t a b] returns a positive integer for [a > b], negative for [a
       < b], and 0 for [a == b]. *)
   val compare : t -> t -> int
+
   (** Add up a list of FTE.t periods (for example, those belonging to
       different people on a project). *)
   val sum : t list -> t
@@ -79,7 +89,12 @@ end
 type allocation = FTE.hour DateMap.t
 
 (** Turn details from a Forecast assignment into an allocation. *)
-val make_allocation : with_weekends:bool -> CalendarLib.Date.t -> CalendarLib.Date.t -> FTE.hour -> FTE.hour DateMap.t
+val make_allocation
+  :  with_weekends:bool
+  -> CalendarLib.Date.t
+  -> CalendarLib.Date.t
+  -> FTE.hour
+  -> FTE.hour DateMap.t
 
 (** Merge two allocations. This function is commutative. *)
 val combine_allocations : FTE.hour DateMap.t -> FTE.hour DateMap.t -> FTE.hour DateMap.t
@@ -148,34 +163,62 @@ type person =
   }
 
 (** A placeholder on Forecast. *)
-type placeholder = 
-  { name : string }
+type placeholder = { name : string }
 
 (** An entity is a person or a placeholder. *)
 type entity =
-  Person of person
+  | Person of person
   | Placeholder of placeholder
 
 (** Get the name of an entity. *)
 val get_entity_name : entity -> string
 
-(** An assignment of an entity to a project for a specific allocation *)
+(** The types of emoji reactions we care about. *)
+type emoji =
+  | Laugh
+  | ThumbsUp
+  | ThumbsDown
+  | Other
+
+(** Parse emoji from the results returned by the GitHub API. *)
+val parse_emoji : string -> emoji
+
+(** An assignment of an entity to a project for a specific allocation. *)
 type assignment =
   { project : project
   ; entity : entity
   ; allocation : allocation
   }
 
-(** Check whether an assignment is to a person. *)
-val is_person_assignment : assignment -> bool
+module Assignment : sig
+  type t = assignment
 
-(** Calculate the number of FTE-weeks in a given assignment. Note that
-    one assignment may include more than one allocation on Forecast as they
-    have been merged. *)
-val ftes_of_assignment : assignment -> FTE.t
+  (** Check whether an assignment is to a person. *)
+  val is_person : t -> bool
+
+  (** The status of the assignment. *)
+  type time =
+    | Current
+    | Past
+    | Future
+
+  (** Calculate the number of FTE-weeks in a given assignment. Note that
+      one assignment may include more than one allocation on Forecast as they
+      have been merged. *)
+  val to_fte_weeks : t -> FTE.t
+
+  (** Get the entity name *)
+  val get_entity_name : t -> string
+
+  (** Return the time status of an assignment as a [time]. *)
+  val get_time_status : t -> time
+
+  (** Return the time status of an assignment as a string. *)
+  val show_time_status : t -> string
+end
 
 type schedule =
   { projects : project IntMap.t
   ; people : person StringMap.t
-  ; assignments : assignment list
+  ; assignments : Assignment.t list
   }

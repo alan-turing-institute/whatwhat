@@ -14,8 +14,10 @@ to accomplish, along with complete explanation of the error codes and how to fix
     }
 
 {1 Obtaining high-level overviews}
+{!modules:
     Whatwhat.Project
     Whatwhat.Person
+    }
 
 {1 Fetching data from Forecast}
 
