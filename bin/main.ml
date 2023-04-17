@@ -456,7 +456,95 @@ let ww_person_cmd : unit Cmd.t =
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
-let ww_test () = print_endline "Hello, world."
+let post_github_comment issue user repo post_body =
+  let uri =
+    String.concat
+      "/"
+      [ Config.github_url
+      ; "repos"
+      ; user
+      ; repo
+      ; "issues"
+      ; string_of_int issue
+      ; "comments"
+      ]
+  in
+  let body = `Assoc [ "body", `String post_body ] |> Yojson.Basic.to_string in
+  ignore @@ GithubRaw.run_github_query ~as_bot:true ~http_method:POST ~body uri
+;;
+
+let ww_test () =
+  let open Yojson.Basic in
+  let params = [ "participating", [ "true" ] ] in
+  let resp =
+    GithubRaw.run_github_query ~as_bot:true ~params "https://api.github.com/notifications"
+  in
+  let resp_list = resp |> Util.to_list in
+  match resp_list with
+  | [] -> print_endline "No new notifications."
+  | _ ->
+    let to_reply_to =
+      List.filter_map
+        (fun json ->
+          if json
+             |> Util.member "subject"
+             |> Util.member "type"
+             |> Util.to_string
+             = "Issue"
+          then (
+            let url =
+              json |> Util.member "subject" |> Util.member "url" |> Util.to_string
+            in
+            let issue_number =
+              url |> String.split_on_char '/' |> List.rev |> List.hd |> int_of_string
+            in
+            let user =
+              json
+              |> Util.member "repository"
+              |> Util.member "owner"
+              |> Util.member "login"
+              |> Util.to_string
+            in
+            let name =
+              json |> Util.member "repository" |> Util.member "name" |> Util.to_string
+            in
+            let subscription_url =
+              json |> Util.member "subscription_url" |> Util.to_string
+            in
+            Some (user, name, issue_number, subscription_url))
+          else None)
+        resp_list
+    in
+    List.iter
+      (fun (user, repo, n, _) ->
+        Printf.printf
+          "Hello, you summoned me in issue #%d of repository %s/%s!\n"
+          n
+          user
+          repo;
+        post_github_comment
+          n
+          user
+          repo
+          (Printf.sprintf
+             "Hello, you summoned me in issue #%d of repository %s/%s!\n"
+             n
+             user
+             repo))
+      to_reply_to;
+    (* Mark all notifications as read *)
+    ignore
+    @@ GithubRaw.run_github_query
+         ~as_bot:true
+         ~http_method:PUT
+         ~body:"{\"read\": true}"
+         "https://api.github.com/notifications";
+    (* Delete subscription to stop other comments from triggering it *)
+    List.iter
+      (fun (_, _, _, subsc_url) ->
+        ignore @@ GithubRaw.run_github_query ~as_bot:true ~http_method:DELETE subsc_url)
+      to_reply_to
+;;
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v

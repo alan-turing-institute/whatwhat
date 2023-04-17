@@ -6,10 +6,11 @@ open Lwt.Syntax
 
 (** HTTP requests ------------------------------------ *)
 
-(** Only GET and POST are supported *)
 type http_method =
   | GET
   | POST
+  | PUT
+  | DELETE
 
 let run_github_query_async
   ?(as_bot = false)
@@ -32,6 +33,7 @@ let run_github_query_async
     Header.add_authorization header auth_cred
     |> fun header -> Header.prepend_user_agent header "Whatwhat"
   in
+  let body_obj = Cohttp_lwt.Body.of_string body in
   let uri = Uri.add_query_params (Uri.of_string uri) params in
   let* body =
     Lwt.catch
@@ -39,9 +41,9 @@ let run_github_query_async
         let* r, b =
           match http_method with
           | GET -> Client.get ~headers:header_obj uri
-          | POST ->
-            let body_obj = Cohttp_lwt.Body.of_string body in
-            Client.post ~headers:header_obj ~body:body_obj uri
+          | POST -> Client.post ~headers:header_obj ~body:body_obj uri
+          | PUT -> Client.put ~headers:header_obj ~body:body_obj uri
+          | DELETE -> Client.delete ~headers:header_obj ~body:body_obj uri
         in
         Utils.check_http_response r;
         Lwt.return b)
@@ -53,7 +55,11 @@ let run_github_query_async
        | exn -> Lwt.fail exn)
   in
   let* body_string = Cohttp_lwt.Body.to_string body in
-  let body_json = Basic.from_string body_string in
+  let body_json =
+    match body_string with
+    | "" -> `Null
+    | _ -> Basic.from_string body_string
+  in
   Lwt.return body_json
 ;;
 

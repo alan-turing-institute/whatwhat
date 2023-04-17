@@ -5,10 +5,13 @@
 (** {1 HTTP requests}
     *)
 
-(** HTTP methods. Only [GET] and [POST] are supported within [whatwhat]. *)
+(** HTTP methods. Only [GET], [POST], [PUT], and [DELETE] are supported within
+    [whatwhat] (for now). *)
 type http_method =
   | GET
   | POST
+  | PUT
+  | DELETE
 
 (** Run a GitHub query, returning a promise for the body JSON.
 
@@ -16,7 +19,8 @@ type http_method =
       as the GitHub bot account (this requires that you have a token set up in
       your secrets file).
     - [params] are URL-encoded parameters.
-    - [body] is the request body (used only for [POST] requests).
+    - [body] is the request body (used only for [POST], [PUT], and [DELETE]
+      requests).
     - The mandatory argument is the URI.
     *)
 val run_github_query_async
