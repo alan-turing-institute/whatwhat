@@ -412,8 +412,33 @@ let ww_person person no_color =
   let use_color = Unix.isatty Unix.stdout && not no_color in
   ignore use_color;
 
-  (* Query a person's reactions *)
-  QueryReports.individuals_reactions person
+  let open CalendarLib.Date in
+  let start_date = make 2016 1 1 in
+  let end_date = add (today ()) (Period.year 1) in
+  let people, _, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
+
+  let matched_people =
+    List.filter
+      (fun (p : Domain.person) ->
+        Utils.contains ~case_sensitive:false p.full_name person
+        || Utils.contains ~case_sensitive:false p.email person
+        ||
+        match p.github_handle with
+        | None -> false
+        | Some s -> Utils.contains ~case_sensitive:false s person)
+      people
+  in
+  match matched_people with
+  | [] -> Printf.printf "No person with the name '%s' name was found.\n" person
+  | [ p ] -> Person.print ~use_color p assignments
+  | ps ->
+    Printf.printf "Multiple people were found matching the string '%s':\n" person;
+    List.iter
+      (fun (p : Domain.person) ->
+        match p.github_handle with
+        | None -> print_endline p.full_name
+        | Some s -> Printf.printf "%s (@%s)\n" p.full_name s)
+      ps
 ;;
 
 let person_arg =
@@ -431,7 +456,7 @@ let ww_person_cmd : unit Cmd.t =
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
-let ww_test () = print_endline "You've reached whatwhat test."
+let ww_test () = print_endline "Hello, world."
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v

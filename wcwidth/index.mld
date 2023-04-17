@@ -1,0 +1,17 @@
+{0 wcwidth}
+
+[wcwidth] is a small library for calculating the terminal display width of a
+string. This is often the same as {!Stdlib.String.length}, but differs when
+'wide' characters (such as CJK characters or emoji) are used.
+
+The [wcwidth] and [wcswidth] C functions are actually defined as part of the
+POSIX standard (see [man 3 wcwidth], for example). This library, however, uses
+a very minimal reimplementation of the {{: https://github.com/jquast/wcwidth
+}wcwidth Python package}.
+
+In principle, this should be a standalone library, not bundled as part of
+[whatwhat]. However, I (Jon) am not yet confident enough in the correctness of
+the code to publish it on OPAM.
+
+The API is very simple: it consists of three functions, and is documented at
+{!module-Wcwidth}.

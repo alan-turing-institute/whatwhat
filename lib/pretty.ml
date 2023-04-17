@@ -1,21 +1,22 @@
 (** Module for terminal pretty-printing utilities *)
 
-open Wcwidth
 module ANSI = ANSITerminal
+
+(** ----- Re-export -------------------- *)
+
+let wcwidth = Wcwidth.wcwidth
+let wcswidth = Wcwidth.wcswidth
 
 (** ----- String manipulation ---------- *)
 
-(** Encase a string in a box *)
-let make_box (s : string) : string =
-  let n = wcswidth s in
-  let top_and_bottom_row = "+" ^ String.make (n + 2) '-' ^ "+" in
-  let middle_row = "| " ^ s ^ " |" in
-  String.concat "\n" [ top_and_bottom_row; middle_row; top_and_bottom_row ]
-;;
+type alignment =
+  | ALeft
+  | ACenter
+  | ARight
 
 (** Right-pad a string to a length of [n] with the character [fill_char]. For
     example: [pad 'a' 10 'hello' -> 'helloaaaaa]. *)
-let pad ?(fill_char = ' ') (n : int) (s : string) : string =
+let pad_right ?(fill_char = ' ') (n : int) (s : string) : string =
   let len = wcswidth s in
   if len >= n then s else s ^ String.make (n - len) fill_char
 ;;
@@ -39,6 +40,22 @@ let pad_center ?(fill_char = ' ') (n : int) (s : string) : string =
     let left_pad = (n - len) / 2 in
     let right_pad = n - len - left_pad in
     String.make left_pad fill_char ^ s ^ String.make right_pad fill_char)
+;;
+
+let pad ?(fill_char = ' ') ?(alignment = ALeft) (n : int) (s : string) : string =
+  match alignment with
+  | ALeft -> pad_right ~fill_char n s
+  | ACenter -> pad_center ~fill_char n s
+  | ARight -> pad_left ~fill_char n s
+;;
+
+(** Encase a string in a box *)
+let make_box (s : string) : string =
+  let lines = String.split_on_char '\n' s in
+  let width = Utils.max_by ~default:0 wcswidth lines in
+  let top_and_bottom_row = "+" ^ String.make (width + 2) '-' ^ "+" in
+  let middle_rows = List.map (fun s -> "| " ^ pad width s ^ " |") lines in
+  String.concat "\n" ([ top_and_bottom_row ] @ middle_rows @ [ top_and_bottom_row ])
 ;;
 
 (** Construct a table from a list of lists. Each nested list is one row of the

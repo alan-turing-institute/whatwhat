@@ -340,7 +340,7 @@ let check_projects_active asns prj =
 (* Checks that the sum of FTEs assigned on Forecast matches the number of
    FTE-weeks or FTE-months specified on GitHub metadata *)
 let check_assignment_sum asns prj =
-  let total_fte_time = asns |> List.map Domain.ftes_of_assignment |> FTE.sum in
+  let total_fte_time = asns |> List.map Domain.Assignment.to_fte_weeks |> FTE.sum in
   let budget = prj.plan.budget in
   let discrepancy = FTE.div (FTE.sub total_fte_time budget) budget in
   if discrepancy < -0.1 || discrepancy > 0.1
