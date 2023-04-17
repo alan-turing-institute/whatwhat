@@ -194,7 +194,7 @@ type emoji =
   | Laugh
   | ThumbsUp
   | ThumbsDown
-  | Other  (** We don't actually care about the rest. *)
+  | Other (** We don't actually care about the rest. *)
 
 let parse_emoji e =
   match e with
@@ -250,6 +250,7 @@ module Assignment = struct
     | Current -> "current"
     | Past -> "past"
     | Future -> "future"
+  ;;
 end
 
 type schedule =
