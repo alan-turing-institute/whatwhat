@@ -357,13 +357,13 @@ let ww_project project_name_or_number no_color =
   let open CalendarLib.Date in
   let start_date = make 2016 1 1 in
   let end_date = add (today ()) (Period.year 1) in
-  let _, projects, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
+  let people, projects, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
 
   match project_name_or_number with
   (* Searched for project number *)
   | Either.Left n ->
     (match Domain.IntMap.find_opt n projects with
-     | Some prj -> Project.print ~use_color prj assignments
+     | Some prj -> Project.print ~use_color prj people assignments
      | None -> Printf.printf "No project with number %d was found.\n" n)
   (* Searched for project name *)
   | Either.Right s ->
@@ -376,7 +376,7 @@ let ww_project project_name_or_number no_color =
       |> List.map snd
     in
     (match matched_projects with
-     | [ prj ] -> Project.print ~use_color prj assignments
+     | [ prj ] -> Project.print ~use_color prj people assignments
      | [] -> Printf.printf "No project with '%s' in its name was found.\n" s
      | _ ->
        Printf.printf "Multiple projects were found matching the string '%s':\n" s;
