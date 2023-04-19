@@ -18,6 +18,7 @@ exception MissingConfig of string
 
 let secrets_path = XDGBaseDir.default.config_home ^ "/whatwhat/secrets.json"
 let config_path = XDGBaseDir.default.config_home ^ "/whatwhat/config.json"
+let users_path = XDGBaseDir.default.config_home ^ "/whatwhat/users"
 let ( >>= ) = Option.bind
 
 (* Constants which are going to be the same on every run *)
@@ -163,4 +164,17 @@ let get_slack_token () =
   match settings.slack_token with
   | Some value -> value
   | None -> raise (MissingSecret "githubBotToken")
+;;
+
+let get_extra_users () =
+  match Utils.read_file users_path with
+  | None -> []
+  | Some contents ->
+    let lines = String.split_on_char '\n' contents in
+    List.filter_map
+      (fun l ->
+        match l |> String.trim |> String.split_on_char ':' with
+        | [ name; login ] -> Some (name, login)
+        | _ -> None)
+      lines
 ;;

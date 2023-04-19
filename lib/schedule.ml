@@ -18,8 +18,11 @@ type schedule_event =
   | NoMatchingGithubUserWarning of Forecast.person (* W3010 *)
   | DifferentClientWarning of project * string * string option (* W3011 *)
   | DifferentNameWarning of project * string * string (* W3012 *)
+  | MultipleMatchingGithubUsersWarning of Forecast.person * string list (* W3013 *)
   | AssignmentWithoutProjectDebug of Forecast.assignment
   | AssignmentWithoutPersonDebug of Forecast.person
+  | GithubUserGuessedInfo of Forecast.person * string
+  | GithubUserObtainedFromConfigInfo of Forecast.person * string
 
 let log_event (error : schedule_event) =
   match error with
@@ -115,6 +118,37 @@ let log_event (error : schedule_event) =
             fc_name
             gh_name
       }
+  | MultipleMatchingGithubUsersWarning (person, usernames) ->
+    Log.log'
+      { level = Log.Warning 3013
+      ; entity = Log.ForecastPerson person.email
+      ; message =
+          Printf.sprintf
+            "Multiple possible matching GitHub users for <%s> found (%s)."
+            person.full_name
+            (usernames |> List.map (fun s -> "@" ^ s) |> String.concat ", ")
+      }
+  | GithubUserGuessedInfo (psn, uname) ->
+    Log.log'
+      { level = Log.Info
+      ; entity = Log.ForecastPerson psn.full_name
+      ; message =
+          Printf.sprintf
+            "Guessed GitHub username <@%s> for Forecast person <%s>."
+            uname
+            psn.full_name
+      }
+  | GithubUserObtainedFromConfigInfo (psn, uname) ->
+    Log.log'
+      { level = Log.Info
+      ; entity = Log.ForecastPerson psn.full_name
+      ; message =
+          Printf.sprintf
+            "Obtained GitHub username <@%s> for Forecast person <%s> from configuration \
+             file."
+            uname
+            psn.full_name
+      }
   | AssignmentWithoutProjectDebug asn ->
     Log.log'
       { level = Log.Debug
@@ -132,12 +166,39 @@ let log_event (error : schedule_event) =
 (* ---------------------------------------------------------------------- *)
 (* MERGE PEOPLE FROM FORECAST AND GITHUB *)
 
-(** Find the matching Github user for Forecast user fc_p.*)
-let get_matching_gh_person_opt
+(* I don't understand why OCaml makes me write this boilerplate. *)
+module FcSet = Set.Make (struct
+  type t = Forecast.person
+
+  let compare = compare
+end)
+
+module GhSet = Set.Make (struct
+  type t = Github.person
+
+  let compare = compare
+end)
+
+module PsnSet = Set.Make (struct
+  type t = Domain.person
+
+  let compare = compare
+end)
+
+(** Create a list of all people, merging data from Forecast and Github. Our
+    approach here is generally to map over Forecast people, because Forecast is
+    considered authoritative for people.
+
+    TODO: It would be nice to get Slack handles for people.
+    *)
+let merge_people
+  (fc_people : Forecast.person list)
   (gh_people : Github.person list)
-  (fc_p : Forecast.person)
   (fc_assignments : Forecast.assignment list)
   =
+  (* In a first pass, we remove anyone who is not in REG (as determined by
+     roles) or who is only assigned to UNAVAILABLE, as we probably don't need to
+     care about these. *)
   let is_available (fc_p : Forecast.person) =
     (* Has REG role *)
     List.mem "REG" fc_p.roles
@@ -150,69 +211,103 @@ let get_matching_gh_person_opt
         && a.project.programme <> "UNAVAILABLE")
       fc_assignments
   in
-  let person_matches (gh_p : Github.person) =
+  let fc_all = List.filter is_available fc_people |> FcSet.of_list in
+  let gh_all = GhSet.of_list gh_people in
+
+  let make_new_person (fc_p : Forecast.person) (gh_p_opt : Github.person option) =
+    { email = fc_p.email
+    ; full_name = fc_p.full_name
+    ; github_handle = Option.map (fun (p : Github.person) -> p.login) gh_p_opt
+    ; slack_handle = None
+    }
+  in
+
+  (* Then, we fetch data from the config file (as this should override all other
+     'automatic' checks. *)
+  let accum1 (name, login) (fc_found, gh_remaining, ppl_found) =
+    match
+      ( FcSet.filter (fun (p : Forecast.person) -> p.full_name = name) fc_all
+        |> FcSet.elements
+      , GhSet.filter (fun (p : Github.person) -> p.login = login) gh_all |> GhSet.elements
+      )
+    with
+    | [ fc_p ], [ gh_p ] ->
+      log_event (GithubUserObtainedFromConfigInfo (fc_p, gh_p.login));
+      let new_person = make_new_person fc_p (Some gh_p) in
+      ( FcSet.add fc_p fc_found
+      , GhSet.remove gh_p gh_remaining
+      , PsnSet.add new_person ppl_found )
+    | _ -> fc_found, gh_remaining, ppl_found
+  in
+  let fc_found, gh_remaining, ppl_found =
+    List.fold_right accum1 (Config.get_extra_users ()) (FcSet.empty, gh_all, PsnSet.empty)
+  in
+  let fc_remaining = FcSet.diff fc_all fc_found in
+
+  (* Then we try to match Forecast people to GitHub accounts, based on an exact
+     match between their names. *)
+  let person_matches_perfectly (fc_p : Forecast.person) (gh_p : Github.person) =
     gh_p.email = Some fc_p.email || gh_p.name = Some fc_p.full_name
   in
-  let gh_p = List.find_opt person_matches gh_people in
-  if gh_p = None && is_available fc_p then log_event (NoMatchingGithubUserWarning fc_p);
-  gh_p
-;;
-
-(** Create a list of all people, merging data from Forecast and Github. *)
-let merge_people
-  (fc_people : Forecast.person list)
-  (gh_people : Github.person list)
-  (fc_assignments : Forecast.assignment list)
-  =
-  (* We map over Forecast people, looking for the matching Github person for
-     each, since Forecast is considered authoritative for people. *)
-  (* TODO: Get Slack handle. *)
-  let merge_person (fc_p : Forecast.person) =
-    let gh_p_opt = get_matching_gh_person_opt gh_people fc_p fc_assignments in
-    let login_opt =
-      match gh_p_opt with
-      | Some gh_p -> Some gh_p.login
-      | None -> None
-    in
-    let new_person =
-      { email = fc_p.email
-      ; full_name = fc_p.full_name
-      ; github_handle = login_opt
-      ; slack_handle = None
-      }
-    in
-    new_person
+  let accum2 fc_p (fc_found, gh_remaining, ppl_found) =
+    match GhSet.filter (person_matches_perfectly fc_p) gh_remaining |> GhSet.elements with
+    | [] -> fc_found, gh_remaining, ppl_found
+    | [ gh_p ] ->
+      let new_person = make_new_person fc_p (Some gh_p) in
+      ( FcSet.add fc_p fc_found
+      , GhSet.remove gh_p gh_remaining
+      , PsnSet.add new_person ppl_found )
+    | gh_ps ->
+      (* Multiple exact matches, EXTREMELY unlikely *)
+      let unames = List.map (fun (p : Github.person) -> p.login) gh_ps in
+      log_event (MultipleMatchingGithubUsersWarning (fc_p, unames));
+      fc_found, gh_remaining, ppl_found
   in
-  List.map merge_person fc_people
+  let fc_found, gh_remaining, ppl_found =
+    FcSet.fold accum2 fc_remaining (fc_found, gh_remaining, ppl_found)
+  in
+
+  (* Next, for anyone who wasn't found yet, we try to match Forecast people
+     to GitHub accounts, based on some weaker heuristics. *)
+  let fc_remaining = FcSet.diff fc_all fc_found in
+  let person_matches_fuzzily (fc_p : Forecast.person) (gh_p : Github.person) =
+    let names = fc_p.full_name |> String.split_on_char ' ' in
+    let first_name = List.hd names in
+    let last_name = List.hd (List.rev names) in
+    Utils.contains ~case_sensitive:false gh_p.login last_name
+    || Utils.contains ~case_sensitive:false gh_p.login first_name
+    ||
+    match gh_p.name with
+    | Some n ->
+      Utils.contains ~case_sensitive:false n last_name
+      || Utils.contains ~case_sensitive:false n first_name
+    | None -> false
+  in
+  let accum' fc_p (fc_found, gh_remaining, ppl_found) =
+    match GhSet.filter (person_matches_fuzzily fc_p) gh_remaining |> GhSet.elements with
+    | [] ->
+      log_event (NoMatchingGithubUserWarning fc_p);
+      fc_found, gh_remaining, ppl_found
+    | [ gh_p ] ->
+      log_event (GithubUserGuessedInfo (fc_p, gh_p.login));
+      let new_person = make_new_person fc_p (Some gh_p) in
+      ( FcSet.add fc_p fc_found
+      , GhSet.remove gh_p gh_remaining
+      , PsnSet.add new_person ppl_found )
+    | gh_ps ->
+      (* Multiple fuzzy matches *)
+      let unames = List.map (fun (p : Github.person) -> p.login) gh_ps in
+      log_event (MultipleMatchingGithubUsersWarning (fc_p, unames));
+      fc_found, gh_remaining, ppl_found
+  in
+  let _, _, ppl_found =
+    FcSet.fold accum' fc_remaining (fc_found, gh_remaining, ppl_found)
+  in
+  PsnSet.elements ppl_found
 ;;
 
 (* ---------------------------------------------------------------------- *)
 (* MERGE PROJECTS FROM FORECAST AND GITHUB *)
-
-(*
-(** Find the Forecast project associated with a given Github issue. *)
-let get_matching_fc_project 
-   (fc_projects : Forecast.project list) 
-   (gh_project : project) 
-   = 
-   let project_matches (x : Forecast.project) = x.number = gh_project.nmbr in 
-   let fc_p_opt = List.find_opt project_matches fc_projects in 
-   if fc_p_opt = None 
-   then log NoMatchingForecastProject @@ Int.to_string gh_project.nmbr;
-   fc_p_opt 
- ;; 
-*)
-
-(*
-(** Find the [person] matching the given Github user. *)
-let person_opt_of_gh_person (people : person list) (gh_person : Github.person) = 
-  let login_matches person = person.github_handle = Some gh_person.login in 
-  let person_opt = List.find_opt login_matches people in 
-  if person_opt = None 
-  if person_opt = None then log NoMatchingForecastUser gh_person.login;
-  person_opt 
-;;
-*)
 
 type project_pair = Pair of (Forecast.project option * project option)
 

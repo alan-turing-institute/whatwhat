@@ -357,13 +357,15 @@ let ww_project project_name_or_number no_color =
   let open CalendarLib.Date in
   let start_date = make 2016 1 1 in
   let end_date = add (today ()) (Period.year 1) in
-  let _, projects, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
+  let people, projects, assignments, _ =
+    Schedule.get_the_schedule ~start_date ~end_date
+  in
 
   match project_name_or_number with
   (* Searched for project number *)
   | Either.Left n ->
     (match Domain.IntMap.find_opt n projects with
-     | Some prj -> Project.print ~use_color prj assignments
+     | Some prj -> Project.print ~use_color prj people assignments
      | None -> Printf.printf "No project with number %d was found.\n" n)
   (* Searched for project name *)
   | Either.Right s ->
@@ -376,7 +378,7 @@ let ww_project project_name_or_number no_color =
       |> List.map snd
     in
     (match matched_projects with
-     | [ prj ] -> Project.print ~use_color prj assignments
+     | [ prj ] -> Project.print ~use_color prj people assignments
      | [] -> Printf.printf "No project with '%s' in its name was found.\n" s
      | _ ->
        Printf.printf "Multiple projects were found matching the string '%s':\n" s;
@@ -456,7 +458,95 @@ let ww_person_cmd : unit Cmd.t =
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
-let ww_test () = print_endline "Hello, world."
+let post_github_comment issue user repo post_body =
+  let uri =
+    String.concat
+      "/"
+      [ Config.github_url
+      ; "repos"
+      ; user
+      ; repo
+      ; "issues"
+      ; string_of_int issue
+      ; "comments"
+      ]
+  in
+  let body = `Assoc [ "body", `String post_body ] |> Yojson.Basic.to_string in
+  ignore @@ GithubRaw.run_github_query ~as_bot:true ~http_method:POST ~body uri
+;;
+
+let ww_test () =
+  let open Yojson.Basic in
+  let params = [ "participating", [ "true" ] ] in
+  let resp =
+    GithubRaw.run_github_query ~as_bot:true ~params "https://api.github.com/notifications"
+  in
+  let resp_list = resp |> Util.to_list in
+  match resp_list with
+  | [] -> print_endline "No new notifications."
+  | _ ->
+    let to_reply_to =
+      List.filter_map
+        (fun json ->
+          if json
+             |> Util.member "subject"
+             |> Util.member "type"
+             |> Util.to_string
+             = "Issue"
+          then (
+            let url =
+              json |> Util.member "subject" |> Util.member "url" |> Util.to_string
+            in
+            let issue_number =
+              url |> String.split_on_char '/' |> List.rev |> List.hd |> int_of_string
+            in
+            let user =
+              json
+              |> Util.member "repository"
+              |> Util.member "owner"
+              |> Util.member "login"
+              |> Util.to_string
+            in
+            let name =
+              json |> Util.member "repository" |> Util.member "name" |> Util.to_string
+            in
+            let subscription_url =
+              json |> Util.member "subscription_url" |> Util.to_string
+            in
+            Some (user, name, issue_number, subscription_url))
+          else None)
+        resp_list
+    in
+    List.iter
+      (fun (user, repo, n, _) ->
+        Printf.printf
+          "Hello, you summoned me in issue #%d of repository %s/%s!\n"
+          n
+          user
+          repo;
+        post_github_comment
+          n
+          user
+          repo
+          (Printf.sprintf
+             "Hello, you summoned me in issue #%d of repository %s/%s!\n"
+             n
+             user
+             repo))
+      to_reply_to;
+    (* Mark all notifications as read *)
+    ignore
+    @@ GithubRaw.run_github_query
+         ~as_bot:true
+         ~http_method:PUT
+         ~body:"{\"read\": true}"
+         "https://api.github.com/notifications";
+    (* Delete subscription to stop other comments from triggering it *)
+    List.iter
+      (fun (_, _, _, subsc_url) ->
+        ignore @@ GithubRaw.run_github_query ~as_bot:true ~http_method:DELETE subsc_url)
+      to_reply_to
+;;
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v

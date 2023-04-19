@@ -34,12 +34,12 @@ type forecast_event =
   | NoFinanceCodeWarning of (Raw.project, project) Either.t (* W1001 *)
   | MultipleFinanceCodesWarning of (Raw.project, project) Either.t (* W1002 *)
   | DuplicateIssueNumberWarning of project (* W1003 *)
-  | AssignmentToRemovedPersonInfo of Raw.assignment
-  | AssignmentToRemovedProjectInfo of Raw.assignment
+  | AssignmentToRemovedPersonDebug of Raw.assignment
+  | AssignmentToRemovedProjectDebug of Raw.assignment
   | NonREGPersonInfo of Raw.person
   | ArchivedPersonDebug of Raw.person
   | ArchivedPlaceholderDebug of Raw.placeholder
-  | ChoseOneFinanceCodeDebug of (Raw.project, project) Either.t * string list * string
+  | ChoseOneFinanceCodeInfo of (Raw.project, project) Either.t * string list * string
 
 let log_event (fc_event : forecast_event) : unit =
   let make_log_raw_project (raw_proj : Raw.project) =
@@ -125,18 +125,18 @@ let log_event (fc_event : forecast_event) : unit =
       ; entity = Log.Project p.number
       ; message = "Another Forecast project with the same issue number was found."
       }
-  | AssignmentToRemovedPersonInfo raw_assignment ->
+  | AssignmentToRemovedPersonDebug raw_assignment ->
     Log.log'
-      { level = Log.Info
+      { level = Log.Debug
       ; entity = Log.RawForecastAssignment raw_assignment.id
       ; message =
           Printf.sprintf
             "Assignment made to removed entity <%s>."
             (Raw.get_entity_name raw_assignment.entity)
       }
-  | AssignmentToRemovedProjectInfo raw_assignment ->
+  | AssignmentToRemovedProjectDebug raw_assignment ->
     Log.log'
-      { level = Log.Info
+      { level = Log.Debug
       ; entity = Log.RawForecastAssignment raw_assignment.id
       ; message =
           Printf.sprintf
@@ -164,9 +164,9 @@ let log_event (fc_event : forecast_event) : unit =
       ; entity = Log.RawForecastPlaceholder name
       ; message = Printf.sprintf "Ignoring archived person <%s>." name
       }
-  | ChoseOneFinanceCodeDebug (rp_or_p, fcs, chosen_fc) ->
+  | ChoseOneFinanceCodeInfo (rp_or_p, fcs, chosen_fc) ->
     Log.log'
-      { level = Log.Debug
+      { level = Log.Info
       ; entity =
           (match rp_or_p with
            | Left rp -> make_log_raw_project rp
@@ -225,7 +225,7 @@ let extract_finance_code (rp : Raw.project) =
     in
     (match List.filter looks_like_finance_code rp.tags with
      | [ fc ] ->
-       log_event (ChoseOneFinanceCodeDebug (Left rp, rp.tags, fc));
+       log_event (ChoseOneFinanceCodeInfo (Left rp, rp.tags, fc));
        Some fc
      | _ -> None)
 ;;
@@ -273,6 +273,7 @@ type person =
   ; email : string
   ; roles : string list
   }
+[@@deriving ord]
 
 (** An entity is a person or a placeholder. Placeholders are represented
     directly using the [Domain.placeholder] type, because there is no extra
@@ -340,7 +341,7 @@ let validate_assignment people projects (a : Raw.assignment) =
   (* First check that the project wasn't deleted *)
   match IntMap.find_opt a.project.id projects with
   | None ->
-    log_event (AssignmentToRemovedProjectInfo a);
+    log_event (AssignmentToRemovedProjectDebug a);
     None
   | Some prj ->
     (* Then check the entity to which it's assigned *)
@@ -365,7 +366,7 @@ let validate_assignment people projects (a : Raw.assignment) =
        (match IntMap.find_opt person.id people with
         (* Check that the person wasn't deleted. *)
         | None ->
-          log_event (AssignmentToRemovedPersonInfo a);
+          log_event (AssignmentToRemovedPersonDebug a);
           None
         | Some valid_person ->
           Some

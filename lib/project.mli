@@ -8,4 +8,4 @@
       Forecast
     - Emoji reactions on the GitHub issue
     *)
-val print : use_color:bool -> Domain.project -> Domain.Assignment.t list -> unit
+val print : use_color:bool -> Domain.project -> Domain.person list -> Domain.Assignment.t list -> unit

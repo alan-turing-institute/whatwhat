@@ -109,18 +109,16 @@ let print_budget_and_assignments ~use_color (prj : project) (asns : assignment l
       (FTE.show_t budget)
 ;;
 
-(** TODO: This function should not be needed once we have a lookup table *)
-let get_name (single_person : GithubRaw.person) =
-  if single_person.name <> None
-  then Option.get single_person.name
-  else single_person.login
-;;
-
-let print_reactions ~use_color (prj : project) =
+let print_reactions ~use_color (ppl : person list) (prj : project) =
   let issue = GithubRaw.get_issue_r prj.number in
+  let get_full_name (gh_p : Github.person) =
+    match List.find_opt (fun (p : person) -> p.github_handle = Some gh_p.login) ppl with
+    | None -> "@" ^ gh_p.login
+    | Some p -> p.full_name
+  in
   let sorted_reactions =
     issue.reactions
-    |> List.map (fun (e, n) -> parse_emoji e, get_name n)
+    |> List.map (fun (e, p) -> parse_emoji e, get_full_name p)
     |> List.sort (fun (_, n1) (_, n2) -> compare n1 n2)
     |> List.sort (fun (e1, _) (e2, _) -> compare e1 e2)
     |> List.filter (fun (e, _) -> e <> Other)
@@ -140,7 +138,16 @@ let print_reactions ~use_color (prj : project) =
   print_endline (make_table ~header_rows:1 ~column_padding:1 (header :: rows))
 ;;
 
-let print ~(use_color : bool) (prj : project) (asns : assignment list) =
+let print_log_events ~use_color (prj : project) =
+  print_heading ~use_color "Errors and Warnings";
+  Log.pretty_print
+    ~use_color
+    ~verbose:0
+    ~restrict_codes:Log.All
+    ~restrict_issues:(Some [ prj.number ])
+
+let print ~(use_color : bool) (prj : project) (ppl : person list) (asns : assignment list)
+  =
   let this_asns = asns |> List.filter (fun a -> a.project.number = prj.number) in
   print_title ~use_color prj;
   print_endline "";
@@ -149,5 +156,7 @@ let print ~(use_color : bool) (prj : project) (asns : assignment list) =
   print_endline "";
   print_budget_and_assignments ~use_color prj this_asns;
   print_endline "";
-  print_reactions ~use_color prj
+  print_reactions ~use_color ppl prj;
+  print_endline "";
+  print_log_events ~use_color prj
 ;;
