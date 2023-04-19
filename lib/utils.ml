@@ -280,3 +280,11 @@ let transpose (ls : 'a list list) : 'a list list =
   in
   transpose_rec [] ls
 ;;
+
+(** Attempt to read text from a file. Returns [None] for various errors (e.g.
+    if the file doesn't exist). *)
+let read_file (filename : string) : string option =
+  try
+    Some (In_channel.with_open_bin filename In_channel.input_all)
+  with
+  | Sys_error _ -> None

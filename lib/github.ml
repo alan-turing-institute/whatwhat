@@ -86,7 +86,7 @@ type person = GithubRaw.person =
   ; name : string option
   ; email : string option
   }
-[@@deriving show]
+[@@deriving show, ord]
 
 (* We recognise only floats, strings, and lists of strings as valid types in the metadata.
    We parse the YAML into this variant type first, and then pick the correct types for

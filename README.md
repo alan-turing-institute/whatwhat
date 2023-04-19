@@ -100,6 +100,18 @@ Separately, place this in `~/.config/whatwhat/config.json`:
 
 You shouldn't need to change any of the other settings here.
 
+### Lookup table for GitHub usernames
+
+`whatwhat` attempts to match people's full names on Forecast with GitHub usernames.
+It is quite successful at doing this, but there are a few edge cases where people's GitHub profiles do not have enough data.
+To get around this, you can manually add a mapping inside the file `~/.config/whatwhat/users`.
+Each line in this file should look like:
+
+    {Full name on Forecast}:{GitHub username}
+
+(without the curly braces).
+If `whatwhat`'s automatic username detection is turning up false positives for a person, you can also override it by entering their info in this file.
+
 ## Usage
 
 Note that, to compile and execute the source code *in your working directory*, `whatwhat` should always be run using `dune exec -- whatwhat [options]`.

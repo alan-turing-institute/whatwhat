@@ -14,6 +14,8 @@ type person =
   ; roles : string list
   }
 
+val compare_person: person -> person -> int
+
 (** An entity is a person or a placeholder. Placeholders are represented
     directly using the [Domain.placeholder] type, because there is no extra
     information about placeholders to be gained from GitHub. *)
