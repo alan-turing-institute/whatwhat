@@ -357,7 +357,9 @@ let ww_project project_name_or_number no_color =
   let open CalendarLib.Date in
   let start_date = make 2016 1 1 in
   let end_date = add (today ()) (Period.year 1) in
-  let people, projects, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
+  let people, projects, assignments, _ =
+    Schedule.get_the_schedule ~start_date ~end_date
+  in
 
   match project_name_or_number with
   (* Searched for project number *)

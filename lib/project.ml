@@ -138,6 +138,14 @@ let print_reactions ~use_color (ppl : person list) (prj : project) =
   print_endline (make_table ~header_rows:1 ~column_padding:1 (header :: rows))
 ;;
 
+let print_log_events ~use_color (prj : project) =
+  print_heading ~use_color "Errors and Warnings";
+  Log.pretty_print
+    ~use_color
+    ~verbose:0
+    ~restrict_codes:Log.All
+    ~restrict_issues:(Some [ prj.number ])
+
 let print ~(use_color : bool) (prj : project) (ppl : person list) (asns : assignment list)
   =
   let this_asns = asns |> List.filter (fun a -> a.project.number = prj.number) in
@@ -148,5 +156,7 @@ let print ~(use_color : bool) (prj : project) (ppl : person list) (asns : assign
   print_endline "";
   print_budget_and_assignments ~use_color prj this_asns;
   print_endline "";
-  print_reactions ~use_color ppl prj
+  print_reactions ~use_color ppl prj;
+  print_endline "";
+  print_log_events ~use_color prj
 ;;
