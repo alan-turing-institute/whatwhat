@@ -50,11 +50,11 @@ let pad ?(fill_char = ' ') ?(alignment = ALeft) (n : int) (s : string) : string 
 ;;
 
 (** Encase a string in a box *)
-let make_box (s : string) : string =
+let make_box ?(alignment = ALeft) (s : string) : string =
   let lines = String.split_on_char '\n' s in
   let width = Utils.max_by ~default:0 wcswidth lines in
   let top_and_bottom_row = "+" ^ String.make (width + 2) '-' ^ "+" in
-  let middle_rows = List.map (fun s -> "| " ^ pad width s ^ " |") lines in
+  let middle_rows = List.map (fun s -> "| " ^ pad ~alignment width s ^ " |") lines in
   String.concat "\n" ([ top_and_bottom_row ] @ middle_rows @ [ top_and_bottom_row ])
 ;;
 

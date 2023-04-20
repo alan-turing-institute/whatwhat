@@ -10,16 +10,52 @@ let print_info ~(use_color : bool) (psn : Domain.person) =
       "\n"
       (match psn.github_handle with
        | None -> [ psn.full_name; psn.email ]
-       | Some g -> [ psn.full_name; psn.email; "@" ^ g ])
+       | Some g -> [ psn.full_name; psn.email; "https://github.com/" ^ g ])
   in
   prout ~use_color [ ANSI.Bold ] (make_box s)
 ;;
 
-let print ~(use_color : bool) (psn : Domain.person) (asns : Domain.Assignment.t list)
+let print_assignments ~(use_color : bool) (asns : Domain.assignment list) =
+  print_heading ~use_color "Assignments on Forecast";
+  match asns with
+  | [] -> Printf.printf "None found.\n"
+  | this_asns ->
+    (* The assignments themselves *)
+    let project_names = List.map (fun a -> a.project.name) this_asns in
+    let name_fieldwidth =
+      Utils.max_by ~default:0 wcswidth project_names
+    in
+    let print_asn asn =
+      let name = Assignment.get_entity_name asn in
+      let is_people_required = Utils.contains name "People Required" in
+      let is_current = Assignment.get_time_status asn = Current in
+      let string =
+        Printf.sprintf
+          "%9s %s  %18s, %s to %s\n"
+          ("(" ^ Assignment.show_time_status asn ^ ")")
+          (pad name_fieldwidth (Assignment.get_entity_name asn))
+          (FTE.show_t (Assignment.to_fte_weeks asn))
+          (CalendarLib.Printer.Date.to_string (get_first_day asn.allocation))
+          (CalendarLib.Printer.Date.to_string (get_last_day asn.allocation))
+      in
+      prout ~use_color:(use_color && is_people_required && is_current) [ ANSI.red ] string;
+    in
+    List.iter print_asn this_asns
+;;
+
+let print ~(use_color : bool) (psn : Domain.person) (asns : Domain.assignment list)
   : unit
   =
+  let this_asns =
+    asns
+    |> List.filter (fun a -> a.entity = Person psn)
+    |> List.sort Assignment.compare_by_date
+  in
   print_info ~use_color psn;
   print_endline "";
-  ignore asns;
+  print_endline "";
+  print_assignments ~use_color this_asns;
+  print_endline "";
   print_endline "TODO: Remainder of person summary"
 ;;
+

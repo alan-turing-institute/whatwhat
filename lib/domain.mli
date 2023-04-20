@@ -215,6 +215,9 @@ module Assignment : sig
 
   (** Return the time status of an assignment as a string. *)
   val show_time_status : t -> string
+
+  (** First compare assignments by start date, then end date. *)
+  val compare_by_date : t -> t -> int
 end
 
 type schedule =

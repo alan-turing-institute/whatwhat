@@ -145,10 +145,15 @@ let print_log_events ~use_color (prj : project) =
     ~verbose:0
     ~restrict_codes:Log.All
     ~restrict_issues:(Some [ prj.number ])
+;;
 
 let print ~(use_color : bool) (prj : project) (ppl : person list) (asns : assignment list)
   =
-  let this_asns = asns |> List.filter (fun a -> a.project.number = prj.number) in
+  let this_asns =
+    asns
+    |> List.filter (fun a -> a.project.number = prj.number)
+    |> List.sort Assignment.compare_by_date
+  in
   print_title ~use_color prj;
   print_endline "";
   print_endline "";
