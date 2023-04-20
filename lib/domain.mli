@@ -138,6 +138,7 @@ module State : sig
     | Done
     | Cancelled
     | Rejected
+    | Other
 
   val show_t : t -> string
 end
@@ -198,8 +199,8 @@ module Assignment : sig
 
   (** The status of the assignment. *)
   type time =
-    | Current
     | Past
+    | Current
     | Future
 
   (** Calculate the number of FTE-weeks in a given assignment. Note that

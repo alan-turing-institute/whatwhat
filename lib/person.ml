@@ -4,7 +4,7 @@ open Domain
 open Pretty
 module ANSI = ANSITerminal
 
-let print_info ~(use_color : bool) (psn : Domain.person) =
+let print_info ~(use_color : bool) (psn : person) =
   let s =
     String.concat
       "\n"
@@ -15,7 +15,7 @@ let print_info ~(use_color : bool) (psn : Domain.person) =
   prout ~use_color [ ANSI.Bold ] (make_box s)
 ;;
 
-let print_assignments ~(use_color : bool) (asns : Domain.assignment list) =
+let print_assignments ~(use_color : bool) (asns : assignment list) =
   let make_name asn = 
     Printf.sprintf "#%-4d %s" asn.project.number asn.project.name
   in
@@ -43,7 +43,7 @@ let print_assignments ~(use_color : bool) (asns : Domain.assignment list) =
     List.iter print_asn this_asns
 ;;
 
-let print ~(use_color : bool) (psn : Domain.person) (asns : Domain.assignment list)
+let print ~(use_color : bool) (psn : person) (asns : assignment list)
   : unit
   =
   let this_asns =

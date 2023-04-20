@@ -381,11 +381,39 @@ let check_start_date (prj : project) (asg : assignment) =
           then log_event (AllocationStartsTooEarlyWarning asg)))
 ;;
 
+(* Convert a Forecast.project to a Domain.project without using any info from
+   GitHub. *)
+let upconvert (prj : Forecast.project) : project =
+  { number = prj.number
+  ; name = prj.name
+  ; state = Other
+  ; programme = Some prj.programme
+  ; plan = None
+  }
+;;
+
 let merge_assignment people projects (asn : Forecast.assignment) : assignment option =
   match IntMap.find_opt asn.project.number projects with
   | None ->
     log_event (AssignmentWithoutProjectDebug asn);
-    None
+    (match asn.entity with
+     | Placeholder pl ->
+       Some
+         { project = upconvert asn.project
+         ; entity = Placeholder pl
+         ; allocation = asn.allocation
+         }
+     | Person asn_p ->
+       (match List.find_opt (fun p -> p.full_name = asn_p.full_name) people with
+        | None ->
+          log_event (AssignmentWithoutPersonDebug asn_p);
+          None
+        | Some psn ->
+          Some
+            { project = upconvert asn.project
+            ; entity = Person psn
+            ; allocation = asn.allocation
+            }))
   | Some prj ->
     (match asn.entity with
      | Placeholder p ->

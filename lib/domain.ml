@@ -125,6 +125,7 @@ module State = struct
     | Done
     | Cancelled
     | Rejected
+    | Other
 
   let show_t t =
     match t with
@@ -140,6 +141,7 @@ module State = struct
     | Done -> "Done"
     | Cancelled -> "Cancelled"
     | Rejected -> "Rejected"
+    | Other -> "Other"
   ;;
 end
 
@@ -216,31 +218,10 @@ module Assignment = struct
   type t = assignment
 
   type time =
-    | Current
     | Past
+    | Current
     | Future
-
-  let is_person (asn : t) =
-    match asn.entity with
-    | Person _ -> true
-    | _ -> false
-  ;;
-
-  let compare_by_date (a1 : t) (a2 : t) =
-    match
-      CalendarLib.Date.compare (get_first_day a1.allocation) (get_first_day a2.allocation)
-    with
-    | 0 ->
-      CalendarLib.Date.compare (get_last_day a1.allocation) (get_last_day a2.allocation)
-    | n -> n
-  ;;
-
-  let to_fte_weeks (asn : t) =
-    let is_placeholder = not (is_person asn) in
-    asn.allocation |> DateMap.bindings |> List.map snd |> FTE.sum_to_weeks ~is_placeholder
-  ;;
-
-  let get_entity_name (asn : t) = get_entity_name asn.entity
+  [@@deriving ord]
 
   let get_time_status (asn : t) =
     let open CalendarLib in
@@ -260,6 +241,35 @@ module Assignment = struct
     | Past -> "past"
     | Future -> "future"
   ;;
+
+  let is_person (asn : t) =
+    match asn.entity with
+    | Person _ -> true
+    | _ -> false
+  ;;
+
+  let compare_by_date (a1 : t) (a2 : t) =
+    match compare_time (get_time_status a1) (get_time_status a2) with
+    | 0 ->
+      (match
+         CalendarLib.Date.compare
+           (get_first_day a1.allocation)
+           (get_first_day a2.allocation)
+       with
+       | 0 ->
+         CalendarLib.Date.compare
+           (get_last_day a1.allocation)
+           (get_last_day a2.allocation)
+       | n -> n)
+    | n -> n
+  ;;
+
+  let to_fte_weeks (asn : t) =
+    let is_placeholder = not (is_person asn) in
+    asn.allocation |> DateMap.bindings |> List.map snd |> FTE.sum_to_weeks ~is_placeholder
+  ;;
+
+  let get_entity_name (asn : t) = get_entity_name asn.entity
 end
 
 type schedule =
