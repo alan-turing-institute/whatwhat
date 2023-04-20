@@ -107,7 +107,7 @@ let start_date_arg : CalendarLib.Date.t Term.t =
     match s with
     | "" -> Ok default_start_date
     | "_" -> Ok default_start_date
-    | s -> Utils.parse_date s
+    | s -> Utils.date_of_string ~lax:true s
   in
   let printer f d = Format.pp_print_string f (CalendarLib.Printer.Date.to_string d) in
   Arg.(
@@ -128,7 +128,7 @@ let end_date_arg : CalendarLib.Date.t Term.t =
     match s with
     | "" -> Ok default_end_date
     | "_" -> Ok default_end_date
-    | s -> Utils.parse_date s
+    | s -> Utils.date_of_string ~lax:true s
   in
   let printer f d = Format.pp_print_string f (CalendarLib.Printer.Date.to_string d) in
   Arg.(
