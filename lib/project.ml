@@ -24,42 +24,40 @@ let print_title ~(use_color : bool) (prj : project) =
 let print_metadata ~(use_color : bool) (prj : project) =
   print_heading ~use_color "Details";
   let open Printf in
-  let earliest_start_date_string =
-    match prj.plan.earliest_start_date with
-    | None -> "None"
-    | Some d -> CalendarLib.Printer.Date.to_string d
-  in
-  let latest_end_date_string =
-    match prj.plan.latest_end_date with
-    | None -> "None"
-    | Some d -> CalendarLib.Printer.Date.to_string d
-  in
   printf "State               : %s\n" (State.show_t prj.state);
   (match prj.programme with
    | None -> prout ~use_color [ ANSI.red ] "Programme           : Not found\n"
    | Some s -> printf "Programme           : %s\n" s);
-  (match prj.plan.finance_codes with
-   | [] -> prout ~use_color [ ANSI.red ] "Finance codes       : Not found\n"
-   | xs -> printf "Finance codes       : %s\n" (String.concat ", " xs));
-  printf "Earliest start date : %s\n" earliest_start_date_string;
-  printf
-    "Latest start date   : %s\n"
-    (CalendarLib.Printer.Date.to_string prj.plan.latest_start_date);
-  printf "Latest end date     : %s\n" latest_end_date_string;
-  printf "Minimum FTE         : %.0f%%\n" prj.plan.min_fte_percent;
-  printf "Nominal FTE         : %.0f%%\n" prj.plan.nominal_fte_percent;
-  printf "Maximum FTE         : %.0f%%\n" prj.plan.max_fte_percent
+  match prj.plan with
+  | None -> print_endline "Remaining metadata could not be parsed from GitHub."
+  | Some plan ->
+      let earliest_start_date_string =
+        match plan.earliest_start_date with
+        | None -> "None"
+        | Some d -> CalendarLib.Printer.Date.to_string d
+      in
+      let latest_end_date_string =
+        match plan.latest_end_date with
+        | None -> "None"
+        | Some d -> CalendarLib.Printer.Date.to_string d
+      in
+      (match plan.finance_codes with
+       | [] -> prout ~use_color [ ANSI.red ] "Finance codes       : Not found\n"
+       | xs -> printf "Finance codes       : %s\n" (String.concat ", " xs));
+      printf "Earliest start date : %s\n" earliest_start_date_string;
+      printf
+        "Latest start date   : %s\n"
+        (CalendarLib.Printer.Date.to_string plan.latest_start_date);
+      printf "Latest end date     : %s\n" latest_end_date_string;
+      printf "Minimum FTE         : %.0f%%\n" plan.min_fte_percent;
+      printf "Nominal FTE         : %.0f%%\n" plan.nominal_fte_percent;
+      printf "Maximum FTE         : %.0f%%\n" plan.max_fte_percent
 ;;
 
 (** [asns] must be subsetted to only those belonging to this project *)
 let print_budget_and_assignments ~use_color (prj : project) (asns : assignment list) =
-  let total_fte_time = asns |> List.map Assignment.to_fte_weeks |> FTE.sum in
-  let budget = prj.plan.budget in
-  let discrepancy = FTE.div (FTE.sub total_fte_time budget) budget in
-
   print_heading ~use_color "Assignments on Forecast";
 
-  (* Print all assignments found on Forecast *)
   let alloc_found = "Allocations found" in
   let alloc_expected = "Allocations expected" in
   match asns with
@@ -91,22 +89,30 @@ let print_budget_and_assignments ~use_color (prj : project) (asns : assignment l
     (* Horizontal line *)
     let max_length = Utils.max_by ~default:0 wcswidth assignment_strings in
     print_endline (String.make max_length '-');
-    (* Then the comparison of assignments vs budget *)
-    Printf.printf
-      "%9s %s  %18s"
-      ""
-      (pad name_fieldwidth alloc_found)
-      (FTE.show_t total_fte_time);
-    prout
-      ~use_color:(use_color && Float.abs discrepancy > 0.1)
-      [ ANSI.red ]
-      (Printf.sprintf " (%+.2f%%)" (100. *. discrepancy));
-    print_endline "";
-    Printf.printf
-      "%9s %s  %18s\n"
-      ""
-      (pad name_fieldwidth alloc_expected)
-      (FTE.show_t budget)
+
+  (* Then the comparison of assignments vs budget *)
+  let total_fte_time = asns |> List.map Assignment.to_fte_weeks |> FTE.sum in
+  Printf.printf
+    "%9s %s  %18s"
+    ""
+    (pad name_fieldwidth alloc_found)
+    (FTE.show_t total_fte_time);
+
+  match prj.plan with
+  | None -> print_endline "";
+  | Some plan ->
+    let budget = plan.budget in
+    let discrepancy = FTE.div (FTE.sub total_fte_time budget) budget in
+      prout
+        ~use_color:(use_color && Float.abs discrepancy > 0.1)
+        [ ANSI.red ]
+        (Printf.sprintf " (%+.2f%%)" (100. *. discrepancy));
+      print_endline "";
+      Printf.printf
+        "%9s %s  %18s\n"
+        ""
+        (pad name_fieldwidth alloc_expected)
+        (FTE.show_t budget)
 ;;
 
 let print_reactions ~use_color (ppl : person list) (prj : project) =

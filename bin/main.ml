@@ -186,9 +186,10 @@ let ww_main notify no_color quiet verbose codes_without codes_only project_subse
     let open CalendarLib.Date in
     let start_date = make 2016 1 1 in
     let end_date = add (today ()) (Period.year 1) in
-    let people, projects, assignments, github_project_numbers =
+    let people, projects, assignments =
       Schedule.get_the_schedule ~start_date ~end_date
     in
+    let github_project_numbers = Domain.IntMap.bindings projects |> List.map fst in
     print_endline "Whatwhat downloaded:";
     Printf.printf "%d people; " (List.length people);
     Printf.printf "%d projects; and " (Domain.IntMap.cardinal projects);
@@ -357,7 +358,7 @@ let ww_project project_name_or_number no_color =
   let open CalendarLib.Date in
   let start_date = make 2016 1 1 in
   let end_date = add (today ()) (Period.year 1) in
-  let people, projects, assignments, _ =
+  let people, projects, assignments =
     Schedule.get_the_schedule ~start_date ~end_date
   in
 
@@ -417,7 +418,7 @@ let ww_person person no_color =
   let open CalendarLib.Date in
   let start_date = make 2016 1 1 in
   let end_date = add (today ()) (Period.year 1) in
-  let people, _, assignments, _ = Schedule.get_the_schedule ~start_date ~end_date in
+  let people, _, assignments = Schedule.get_the_schedule ~start_date ~end_date in
 
   let matched_people =
     List.filter

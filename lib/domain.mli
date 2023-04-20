@@ -148,7 +148,7 @@ type project =
   ; name : string
   ; state : State.t
   ; programme : string option
-  ; plan : project_plan
+  ; plan : project_plan option
   }
 
 (** Convert the column name in GitHub to a variant type. May raise UnknownColumn *)

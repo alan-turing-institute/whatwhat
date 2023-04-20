@@ -65,7 +65,7 @@ val compare_person : person -> person -> int
 
 (** Given a project board name, return a list of projects, one for each issue on the
     board. *)
-val get_project_issues : unit -> Domain.project list * int list
+val get_project_issues : unit -> Domain.project list
 
 (** This is re-exported from [GithubRaw] for convenience. See
     {!GithubRaw.get_all_users_async}. *)

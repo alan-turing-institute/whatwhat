@@ -165,7 +165,7 @@ type project =
   ; name : string
   ; state : State.t
   ; programme : string option
-  ; plan : project_plan
+  ; plan : project_plan option
   }
 
 (** --- Entities ----------------------------- *)
