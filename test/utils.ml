@@ -27,11 +27,24 @@ let test_default_end_date _ =
   assert_equal (make 2024 2 29) (Utils.default_end_date ~relative_to:(make 2024 1 1) ())
 ;;
 
+let test_get_turing_weeks_in_month _ =
+  assert_equal
+    [ make 2023 2 27; make 2023 3 6; make 2023 3 13; make 2023 3 20; make 2023 3 27 ]
+    (Utils.get_turing_weeks_in_month (make 2023 3 1));
+  assert_equal
+    [ make 2023 2 27; make 2023 3 6; make 2023 3 13; make 2023 3 20; make 2023 3 27 ]
+    (Utils.get_turing_weeks_in_month (make 2023 3 31));
+  assert_equal
+    [ make 2023 2 27; make 2023 3 6; make 2023 3 13; make 2023 3 20; make 2023 3 27 ]
+    (Utils.get_turing_weeks_in_month (make_year_month 2023 3));
+;;
+
 let suite =
   "Utils"
   >::: [ "date_of_string" >:: test_date_of_string
        ; "default_start_date" >:: test_default_start_date
        ; "default_end_date" >:: test_default_end_date
+       ; "get_turing_weeks_in_month" >:: test_get_turing_weeks_in_month
        ]
 ;;
 

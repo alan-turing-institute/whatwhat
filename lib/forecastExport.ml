@@ -81,23 +81,10 @@ let make_assignment_output weeks asns =
   @ List.map (fun w -> Printf.sprintf "%.1f" (get_hours_per_week w asns)) weeks
 ;;
 
-(** Returns all Mondays between two dates. *)
-let get_mondays_between ~start_date ~end_date =
-  let open CalendarLib.Date in
-  let first_monday = Utils.rollback_week start_date in
-  let last_sunday = Utils.rollforward_week ~with_weekend:true end_date in
-  let rec acc monday dates =
-    if monday > last_sunday
-    then dates
-    else acc (add monday (Period.week 1)) (monday :: dates)
-  in
-  List.rev (acc first_monday [])
-;;
-
 (** Export the project schedule between the given dates. *)
 let export_project_schedule ~start_date ~end_date =
   let _, _, _, _, assignments = ForecastRaw.get_the_schedule ~start_date ~end_date in
-  let weeks = get_mondays_between ~start_date ~end_date in
+  let weeks = Utils.get_xdays_between ~day:Mon ~start_date ~end_date in
 
   let header =
     [ "Client"
@@ -171,7 +158,7 @@ let export_team_schedule ~start_date ~end_date =
   let _, people, placeholders, _, assignments =
     ForecastRaw.get_the_schedule ~start_date ~end_date
   in
-  let weeks = get_mondays_between ~start_date ~end_date in
+  let weeks = Utils.get_xdays_between ~day:Mon ~start_date ~end_date in
   let header =
     [ "Person"; "Roles"; "Capacity" ]
     @ List.map (CalendarLib.Printer.Date.sprint "%Y-%m-%d") weeks

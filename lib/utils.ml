@@ -1,4 +1,5 @@
 open Cohttp
+open CalendarLib
 
 (** --- Stdlib shims ------------ *)
 
@@ -103,7 +104,6 @@ let show_opt str_opt =
   | Some s -> "Some " ^ s
 ;;
 
-
 (** --- HTTP exceptions --------- *)
 
 exception HttpError of string
@@ -132,12 +132,13 @@ let check_http_response response =
 
 (** --- Dates ------------------- *)
 
-type date = CalendarLib.Date.t
+type date = Date.t
 
-let pp_date pp date = CalendarLib.Printer.Date.fprint "%i" pp date
+let pp_date pp date = Printer.Date.fprint "%i" pp date
 
 let date_of_string ?(lax = false) (str : string) : (date, [> `Msg of string ]) result =
-  if lax then (
+  if lax
+  then (
     let digits = str |> String.to_seq |> Seq.filter is_digit |> String.of_seq in
     match String.length digits with
     | 8 ->
@@ -146,30 +147,24 @@ let date_of_string ?(lax = false) (str : string) : (date, [> `Msg of string ]) r
         , int_of_string (String.sub digits 4 2)
         , int_of_string (String.sub digits 6 2) )
       in
-      let open CalendarLib.Date in
+      let open Date in
       if is_valid_date yyyy mm dd
       then Ok (make yyyy mm dd)
       else Error (`Msg ("Date '" ^ str ^ "' is not valid!"))
-    | _ -> Error (`Msg ("Unrecognised date: " ^ str))
-  )
+    | _ -> Error (`Msg ("Unrecognised date: " ^ str)))
   else (
-  let datelist = Str.split (Str.regexp {|-|}) str in
-  match datelist with
-  | [ year; month; day ] ->
-    (try
-       Ok
-         (CalendarLib.Date.make
-            (int_of_string year)
-            (int_of_string month)
-            (int_of_string day))
-     with
-     | _ -> Error (`Msg ("Date '" ^ str ^ "' is not valid!")))
-  | _ -> Error (`Msg ("Unrecognised date: " ^ str))
-  )
+    let datelist = Str.split (Str.regexp {|-|}) str in
+    match datelist with
+    | [ year; month; day ] ->
+      (try
+         Ok (Date.make (int_of_string year) (int_of_string month) (int_of_string day))
+       with
+       | _ -> Error (`Msg ("Date '" ^ str ^ "' is not valid!")))
+    | _ -> Error (`Msg ("Unrecognised date: " ^ str)))
 ;;
 
 let default_start_date ?relative_to () =
-  let open CalendarLib.Date in
+  let open Date in
   let d =
     match relative_to with
     | Some dt -> dt
@@ -181,7 +176,7 @@ let default_start_date ?relative_to () =
 ;;
 
 let default_end_date ?relative_to () =
-  let open CalendarLib.Date in
+  let open Date in
   let d =
     match relative_to with
     | Some dt -> dt
@@ -196,8 +191,8 @@ let default_end_date ?relative_to () =
   rem one_day_over (Period.day 1)
 ;;
 
-let rollback_week (d : CalendarLib.Date.t) : CalendarLib.Date.t =
-  let open CalendarLib.Date in
+let rollback_week (d : Date.t) : Date.t =
+  let open Date in
   match day_of_week d with
   | Mon -> d
   | Tue -> rem d (Period.day 1)
@@ -208,9 +203,8 @@ let rollback_week (d : CalendarLib.Date.t) : CalendarLib.Date.t =
   | Sun -> rem d (Period.day 6)
 ;;
 
-let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : CalendarLib.Date.t
-  =
-  let open CalendarLib.Date in
+let rollforward_week ?(with_weekend = false) (d : Date.t) : Date.t =
+  let open Date in
   let days_to_friday, days_to_sunday =
     match day_of_week d with
     | Mon -> 4, 6
@@ -223,6 +217,26 @@ let rollforward_week ?(with_weekend = false) (d : CalendarLib.Date.t) : Calendar
   in
   let days_to_add = if with_weekend then days_to_sunday else days_to_friday in
   add d (Period.day days_to_add)
+;;
+
+let get_xdays_between ~(day : Date.day) ~(start_date : Date.t) ~(end_date : Date.t)
+  : Date.t list
+  =
+  let rec loop acc d =
+    if d > end_date
+    then acc
+    else if Date.day_of_week d = day
+    then loop (d :: acc) (Date.next d `Week)
+    else loop acc (Date.next d `Day)
+  in
+  loop [] start_date |> List.rev
+;;
+
+let get_turing_weeks_in_month d =
+  let first_of_month = Date.make (Date.year d) (Date.month d |> Date.int_of_month) 1 in
+  let last_of_month = Date.prev (Date.next first_of_month `Month) `Day in
+  get_xdays_between ~day:Thu ~start_date:first_of_month ~end_date:last_of_month
+  |> List.map rollback_week
 ;;
 
 (** --- Miscellaneous ----------- *)
