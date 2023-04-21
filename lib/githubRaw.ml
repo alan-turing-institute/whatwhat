@@ -248,8 +248,7 @@ let get_multiple_reactions_async ids =
   Lwt.return (List.combine ids reactions |> List.to_seq |> Domain.IntMap.of_seq)
 ;;
 
-let get_multiple_reactions ids =
-  get_multiple_reactions_async ids |> Lwt_main.run
+let get_multiple_reactions ids = get_multiple_reactions_async ids |> Lwt_main.run
 
 let get_issue_r_async id =
   let* issue = get_issue_async id in

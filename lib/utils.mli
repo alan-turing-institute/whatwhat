@@ -69,7 +69,6 @@ val check_http_response : Cohttp.Response.t -> unit
 type date = Date.t
 
 val pp_date : Format.formatter -> Printer.Date.t -> unit
-
 val show_date : Printer.Date.t -> string
 
 (** Parse a string as a date in the format YYYY-MM-DD. If the string is not

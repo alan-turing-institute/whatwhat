@@ -133,7 +133,7 @@ let print_reactions ~(use_color : bool) (psn : person) (prjs : project Domain.In
            | ThumbsDown -> [ string_of_int p.number; p.name; ""; ""; "x" ]
            | Other -> [ string_of_int p.number; p.name; ""; ""; "" ])
     in
-  print_heading ~use_color "Reactions";
+    print_heading ~use_color "Reactions";
     print_endline (make_table ~header_rows:1 ~column_padding:1 (header :: table_rows))
 ;;
 

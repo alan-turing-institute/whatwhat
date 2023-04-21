@@ -59,6 +59,7 @@ type person = GithubRaw.person =
 
 (** A type for Github users. *)
 val show_person : person -> string
+
 val compare_person : person -> person -> int
 
 (** A type for Github issues. *)
