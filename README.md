@@ -123,8 +123,10 @@ For extensive usage options, do `dune exec -- whatwhat --help`, or `dune exec --
 
  - `dune exec --whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
  - `dune exec --whatwhat --notify github`: Same as above, but additionally post GitHub comments on all of those issues.
- - `dune exec --whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
  - `dune exec --whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
+ - `dune exec --whatwhat person [NAME]`: Print an overview of a person, as specified by their name or GitHub username (a substring is fine).
+ - `dune exec --whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
+ - `dune exec --whatwhat open [NUM]`: Open a GitHub issue in a browser (macOS only, as this uses `open(1)`.
 
 ## Documentation
 
