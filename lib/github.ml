@@ -325,27 +325,28 @@ let find_programme (issue : Raw.issue) =
   List.find_map parse_label issue.labels
 ;;
 
-let validate_issue (col_name : string) (issue : Raw.issue) =
-  match parse_metadata issue with
-  | None -> None
-  | Some plan ->
-    let state = state_of_column col_name in
-    if state >= State.FindingPeople && List.length plan.finance_codes = 0
-    then log_event (NoFinanceCodesError issue);
-    Some
-      { number = issue.number
-      ; name = issue.title
-      ; state = state_of_column col_name
-      ; programme = find_programme issue
-      ; plan
-      }
+let make_issue (col_name : string) (issue : Raw.issue) =
+  let plan =
+    match parse_metadata issue with
+    | None -> None
+    | Some plan ->
+      let state = state_of_column col_name in
+      if state >= State.FindingPeople && List.length plan.finance_codes = 0
+      then log_event (NoFinanceCodesError issue);
+      Some plan
+  in
+  { number = issue.number
+  ; name = issue.title
+  ; state = state_of_column col_name
+  ; programme = find_programme issue
+  ; plan
+  }
 ;;
 
 let get_project_issues () =
-  let project = Raw.get_project () in
+  let project_board = Raw.get_project () in
   let pair_issues (col : Raw.column) = List.map (fun i -> col.name, i) col.issues in
-  let pairs = project.columns |> List.concat_map pair_issues in
-  let issue_numbers = pairs |> List.map (fun (_, (i : Raw.issue)) -> i.number) in
-  let filtered_issues = pairs |> List.filter_map (fun (c, i) -> validate_issue c i) in
-  filtered_issues, issue_numbers
+  let pairs = project_board.columns |> List.concat_map pair_issues in
+  let projects = pairs |> List.map (fun (c, i) -> make_issue c i) in
+  projects
 ;;

@@ -26,6 +26,10 @@ module FTE : sig
       type [FTE.hour] is to use the [from_forecast_rate] 'smart constructor'. *)
   val from_forecast_rate : int -> hour
 
+  (** Or, [zero] lets you make an empty value of 0 hours. *)
+  val zero : hour
+
+  (** Add up two [hour]s. *)
   val add_hours : hour -> hour -> hour
 
   (** [FTE.t] represent products of FTEs and a time period. 40 hours corresponds
@@ -138,6 +142,7 @@ module State : sig
     | Done
     | Cancelled
     | Rejected
+    | Other
 
   val show_t : t -> string
 end
@@ -148,7 +153,7 @@ type project =
   ; name : string
   ; state : State.t
   ; programme : string option
-  ; plan : project_plan
+  ; plan : project_plan option
   }
 
 (** Convert the column name in GitHub to a variant type. May raise UnknownColumn *)
@@ -198,8 +203,8 @@ module Assignment : sig
 
   (** The status of the assignment. *)
   type time =
-    | Current
     | Past
+    | Current
     | Future
 
   (** Calculate the number of FTE-weeks in a given assignment. Note that
@@ -215,6 +220,9 @@ module Assignment : sig
 
   (** Return the time status of an assignment as a string. *)
   val show_time_status : t -> string
+
+  (** First compare assignments by start date, then end date. *)
+  val compare_by_date : t -> t -> int
 end
 
 type schedule =

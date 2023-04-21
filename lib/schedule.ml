@@ -340,9 +340,9 @@ let merge_projects
       then log_event (DifferentNameWarning (gh_p, fc_p.name, gh_p.name));
       (* Check that their project codes match *)
       let finance_codes_match =
-        match fc_p.finance_code with
-        | None -> false
-        | Some cd -> List.mem cd gh_p.plan.finance_codes
+        match fc_p.finance_code, gh_p.plan with
+        | Some cd, Some plan -> List.mem cd plan.finance_codes
+        | _ -> false
       in
       if not finance_codes_match then log_event (FinanceCodeNotMatchingError gh_p)
   in
@@ -357,29 +357,63 @@ let check_end_date (prj : project) (asg : assignment) =
   match asg.entity with
   | Placeholder _ -> ()
   | Person _ ->
-    (match prj.plan.latest_end_date with
+    (match prj.plan with
      | None -> ()
-     | Some latest_end_date ->
-       if get_last_day asg.allocation > latest_end_date
-       then log_event (AllocationEndsTooLateWarning asg))
+     | Some plan ->
+       (match plan.latest_end_date with
+        | None -> ()
+        | Some latest_end_date ->
+          if get_last_day asg.allocation > latest_end_date
+          then log_event (AllocationEndsTooLateWarning asg)))
 ;;
 
 let check_start_date (prj : project) (asg : assignment) =
   match asg.entity with
   | Placeholder _ -> ()
   | Person _ ->
-    (match prj.plan.earliest_start_date with
+    (match prj.plan with
      | None -> ()
-     | Some earliest_start_date ->
-       if get_first_day asg.allocation < earliest_start_date
-       then log_event (AllocationStartsTooEarlyWarning asg))
+     | Some plan ->
+       (match plan.earliest_start_date with
+        | None -> ()
+        | Some earliest_start_date ->
+          if get_first_day asg.allocation < earliest_start_date
+          then log_event (AllocationStartsTooEarlyWarning asg)))
+;;
+
+(* Convert a Forecast.project to a Domain.project without using any info from
+   GitHub. *)
+let upconvert (prj : Forecast.project) : project =
+  { number = prj.number
+  ; name = prj.name
+  ; state = Other
+  ; programme = Some prj.programme
+  ; plan = None
+  }
 ;;
 
 let merge_assignment people projects (asn : Forecast.assignment) : assignment option =
   match IntMap.find_opt asn.project.number projects with
   | None ->
     log_event (AssignmentWithoutProjectDebug asn);
-    None
+    (match asn.entity with
+     | Placeholder pl ->
+       Some
+         { project = upconvert asn.project
+         ; entity = Placeholder pl
+         ; allocation = asn.allocation
+         }
+     | Person asn_p ->
+       (match List.find_opt (fun p -> p.full_name = asn_p.full_name) people with
+        | None ->
+          log_event (AssignmentWithoutPersonDebug asn_p);
+          None
+        | Some psn ->
+          Some
+            { project = upconvert asn.project
+            ; entity = Person psn
+            ; allocation = asn.allocation
+            }))
   | Some prj ->
     (match asn.entity with
      | Placeholder p ->
@@ -413,8 +447,11 @@ let today = CalendarLib.Date.today ()
 (* Checks that projects that have been scheduled to start (as per
    earliest-start-date) are active or later *)
 let check_is_overdue prj =
-  if prj.plan.latest_start_date < today && prj.state < Active
-  then log_event (ProjectStartOverdueWarning prj)
+  match prj.plan with
+  | None -> ()
+  | Some plan ->
+    if plan.latest_start_date < today && prj.state < Active
+    then log_event (ProjectStartOverdueWarning prj)
 ;;
 
 (* Checks that active (or later) projects have assignments currently scheduled
@@ -435,12 +472,15 @@ let check_projects_active asns prj =
 (* Checks that the sum of FTEs assigned on Forecast matches the number of
    FTE-weeks or FTE-months specified on GitHub metadata *)
 let check_assignment_sum asns prj =
-  let total_fte_time = asns |> List.map Domain.Assignment.to_fte_weeks |> FTE.sum in
-  let budget = prj.plan.budget in
-  let discrepancy = FTE.div (FTE.sub total_fte_time budget) budget in
-  if discrepancy < -0.1 || discrepancy > 0.1
-  then log_event (FTEDiscrepancyWarning prj)
-  else ()
+  match prj.plan with
+  | None -> ()
+  | Some plan ->
+    let total_fte_time = asns |> List.map Domain.Assignment.to_fte_weeks |> FTE.sum in
+    let budget = plan.budget in
+    let discrepancy = FTE.div (FTE.sub total_fte_time budget) budget in
+    if discrepancy < -0.1 || discrepancy > 0.1
+    then log_event (FTEDiscrepancyWarning prj)
+    else ()
 ;;
 
 (* Checks for People Required placeholders *)
@@ -482,7 +522,7 @@ let get_the_schedule ~start_date ~end_date =
     Forecast.get_the_schedule ~start_date ~end_date
   in
   let fc_people = fc_people' |> Forecast.StringMap.bindings |> List.map snd in
-  let gh_issues, gh_project_numbers = Github.get_project_issues () in
+  let gh_issues = Github.get_project_issues () in
   let gh_issues_map =
     gh_issues |> List.map (fun i -> i.number, i) |> List.to_seq |> IntMap.of_seq
   in
@@ -492,5 +532,5 @@ let get_the_schedule ~start_date ~end_date =
   let assignments = List.filter_map (merge_assignment people projects) fc_assignments in
   check_projects projects assignments;
 
-  people, projects, assignments, gh_project_numbers
+  people, projects, assignments
 ;;

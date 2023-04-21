@@ -242,6 +242,14 @@ let rec get_reactions_async ?(page = 1) id =
   else Lwt.return first_batch
 ;;
 
+(* Fetch reactions for multiple issues at a time. *)
+let get_multiple_reactions_async ids =
+  let* reactions = List.map get_reactions_async ids |> Utils.all_throttled in
+  Lwt.return (List.combine ids reactions |> List.to_seq |> Domain.IntMap.of_seq)
+;;
+
+let get_multiple_reactions ids = get_multiple_reactions_async ids |> Lwt_main.run
+
 let get_issue_r_async id =
   let* issue = get_issue_async id in
   let* reactions = get_reactions_async id in
