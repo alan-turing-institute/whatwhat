@@ -12,6 +12,9 @@ open CalendarLib
 (** Check whether a character is [0-9]. *)
 val is_digit : char -> bool
 
+(** Generate a range from i to j-1 inclusive. *)
+val range : int -> int -> int list
+
 (** Group adjacent elements of a list together using a predicate. *)
 val group_by : ('a -> 'a -> bool) -> 'a list -> 'a list list
 
@@ -67,6 +70,8 @@ type date = Date.t
 
 val pp_date : Format.formatter -> Printer.Date.t -> unit
 
+val show_date : Printer.Date.t -> string
+
 (** Parse a string as a date in the format YYYY-MM-DD. If the string is not
     in this format, return [Error (`Msg s)] (where [s] is some error message),
     else [Ok date].
@@ -103,6 +108,13 @@ val get_xdays_between
 (** Get all Mondays of the weeks where the Thursday belongs to a calendar month.
     The day of the month of the input argument does not matter. *)
 val get_turing_weeks_in_month : [> `Year | `Month ] Date.date -> Date.t list
+
+(** Get a list of the weekdays in a week. Input argument can be any day of the
+    week in question. *)
+val get_weekdays_in_week : Date.t -> Date.t list
+
+(** Maps ints from 1-12 to month names Jan-Dec. *)
+val show_month : int -> string
 
 (** {1 Other stuff} *)
 

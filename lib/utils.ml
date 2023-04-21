@@ -9,6 +9,8 @@ let is_digit c =
   | _ -> false
 ;;
 
+let range i j = List.init (j - i) (( + ) i)
+
 let group_by (p : 'a -> 'a -> bool) (xs : 'a list) : 'a list list =
   let acc x grps =
     match grps with
@@ -135,6 +137,7 @@ let check_http_response response =
 type date = Date.t
 
 let pp_date pp date = Printer.Date.fprint "%i" pp date
+let show_date date = Printer.Date.sprint "%i" date
 
 let date_of_string ?(lax = false) (str : string) : (date, [> `Msg of string ]) result =
   if lax
@@ -232,11 +235,34 @@ let get_xdays_between ~(day : Date.day) ~(start_date : Date.t) ~(end_date : Date
   loop [] start_date |> List.rev
 ;;
 
-let get_turing_weeks_in_month d =
-  let first_of_month = Date.make (Date.year d) (Date.month d |> Date.int_of_month) 1 in
+let get_turing_weeks_in_month (month : [> `Year | `Month ] Date.date) =
+  let first_of_month =
+    Date.make (Date.year month) (Date.month month |> Date.int_of_month) 1
+  in
   let last_of_month = Date.prev (Date.next first_of_month `Month) `Day in
   get_xdays_between ~day:Thu ~start_date:first_of_month ~end_date:last_of_month
   |> List.map rollback_week
+;;
+
+let get_weekdays_in_week (d : Date.t) : Date.t list =
+  let monday = rollback_week d in
+  List.init 5 (fun i -> Date.add monday (Date.Period.day i))
+;;
+
+let show_month = function
+  | 1 -> "Jan"
+  | 2 -> "Feb"
+  | 3 -> "Mar"
+  | 4 -> "Apr"
+  | 5 -> "May"
+  | 6 -> "Jun"
+  | 7 -> "Jul"
+  | 8 -> "Aug"
+  | 9 -> "Sep"
+  | 10 -> "Oct"
+  | 11 -> "Nov"
+  | 12 -> "Dec"
+  | _ -> failwith "Invalid month."
 ;;
 
 (** --- Miscellaneous ----------- *)

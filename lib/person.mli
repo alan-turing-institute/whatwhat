@@ -6,4 +6,9 @@
     - Current assignments
     - Emoji reactions on all GitHub issues
     *)
-val print : use_color:bool -> Domain.person -> Domain.Assignment.t list -> unit
+val print
+  :  use_color:bool
+  -> Domain.person
+  -> Domain.project Domain.IntMap.t
+  -> Domain.Assignment.t list
+  -> unit

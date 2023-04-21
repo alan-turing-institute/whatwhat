@@ -145,7 +145,7 @@ let print_reactions ~use_color (ppl : person list) (prj : project) =
 ;;
 
 let print_log_events ~use_color (prj : project) =
-  print_heading ~use_color "Errors and Warnings";
+  print_heading ~use_color "Errors and warnings";
   Log.pretty_print
     ~use_color
     ~verbose:0

@@ -9,6 +9,7 @@ module DateMap = Map.Make (CalendarLib.Date)
 module FTE = struct
   type hour = Hour of float
 
+  let zero = Hour 0.
   let get (Hour h) = h
   let add_hours (Hour h1) (Hour h2) = Hour (h1 +. h2)
   let from_forecast_rate n = Hour (float_of_int n /. 3600.)

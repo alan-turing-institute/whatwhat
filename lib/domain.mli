@@ -26,6 +26,10 @@ module FTE : sig
       type [FTE.hour] is to use the [from_forecast_rate] 'smart constructor'. *)
   val from_forecast_rate : int -> hour
 
+  (** Or, [zero] lets you make an empty value of 0 hours. *)
+  val zero : hour
+
+  (** Add up two [hour]s. *)
   val add_hours : hour -> hour -> hour
 
   (** [FTE.t] represent products of FTEs and a time period. 40 hours corresponds

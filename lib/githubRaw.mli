@@ -95,6 +95,9 @@ type issue_r =
   ; reactions : (string * person) list
   }
 
+(** Fetch reactions for multiple projects as defined by their issue numbers. *)
+val get_multiple_reactions : int list -> (string * person) list Domain.IntMap.t
+
 (** Fetch a numbered issue from GitHub. *)
 val get_issue : int -> issue
 
