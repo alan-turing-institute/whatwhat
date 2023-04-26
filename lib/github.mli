@@ -50,11 +50,21 @@ type github_event =
 
 (* We reexport the Raw.person type so that no other module ever has a need to import
    anything from GithubRaw. *)
-
 type person = GithubRaw.person =
   { login : string
   ; name : string option
   ; email : string option
+  }
+
+(* Intermediate type for a project. We cannot parse assignee usernames until we
+   have gotten to Schedule, because to do so requires data from Forecast.. *)
+type issue =
+  { number : int (** The issue number from GitHub *)
+  ; name : string
+  ; state : Domain.State.t
+  ; programme : string option
+  ; plan : Domain.project_plan option
+  ; assignees : string list
   }
 
 (** A type for Github users. *)
@@ -66,7 +76,7 @@ val compare_person : person -> person -> int
 
 (** Given a project board name, return a list of projects, one for each issue on the
     board. *)
-val get_project_issues : unit -> Domain.project list
+val get_project_issues : unit -> issue list
 
 (** This is re-exported from [GithubRaw] for convenience. See
     {!GithubRaw.get_all_users_async}. *)

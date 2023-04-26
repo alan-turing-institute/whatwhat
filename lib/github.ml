@@ -88,6 +88,15 @@ type person = GithubRaw.person =
   }
 [@@deriving show, ord]
 
+type issue =
+  { number : int (** The issue number from GitHub *)
+  ; name : string
+  ; state : Domain.State.t
+  ; programme : string option
+  ; plan : Domain.project_plan option
+  ; assignees : string list
+  }
+
 (* We recognise only floats, strings, and lists of strings as valid types in the metadata.
    We parse the YAML into this variant type first, and then pick the correct types for
    each field later. *)
@@ -325,7 +334,7 @@ let find_programme (issue : Raw.issue) =
   List.find_map parse_label issue.labels
 ;;
 
-let make_issue (col_name : string) (issue : Raw.issue) =
+let make_issue (col_name : string) (issue : Raw.issue) : issue =
   let plan =
     match parse_metadata issue with
     | None -> None
@@ -340,6 +349,7 @@ let make_issue (col_name : string) (issue : Raw.issue) =
   ; state = state_of_column col_name
   ; programme = find_programme issue
   ; plan
+  ; assignees = issue.assignees
   }
 ;;
 

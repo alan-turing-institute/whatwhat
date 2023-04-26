@@ -83,8 +83,8 @@ type issue =
   ; title : string
   ; body : string
   ; state : issue_state
-  ; assignees : person list
   ; labels : string list
+  ; assignees : string list
   }
 
 (** A GitHub issue, but with reactions. We have a separate type for this because
