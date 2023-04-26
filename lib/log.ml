@@ -72,7 +72,7 @@ let isDebug e =
 
 (* Printing --------------------------------------------------- *)
 
-(* TODO implement this function properly *)
+(* Attempt to get an issue number from an event. *)
 let extract_issue_number event =
   match event.entity with
   | RawForecastProject (Right n) -> Some n
@@ -81,7 +81,8 @@ let extract_issue_number event =
   | _ -> None
 ;;
 
-(* TODO implement this function properly *)
+(* Show the source of an event, which is often an issue, but some other string
+when we can't get an issue. *)
 let extract_source event =
   match event.entity with
   | RawForecastProject (Right n) -> Printf.sprintf "Issue %-5d" n
@@ -104,12 +105,13 @@ type code_spec =
   | Only of level list
   | All
 
+(* Determine if an event should be shown, given the various options. *)
 let should_be_shown ~verbose ~restrict_codes ~restrict_issues (issue_number, event) =
   (* Check if the issue number is in restrict_issues *)
   let pred1 =
     match restrict_issues, issue_number with
     | None, _ -> true
-    | Some _, None -> true
+    | Some _, None -> false
     | Some numbers, Some n -> List.mem n numbers
   in
   (* Check that the error code is consistent with restrict_codes *)
@@ -148,6 +150,7 @@ let pretty_print_event ~use_color (_, e) =
   Printf.printf "%s\n" e.message
 ;;
 
+(* Gather all events together in a list. *)
 let gather_events ~verbose ~restrict_codes ~restrict_issues : (int option * event) list =
   let compare_events (n1, e1) (n2, e2) =
     (* Compare on issue number first, then error code *)
@@ -173,6 +176,8 @@ let gather_events ~verbose ~restrict_codes ~restrict_issues : (int option * even
   |> List.stable_sort compare_events
 ;;
 
+(* Gather events, but with a different type signature from the above. Events are
+   grouped by the issue that they relate to. *)
 let gather_events' ~verbose ~restrict_codes ~restrict_issues
   : (int option * event list) list
   =

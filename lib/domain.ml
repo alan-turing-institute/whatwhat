@@ -97,6 +97,26 @@ let combine_allocations a1 a2 =
 let get_first_day a1 = DateMap.min_binding a1 |> fst
 let get_last_day a1 = DateMap.max_binding a1 |> fst
 
+(** --- Entities ----------------------------- *)
+
+type person =
+  { email : string (** Email is the primary key for persons *)
+  ; full_name : string
+  ; github_handle : string option
+  ; slack_handle : string option
+  }
+
+type placeholder = { name : string }
+
+type entity =
+  | Person of person
+  | Placeholder of placeholder
+
+let get_entity_name = function
+  | Person p -> p.full_name
+  | Placeholder p -> Printf.sprintf "Placeholder: %s" p.name
+;;
+
 (** --- Project metadata --------------------- *)
 
 type project_plan =
@@ -169,27 +189,8 @@ type project =
   ; state : State.t
   ; programme : string option
   ; plan : project_plan option
+  ; assignees : person list
   }
-
-(** --- Entities ----------------------------- *)
-
-type person =
-  { email : string (** Email is the primary key for persons *)
-  ; full_name : string
-  ; github_handle : string option
-  ; slack_handle : string option
-  }
-
-type placeholder = { name : string }
-
-type entity =
-  | Person of person
-  | Placeholder of placeholder
-
-let get_entity_name = function
-  | Person p -> p.full_name
-  | Placeholder p -> Printf.sprintf "Placeholder: %s" p.name
-;;
 
 (** --- Emoji reactions ---------------------- *)
 

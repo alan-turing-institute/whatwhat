@@ -50,6 +50,15 @@ let print_info ~(use_color : bool) (psn : person) =
   prout ~use_color [ ANSI.Bold ] (make_box s)
 ;;
 
+let print_github_assignments ~(use_color : bool) (prjs : project list) =
+  print_heading ~use_color "GitHub issue assignments";
+  match prjs with
+  | [] -> print_endline "None found."
+  | _ ->
+    let print_prj prj = Printf.printf "#%-4d %s\n" prj.number prj.name in
+    List.iter print_prj prjs
+;;
+
 let print_assignments ~(use_color : bool) (asns : assignment list) =
   let make_name asn = Printf.sprintf "#%-4d %s" asn.project.number asn.project.name in
   print_heading ~use_color "Recent Forecast assignments";
@@ -152,8 +161,16 @@ let print
             >= CL.Date.add (CL.Date.today ()) (CL.Date.Period.month (-2)))
     |> List.sort Assignment.compare_by_date
   in
+  let this_github_prjs =
+    prjs
+    |> IntMap.filter (fun _ v -> List.mem psn v.assignees)
+    |> IntMap.bindings
+    |> List.map snd
+  in
   print_info ~use_color psn;
   print_endline "";
+  print_endline "";
+  print_github_assignments ~use_color this_github_prjs;
   print_endline "";
   print_assignments ~use_color this_asns;
   print_endline "";

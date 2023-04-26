@@ -28,30 +28,33 @@ let print_metadata ~(use_color : bool) (prj : project) =
   (match prj.programme with
    | None -> prout ~use_color [ ANSI.red ] "Programme           : Not found\n"
    | Some s -> printf "Programme           : %s\n" s);
-  match prj.plan with
-  | None -> print_endline "Remaining metadata could not be parsed from GitHub."
-  | Some plan ->
-    let earliest_start_date_string =
-      match plan.earliest_start_date with
-      | None -> "None"
-      | Some d -> CalendarLib.Printer.Date.to_string d
-    in
-    let latest_end_date_string =
-      match plan.latest_end_date with
-      | None -> "None"
-      | Some d -> CalendarLib.Printer.Date.to_string d
-    in
-    (match plan.finance_codes with
-     | [] -> prout ~use_color [ ANSI.red ] "Finance codes       : Not found\n"
-     | xs -> printf "Finance codes       : %s\n" (String.concat ", " xs));
-    printf "Earliest start date : %s\n" earliest_start_date_string;
-    printf
-      "Latest start date   : %s\n"
-      (CalendarLib.Printer.Date.to_string plan.latest_start_date);
-    printf "Latest end date     : %s\n" latest_end_date_string;
-    printf "Minimum FTE         : %.0f%%\n" plan.min_fte_percent;
-    printf "Nominal FTE         : %.0f%%\n" plan.nominal_fte_percent;
-    printf "Maximum FTE         : %.0f%%\n" plan.max_fte_percent
+  (match prj.plan with
+   | None -> print_endline "Remaining metadata could not be parsed from GitHub."
+   | Some plan ->
+     let earliest_start_date_string =
+       match plan.earliest_start_date with
+       | None -> "None"
+       | Some d -> CalendarLib.Printer.Date.to_string d
+     in
+     let latest_end_date_string =
+       match plan.latest_end_date with
+       | None -> "None"
+       | Some d -> CalendarLib.Printer.Date.to_string d
+     in
+     (match plan.finance_codes with
+      | [] -> prout ~use_color [ ANSI.red ] "Finance codes       : Not found\n"
+      | xs -> printf "Finance codes       : %s\n" (String.concat ", " xs));
+     printf "Earliest start date : %s\n" earliest_start_date_string;
+     printf
+       "Latest start date   : %s\n"
+       (CalendarLib.Printer.Date.to_string plan.latest_start_date);
+     printf "Latest end date     : %s\n" latest_end_date_string;
+     printf "Minimum FTE         : %.0f%%\n" plan.min_fte_percent;
+     printf "Nominal FTE         : %.0f%%\n" plan.nominal_fte_percent;
+     printf "Maximum FTE         : %.0f%%\n" plan.max_fte_percent);
+  printf
+    "GitHub assignees    : %s\n"
+    (List.map (fun p -> p.full_name) prj.assignees |> String.concat ", ")
 ;;
 
 (** [asns] must be subsetted to only those belonging to this project *)

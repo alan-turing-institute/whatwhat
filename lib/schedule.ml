@@ -317,15 +317,36 @@ type project_pair = Pair of (Forecast.project option * project option)
  *)
 let merge_projects
   (fc_projects : Forecast.project IntMap.t)
-  (gh_issues : project IntMap.t)
+  (gh_issues : Github.issue IntMap.t)
+  (people : person list)
   =
+  (* First, add in the assignees from Forecast *)
+  let map_assignees (gh_p : Github.issue) : project =
+    let new_assignees =
+      List.filter_map
+        (fun a -> List.find_opt (fun p -> p.github_handle = Some a) people)
+        gh_p.assignees
+    in
+    { number = gh_p.number
+    ; name = gh_p.name
+    ; state = gh_p.state
+    ; programme = gh_p.programme
+    ; plan = gh_p.plan
+    ; assignees = new_assignees
+    }
+  in
+  let gh_projects = IntMap.map map_assignees gh_issues in
+
+  (* Pair the Forecast and GitHub projects *)
   let pair_projects _ fc_opt gh_opt =
     match fc_opt, gh_opt with
     | None, None -> None
     | x, y -> Some (Pair (x, y))
   in
-  let combined_map = IntMap.merge pair_projects fc_projects gh_issues in
-  let check_projects _ (pair : project_pair) =
+  let combined_map = IntMap.merge pair_projects fc_projects gh_projects in
+
+  (* Check the pairs for any inconsistencies and log events as necessary *)
+  let check_projects _ (pair : project_pair) : unit =
     (* Check that they both exist *)
     match pair with
     | Pair (None, None) -> ()
@@ -347,7 +368,9 @@ let merge_projects
       if not finance_codes_match then log_event (FinanceCodeNotMatchingError gh_p)
   in
   IntMap.iter check_projects combined_map;
-  gh_issues
+
+  (* Return only the GitHub issues *)
+  gh_projects
 ;;
 
 (* ---------------------------------------------------------------------- *)
@@ -389,6 +412,7 @@ let upconvert (prj : Forecast.project) : project =
   ; state = Other
   ; programme = Some prj.programme
   ; plan = None
+  ; assignees = []
   }
 ;;
 
@@ -524,11 +548,14 @@ let get_the_schedule ~start_date ~end_date =
   let fc_people = fc_people' |> Forecast.StringMap.bindings |> List.map snd in
   let gh_issues = Github.get_project_issues () in
   let gh_issues_map =
-    gh_issues |> List.map (fun i -> i.number, i) |> List.to_seq |> IntMap.of_seq
+    gh_issues
+    |> List.map (fun (i : Github.issue) -> i.number, i)
+    |> List.to_seq
+    |> IntMap.of_seq
   in
   let gh_people = Github.get_all_users_async |> Lwt_main.run in
   let people = merge_people fc_people gh_people fc_assignments in
-  let projects = merge_projects fc_projects gh_issues_map in
+  let projects = merge_projects fc_projects gh_issues_map people in
   let assignments = List.filter_map (merge_assignment people projects) fc_assignments in
   check_projects projects assignments;
 

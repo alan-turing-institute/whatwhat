@@ -111,6 +111,25 @@ val get_last_day : 'a DateMap.t -> CalendarLib.Date.t
 
 (** {1 Entities relevant to scheduling and planning} *)
 
+(** A person *)
+type person =
+  { email : string (** Email is the primary key for persons *)
+  ; full_name : string
+  ; github_handle : string option
+  ; slack_handle : string option
+  }
+
+(** A placeholder on Forecast. *)
+type placeholder = { name : string }
+
+(** An entity is a person or a placeholder. *)
+type entity =
+  | Person of person
+  | Placeholder of placeholder
+
+(** Get the name of an entity. *)
+val get_entity_name : entity -> string
+
 (** A [plan] gives the constraints on the possible allocations to a project. *)
 type project_plan =
   { budget : FTE.t
@@ -154,29 +173,11 @@ type project =
   ; state : State.t
   ; programme : string option
   ; plan : project_plan option
+  ; assignees : person list
   }
 
 (** Convert the column name in GitHub to a variant type. May raise UnknownColumn *)
 val state_of_column : string -> State.t
-
-(** A person *)
-type person =
-  { email : string (** Email is the primary key for persons *)
-  ; full_name : string
-  ; github_handle : string option
-  ; slack_handle : string option
-  }
-
-(** A placeholder on Forecast. *)
-type placeholder = { name : string }
-
-(** An entity is a person or a placeholder. *)
-type entity =
-  | Person of person
-  | Placeholder of placeholder
-
-(** Get the name of an entity. *)
-val get_entity_name : entity -> string
 
 (** The types of emoji reactions we care about. *)
 type emoji =

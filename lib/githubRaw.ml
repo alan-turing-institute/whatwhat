@@ -143,8 +143,8 @@ type issue =
   ; title : string
   ; body : string
   ; state : issue_state
-  ; assignees : person list
   ; labels : string list
+  ; assignees : string list
   }
 
 let get_issue_async id =
@@ -167,14 +167,12 @@ let get_issue_async id =
     |> to_list
     |> List.map (fun a -> a |> member "login" |> to_string)
   in
-  let* assignee_opts = assignee_usernames |> List.map find_person_by_login |> Lwt.all in
-  let assignees = assignee_opts |> List.filter_map Fun.id in
   Lwt.return
     { number = id
     ; title = issue_json |> member "title" |> to_string
     ; body = issue_json |> member "body" |> to_string
     ; state = issue_json |> member "state" |> to_string |> state_of_string
-    ; assignees
+    ; assignees = assignee_usernames
     ; labels =
         issue_json
         |> member "labels"
