@@ -20,7 +20,6 @@ Most online instructions suggest that you need to run `eval $(opam env)`, but wi
 brew install opam
 opam init --shell-setup -y
 opam install dune utop odig ocaml-lsp-server -y
-eval $(opam env)
 ```
 
 `opam` is the OCaml package manager.
