@@ -14,7 +14,7 @@ It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwha
 
 ```sh
 brew install opam
-opam init
+opam init --shell-setup -y
 opam install dune utop odig ocaml-lsp-server -y
 ```
 
