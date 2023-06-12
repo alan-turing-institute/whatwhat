@@ -16,12 +16,11 @@ It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwha
 brew install opam
 opam init
 opam install dune utop odig ocaml-lsp-server -y
+eval $(opam env)
 ```
 
 `opam` is the OCaml package manager.
 It installs all packages into `~/.opam`.
-Note: If you allow `opam` to install its 'shell hook' during installation, you shouldn't need to ever do `eval $(opam env)$`.
-Most online advice is outdated in this respect.
 
 Setup for some editors (others can be set up in an analogous way):
 
@@ -172,3 +171,6 @@ See the [Documentation wiki page](https://github.com/alan-turing-institute/whatw
   (Goes faster and is more in-depth, so quite good if you have some experience with functional programming.
   However, note that it relies on Jane Street's alternative standard library, which `whatwhat` doesn't use.)
 - [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
+
+### VS Code extension
+- There is a VS Code extension for OCaml called [OCaml Platform](https://marketplace.visualstudio.com/items?itemName=ocamllabs.ocaml-platform). This includes features for syntax highlighting, editing, navigation and snippets. 
