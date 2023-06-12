@@ -27,7 +27,6 @@
   cohttp-lwt-unix
   calendar
   tyre
-  tls
   yaml
   csv
   ppx_yojson_conv
