@@ -10,7 +10,6 @@
   cohttp-lwt-unix
   calendar
   tyre
-  tls
   csv
   yaml
   ANSITerminal)

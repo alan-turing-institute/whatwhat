@@ -23,6 +23,7 @@
   xdg-basedir
   yojson
   lwt
+  lwt_ssl
   cohttp-lwt-unix
   calendar
   tyre
