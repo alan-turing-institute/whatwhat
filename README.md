@@ -12,9 +12,13 @@ It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwha
 
 ## Setting up OCaml on macOS
 
+`opam` is the OCaml package manager, which can be installed using Homebrew.
+It installs all packages into `~/.opam`.
+Most online instructions suggest that you need to run `eval $(opam env)`, but with the invocation of `opam init` below you should not need to.
+
 ```sh
 brew install opam
-opam init
+opam init --shell-setup -y
 opam install dune utop odig ocaml-lsp-server -y
 eval $(opam env)
 ```
