@@ -20,7 +20,7 @@ opam install dune utop odig ocaml-lsp-server -y
 
 `opam` is the OCaml package manager.
 It installs all packages into `~/.opam`.
-Note: If you allow `opam` to install its 'shell hook' during installation, you shouldn't need to ever do `eval $(opam env)$`.
+Note: If you allow `opam` to install its 'shell hook' during installation, you shouldn't need to ever do `eval $(opam env)`.
 Most online advice is outdated in this respect.
 
 Setup for some editors (others can be set up in an analogous way):
