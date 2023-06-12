@@ -7,7 +7,8 @@ install:
 	dune install
 
 install-deps:
-	dune build 2>&1 || opam install . --deps-only
+	dune build 2>/dev/null 1>/dev/null || true
+	opam install . --deps-only -y
 	dune build
 
 odigdoc: install
