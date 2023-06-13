@@ -557,7 +557,31 @@ let ww_test_cmd : unit Cmd.t =
         where lack of purity makes it harder to reason about the behaviour of a
         programme! *)
     Term.(const ww_test $ const ())
+;; 
+
+
+
+
+let ww_config =
+  (* Cmd.v *)
+    (* (Cmd.info "config" ~doc:"Print hello world.") *)
+  Printf.printf "Camels are bae"
 ;;
+
+let ww_config_cmd  : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "test" ~doc:"Command to set up or print config.")
+    (* The homomorphism law for applicative functors suggests that
+          [const ww_test $ const ()]
+       should be equivalent to 
+          [const (ww_test ())],
+        but because of side effects (and eager evaluation) this isn't true: the
+        latter always evaluates [ww_test ()] whereas the former doesn't. A case
+        where lack of purity makes it harder to reason about the behaviour of a
+        programme! *)
+    Term.(const ww_config )
+;; 
+
 
 (* ------------------------------- *)
 (* --- putting it all together --- *)
@@ -572,6 +596,7 @@ let cmd : unit Cmd.t =
     ; ww_project_cmd
     ; ww_person_cmd
     ; ww_test_cmd
+    ; ww_config_cmd
     ]
 ;;
 
