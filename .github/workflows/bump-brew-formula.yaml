@@ -11,7 +11,6 @@ jobs:
     steps:
       - uses: dawidd6/action-homebrew-bump-formula@v3
         with:
-          token: ${{secrets.GITHUB_TOKEN}}
+          token: ${{secrets.NOW_WHAT_BOT_TOKEN}}
           tap: alan-turing-institute/homebrew-hut23
           formula: whatwhat
-
