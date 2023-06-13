@@ -101,9 +101,7 @@ let load_settings () : t =
         Printf.printf "\n";
         Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0001 ";
         Printf.printf "Missing secrets file: %s\n" secrets_path ;
-
         Printf.printf "Try running whatwhat init to populate";
-
         raise (MissingSecretsFile secrets_path)
   in
   let config_json_opt =

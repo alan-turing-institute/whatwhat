@@ -566,15 +566,14 @@ let ww_config =
   (* Cmd.v *)
     (* (Cmd.info "config" ~doc:"Print hello world.") *)
 
-  let _settings = Config.load_settings () in
+  let settings = Config.load_settings () in
 
-  
+  let github_token = Option.get settings.github_token in
 
-  (*  github_token = get_github_token2 settings in *)
+  (* print github_token *)
+  Printf.printf "Github token: %s\n" github_token;
 
-  (* Printf.printf github_token *)
-
-
+  (* print github_url *)
 
   Printf.printf "Camels are bae 🐫"
 ;;
