@@ -1,0 +1,15 @@
+name: Bottle and Release
+
+on: 
+  push:
+    tags:
+       - "v*.*.*"
+
+jobs:
+  bottle:
+    runs-on: macos-13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - run: brew install --build-bottle --verbose whatwhat
+      - run: brew bottle whatwhat
