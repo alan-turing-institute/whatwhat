@@ -1,0 +1,17 @@
+name: Bump Homebrew formula
+
+on:
+  push:
+    tags: '*'
+
+jobs:
+  homebrew:
+    name: Bump Homebrew formula for whatwhat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dawidd6/action-homebrew-bump-formula@v3
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+          tap: alan-turing-institute/homebrew-hut23
+          formula: whatwhat
+
