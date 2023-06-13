@@ -11,5 +11,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - run: brew tap alan-turing-institute/homebrew-hut23
       - run: brew install --build-bottle --verbose whatwhat
       - run: brew bottle whatwhat
