@@ -566,30 +566,36 @@ let ww_config =
   (* Cmd.v *)
     (* (Cmd.info "config" ~doc:"Print hello world.") *)
 
-  let settings = Config.load_settings () in
+  let _settings = Config.load_settings () in
 
-  let github_token = Option.get settings.github_token in
+  (* let github_token = Option.get settings.github_token in *)
 
-  (* print github_token *)
-  Printf.printf "Github token: %s\n" github_token;
+  Printf.printf "You have existing config files. Congrats!";
 
-  (* print github_url *)
 
-  Printf.printf "Camels are bae 🐫"
+
+  Printf.printf "(also camels are bae 🐫 ! )"
 ;;
 
 let ww_config_cmd  : unit Cmd.t =
   Cmd.v
     (Cmd.info "config" ~doc:"Command to set up or print config.")
-    (* The homomorphism law for applicative functors suggests that
-          [const ww_test $ const ()]
-       should be equivalent to 
-          [const (ww_test ())],
-        but because of side effects (and eager evaluation) this isn't true: the
-        latter always evaluates [ww_test ()] whereas the former doesn't. A case
-        where lack of purity makes it harder to reason about the behaviour of a
-        programme! *)
+
     Term.(const ww_config )
+
+;; 
+
+
+let ww_updateconfig =
+
+  Printf.printf "(Camels are still bae 🐫 ! )"
+;;
+
+let ww_updateconfig_cmd  : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "updateconfig" ~doc:"Update your config files. ")
+
+    Term.(const ww_updateconfig )
 
 ;; 
 
@@ -608,6 +614,7 @@ let cmd : unit Cmd.t =
     ; ww_person_cmd
     ; ww_test_cmd
     ; ww_config_cmd
+    ; ww_updateconfig_cmd
     ]
 ;;
 
