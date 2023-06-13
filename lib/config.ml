@@ -94,15 +94,26 @@ let find_setting json_parser key file_json_opt =
 ;;
 
 let load_settings () : t =
+  (* let use_color = true in *)
   let secrets_json_opt =
     try Some (Yojson.Basic.from_file secrets_path) with
     | Sys_error _ -> 
-        print_endline "Secrets file not found";
+        Printf.printf "\n";
+        Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0001 ";
+        Printf.printf "Missing secrets file: %s\n" secrets_path ;
+
+        Printf.printf "Try running whatwhat init to populate";
+
         raise (MissingSecretsFile secrets_path)
   in
   let config_json_opt =
     try Some (Yojson.Basic.from_file config_path) with
-    | Sys_error _ -> None
+    | Sys_error _ -> 
+      Printf.printf "\n";
+      Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0002 ";
+      Printf.printf "Missing secrets file: %s\n" config_path;
+      Printf.printf "Try running whatwhat init to populate";
+      raise (MissingConfigFile config_path)
   in
   { github_project_name =
       find_setting string_opt_of_json "githubProjectName" config_json_opt
