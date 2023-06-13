@@ -15,6 +15,8 @@ type t =
 
 exception MissingSecret of string
 exception MissingConfig of string
+exception MissingSecretsFile of string
+exception MissingConfigFile of string
 
 let secrets_path = XDGBaseDir.default.config_home ^ "/whatwhat/secrets.json"
 let config_path = XDGBaseDir.default.config_home ^ "/whatwhat/config.json"
@@ -94,7 +96,9 @@ let find_setting json_parser key file_json_opt =
 let load_settings () : t =
   let secrets_json_opt =
     try Some (Yojson.Basic.from_file secrets_path) with
-    | Sys_error _ -> None
+    | Sys_error _ -> 
+        print_endline "Secrets file not found";
+        raise (MissingSecretsFile secrets_path)
   in
   let config_json_opt =
     try Some (Yojson.Basic.from_file config_path) with

@@ -5,6 +5,7 @@
 open Whatwhat
 open Cmdliner
 
+
 (* ------------------------------- *)
 (* ------- whatwhat open --------- *)
 
@@ -561,16 +562,26 @@ let ww_test_cmd : unit Cmd.t =
 
 
 
-
 let ww_config =
   (* Cmd.v *)
     (* (Cmd.info "config" ~doc:"Print hello world.") *)
-  Printf.printf "Camels are bae"
+
+  let _settings = Config.load_settings () in
+
+  
+
+  (*  github_token = get_github_token2 settings in *)
+
+  (* Printf.printf github_token *)
+
+
+
+  Printf.printf "Camels are bae 🐫"
 ;;
 
 let ww_config_cmd  : unit Cmd.t =
   Cmd.v
-    (Cmd.info "test" ~doc:"Command to set up or print config.")
+    (Cmd.info "config" ~doc:"Command to set up or print config.")
     (* The homomorphism law for applicative functors suggests that
           [const ww_test $ const ()]
        should be equivalent to 
@@ -580,6 +591,7 @@ let ww_config_cmd  : unit Cmd.t =
         where lack of purity makes it harder to reason about the behaviour of a
         programme! *)
     Term.(const ww_config )
+
 ;; 
 
 
