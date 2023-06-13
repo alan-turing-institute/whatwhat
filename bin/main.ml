@@ -446,6 +446,16 @@ let person_arg =
   Arg.(required & pos 0 (some string) None & info ~docv:"PERSON" ~doc [])
 ;;
 
+let config_dir : string option Term.t =
+Arg.(
+  value
+  & opt (some string) (Some (XDGBaseDir.default.config_home ^ "/whatwhat/") )
+  & info
+      ~docv:"OUTPUT"
+      ~doc:"File to output CSV to. By default, the CSV is printed to standard output."
+      [ "o"; "output" ])
+;;
+
 let ww_person_cmd : unit Cmd.t =
   Cmd.v
     (Cmd.info "person" ~doc:"Provide an overview of a person.")
@@ -562,31 +572,31 @@ let ww_test_cmd : unit Cmd.t =
 
 
 
-let ww_config =
+let ww_config (config_dir : string option) =
   (* Cmd.v *)
     (* (Cmd.info "config" ~doc:"Print hello world.") *)
 
   let _settings = Config.load_settings () in
 
-  (* let github_token = Option.get settings.github_token in *)
+  Printf.printf "\nConfig files successfully found in %s" (Option.get config_dir);
 
-  Printf.printf "You have existing config files. Congrats!";
-
-
-
-  Printf.printf "(also camels are bae 🐫 ! )"
 ;;
 
 let ww_config_cmd  : unit Cmd.t =
   Cmd.v
     (Cmd.info "config" ~doc:"Command to set up or print config.")
 
-    Term.(const ww_config )
+    Term.(const ww_config $ config_dir)
 
 ;; 
 
 
-let ww_updateconfig =
+let ww_updateconfig (config_dir : string option) =
+
+  (* print o1 *)
+  print_endline (Option.get config_dir);
+
+  
 
   Printf.printf "(Camels are still bae 🐫 ! )"
 ;;
@@ -595,8 +605,7 @@ let ww_updateconfig_cmd  : unit Cmd.t =
   Cmd.v
     (Cmd.info "updateconfig" ~doc:"Update your config files. ")
 
-    Term.(const ww_updateconfig )
-
+    Term.(const ww_updateconfig $ config_dir) 
 ;; 
 
 
