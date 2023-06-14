@@ -5,10 +5,17 @@ It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwha
 
 ## Contents
 
+1. [Brew install whatwhat](#brew-install-whatwhat)
 1. [Setting up OCaml on macOS](#setting-up-ocaml-on-macos)
 1. [Installation and configuration](#installation-and-configuration)
 1. [Usage](#usage)
 1. [Resources for getting started with OCaml](#resources-for-getting-started-with-ocaml)
+
+## Brew install whatwhat
+The simplest way to use `whatwhat` is to brew install it. It is hosted in our local [Hut23 tap](https://github.com/alan-turing-institute/homebrew-hut23). You will need to run the following two commands:
+
+`brew tap alan-turing-institute/hut23`
+`brew install whatwhat`
 
 ## Setting up OCaml on macOS
 
