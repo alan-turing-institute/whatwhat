@@ -2,8 +2,10 @@ name: Bottle and Release
 
 on: 
   push:
-    tags:
-       - "v*.*.*"
+    branches:
+      - main
+    # tags:
+    #    - "v*.*.*"
 
 jobs:
   bottle:
@@ -21,11 +23,16 @@ jobs:
         name: Install Homebrew
         run: |
           /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          echo 'eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)' >> /home/runner/.bash_profile
-          eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
+          (echo; echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"') >> /home/runner/.bash_profile
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          sudo apt-get install build-essential
       -  
-        name: Build Homebrew bottle
+        name: Test Homebrew installation
         run: |
-          brew tap alan-turing-institute/hut23
-          brew install --build-bottle --verbose alan-tuirng-institute/hut23/whatwhat
-          brew bottle whatwhat
+          brew --version
+          brew --help
+        # name: Build Homebrew bottle
+        # run: |
+        #   brew tap alan-turing-institute/hut23
+        #   brew install --build-bottle --verbose alan-tuirng-institute/hut23/whatwhat
+        #   brew bottle whatwhat
