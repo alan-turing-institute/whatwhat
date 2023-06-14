@@ -95,23 +95,27 @@ let find_setting json_parser key file_json_opt =
 
 let load_settings () : t =
   (* let use_color = true in *)
-  let secrets_json_opt =
-    try Some (Yojson.Basic.from_file secrets_path) with
+  let secrets_json_opt = Some (Yojson.Basic.from_file secrets_path)
+    (* try Some (Yojson.Basic.from_file secrets_path) with
     | Sys_error _ -> 
         Printf.printf "\n";
         Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0001 ";
         Printf.printf "Missing secrets file: %s\n" secrets_path ;
-        Printf.printf "Run whathwhat populateconfig to create a %s file." secrets_path;
-        raise (MissingSecretsFile secrets_path)
+        Printf.printf "Try running whathwhat populateconfig to create a %s file." secrets_path;
+        (* raise (MissingSecretsFile secrets_path) *)
+        Some (Yojson.Basic.from_file secrets_path)
+    | _ -> Some (Yojson.Basic.from_file secrets_path) *)
   in
-  let config_json_opt =
-    try Some (Yojson.Basic.from_file config_path) with
-    | Sys_error _ -> 
+  let config_json_opt = Some (Yojson.Basic.from_file config_path)
+    (* try Some (Yojson.Basic.from_file config_path) with *)
+    (* | Sys_error _ -> 
       Printf.printf "\n";
       Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0002 ";
       Printf.printf "Missing config file: %s\n" config_path;
-      Printf.printf "Run whathwhat populateconfig to create a %s file." config_path;
-      raise (MissingConfigFile config_path)
+      Printf.printf "Try running whathwhat populateconfig to create a %s file." config_path;
+      Some (Yojson.Basic.from_file config_path)
+      (* raise (MissingConfigFile config_path) *)
+    | _ -> Some (Yojson.Basic.from_file config_path) *)
   in
   { github_project_name =
       find_setting string_opt_of_json "githubProjectName" config_json_opt

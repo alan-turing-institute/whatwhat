@@ -572,7 +572,7 @@ let ww_test_cmd : unit Cmd.t =
 
 
 
-let ww_config (config_dir : string option) =
+(* let ww_config (config_dir : string option) =
   (* Cmd.v *)
     (* (Cmd.info "config" ~doc:"Print hello world.") *)
 
@@ -581,13 +581,13 @@ let ww_config (config_dir : string option) =
   Printf.printf "\nConfig files successfully found in %s" (Option.get config_dir)
 ;;
 
-let ww_config_cmd  : unit Cmd.t =
+let _ww_config_cmd  : unit Cmd.t =
   Cmd.v
     (Cmd.info "config" ~doc:"Command to set up or print config.")
 
     Term.(const ww_config $ config_dir)
 
-;; 
+;;  *)
 
 let attempt_file (path : string) (message : string) (update_message : bool)= 
 
@@ -671,7 +671,6 @@ let cmd : unit Cmd.t =
     ; ww_project_cmd
     ; ww_person_cmd
     ; ww_test_cmd
-    ; ww_config_cmd
     ; ww_populateconfig_cmd
     ]
 ;;
