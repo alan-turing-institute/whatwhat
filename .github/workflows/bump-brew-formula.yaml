@@ -1,3 +1,6 @@
+# this action is used to bump the homebrew formula for whatwhat
+# it is triggered every time a new tag is pushed to the repo
+# it uses the NowWhatBot to open a PR with the updated formula
 name: Bump Homebrew formula
 
 on:
