@@ -1,6 +1,3 @@
-(* Queries Github API and traverse_of_interests the GraphQL results. Validation
-   is done in github.ml *)
-
 open Yojson
 open Lwt.Syntax
 
@@ -89,7 +86,7 @@ let person_of_json json =
   }
 ;;
 
-let get_all_users_async =
+let rec get_assignable_usernames_async ?(page = 1) () =
   (* These lines allow errors in missing config/secrets to be deferred until
      this promise is actually run. Otherwise, a missing config/secret file will
      cause the programme to fail even when the config/secret is not needed, e.g.
@@ -99,24 +96,38 @@ let get_all_users_async =
     | Config.MissingConfig s -> Lwt.fail (Config.MissingConfig s)
     | Config.MissingSecret s -> Lwt.fail (Config.MissingSecret s)
   in
-  let query =
-    Printf.sprintf
-      {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}
-      github_repo_owner
-      github_repo_name
+  let batch_get page =
+    let uri =
+      String.concat
+        "/"
+        [ Config.github_url; "repos"; github_repo_owner; github_repo_name; "assignees" ]
+    in
+    let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
+    let* cards = run_github_query_async ~params uri in
+    let users =
+      cards
+      |> Basic.Util.to_list
+      |> List.map (fun u -> u |> Basic.Util.member "login" |> Basic.Util.to_string)
+    in
+    Lwt.return users
   in
-  let github_graph_ql_endpoint = Config.github_url ^ "/graphql" in
-  let* body_json =
-    run_github_query_async ~http_method:POST ~body:query github_graph_ql_endpoint
-  in
-  let open Yojson.Basic.Util in
-  Lwt.return
-    (body_json
-    |> member "data"
-    |> member "repository"
-    |> member "assignableUsers"
-    |> member "edges"
-    |> convert_each (fun json -> json |> member "node" |> person_of_json))
+  let* first_batch = batch_get page in
+  if List.length first_batch = 100
+  then
+    let* next_batch = get_assignable_usernames_async ~page:(page + 1) () in
+    Lwt.return (first_batch @ next_batch)
+  else Lwt.return first_batch
+;;
+
+let get_person_async username =
+  let person_uri = String.concat "/" [ Config.github_url; "users"; username ] in
+  let* person_json = run_github_query_async person_uri in
+  Lwt.return (person_of_json person_json)
+;;
+
+let get_all_users_async =
+  let* usernames = get_assignable_usernames_async () in
+  List.map get_person_async usernames |> Utils.all_throttled
 ;;
 
 let find_person_by_login login =

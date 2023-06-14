@@ -132,8 +132,12 @@ let print_reactions ~use_color (ppl : person list) (prj : project) =
     |> List.stable_sort (fun (e1, _) (e2, _) -> compare e1 e2)
     |> List.filter (fun (e, _) -> e <> Other)
   in
+  let reacted_people = List.map snd sorted_reactions in
+  let unreacted_people =
+    List.filter (fun p -> not (List.mem p.full_name reacted_people)) ppl
+  in
   let header = [ "Name"; "😄"; "👍"; "👎" ] in
-  let rows =
+  let reacted_rows =
     sorted_reactions
     |> List.map (fun (e, n) ->
          match e with
@@ -143,8 +147,13 @@ let print_reactions ~use_color (ppl : person list) (prj : project) =
          | Other -> [ n; ""; ""; "" ])
     (* Last case should not happen *)
   in
+  let unreacted_rows = List.map (fun p -> [ p.full_name; ""; ""; "" ]) unreacted_people in
   print_heading ~use_color "Reactions";
-  print_endline (make_table ~header_rows:1 ~column_padding:1 (header :: rows))
+  print_endline
+    (make_table
+       ~header_rows:1
+       ~column_padding:1
+       ((header :: reacted_rows) @ unreacted_rows))
 ;;
 
 let print_log_events ~use_color (prj : project) =
