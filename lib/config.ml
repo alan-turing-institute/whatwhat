@@ -101,7 +101,7 @@ let load_settings () : t =
         Printf.printf "\n";
         Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0001 ";
         Printf.printf "Missing secrets file: %s\n" secrets_path ;
-        Printf.printf "Try running whatwhat init to populate";
+        Printf.printf "Run whathwhat populateconfig to create a %s file." secrets_path;
         raise (MissingSecretsFile secrets_path)
   in
   let config_json_opt =
@@ -109,8 +109,8 @@ let load_settings () : t =
     | Sys_error _ -> 
       Printf.printf "\n";
       Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0002 ";
-      Printf.printf "Missing secrets file: %s\n" config_path;
-      Printf.printf "Try running whatwhat init to populate";
+      Printf.printf "Missing config file: %s\n" config_path;
+      Printf.printf "Run whathwhat populateconfig to create a %s file." config_path;
       raise (MissingConfigFile config_path)
   in
   { github_project_name =

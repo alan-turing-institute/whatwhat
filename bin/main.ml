@@ -589,11 +589,34 @@ let ww_config_cmd  : unit Cmd.t =
 
 ;; 
 
+let attempt_file (path : string) (message : string) (update_message : bool)= 
+
+  (* strip all before / from string *)
+  let file_type = String.split_on_char '/' path |> List.rev |> List.hd in 
+
+
+  (* if the file exists do X, if not do Y *)
+  try 
+    let _ = open_in path in
+    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
+    Printf.printf "The %s file already exists. I am not going to do anything to avoid overwriting your set-up. If you want to make any changes, please update the file yourself in %s\n" file_type path
+  with
+    | Sys_error _ -> 
+      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "\nAttention: ";
+      Printf.printf "I have written a %s file to %s. " file_type path;
+      (* if update message print hi*)
+      if update_message then
+        print_endline "Make sure you update the tokens following the instructions in comments. ";
+      let oc = open_out path in
+      Printf.fprintf oc "%s\n" message;
+      close_out oc
+;;
+
+
 
 let ww_populateconfig (config_dir : string option) =
 
-
-
+  (* First check for the secrets file*)
   let message_secret = "{
     /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */
     'githubToken'    : '', \n\n
@@ -603,26 +626,28 @@ let ww_populateconfig (config_dir : string option) =
     'forecastToken'  : '', \n\n
     /* OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
     'slackToken'     : '' }" in
+
+  let secrets_path = (Option.get config_dir) ^ "secrets.json" in
+
+  (* Now check for the config file *)
+  let message_config = "{
+    'forecastId': '974183',
+    'forecastIgnoredProjects': '1684536]'
+    'forecastUrl': 'https://api.forecastapp.com',
+    'githubProjectName': 'Project Tracker',
+    'githubProjectColumns': ['Finding people', 'Awaiting start', 'Active'],
+    'githubRepoOwner': 'alan-turing-institute',
+    'githubRepoName': 'Hut23',
+    'githubUrl': 'https://api.github.com',
+    'userLookup': '/Users/kgoldmann/.config/nowwhat/user_lookup.csv'
+  }" in
  
-  print_endline (Option.get config_dir);
 
-  let secrets_path = (Option.get config_dir) ^ "secretsBLAM.json" in
+  let config_path = (Option.get config_dir) ^ "config.json" in
 
-  (* if the file exists do X, if not do Y *)
-  try 
-    let _ = open_in secrets_path in
-    (* Printf.printf "\n\nsecretsBLAM.json already exists in %s\n\n" (Option.get config_dir); *)
-    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "W0001 ";
-    Printf.printf "The secrets.json already exists in %s. I am not going to do anything to avoid overwriting your prescious tokens. If you want to make any changes, please update the file yourself in %s\n" (Option.get config_dir) secrets_path
-  with
-    | Sys_error _ -> 
-      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention: ";
-      Printf.printf "I have written a template secrets.json file to %s. You will need to update the tokens yourself, following the comment instructions in %s" (Option.get config_dir) secrets_path;
-
-      let oc = open_out secrets_path in
-      Printf.fprintf oc "%s\n" message_secret;
-      close_out oc;
-
+  let _ = attempt_file config_path message_config false in
+  let _ = attempt_file secrets_path message_secret true in
+  print_endline " "
 ;;
 
 let ww_populateconfig_cmd  : unit Cmd.t =
