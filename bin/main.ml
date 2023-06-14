@@ -578,8 +578,7 @@ let ww_config (config_dir : string option) =
 
   let _settings = Config.load_settings () in
 
-  Printf.printf "\nConfig files successfully found in %s" (Option.get config_dir);
-
+  Printf.printf "\nConfig files successfully found in %s" (Option.get config_dir)
 ;;
 
 let ww_config_cmd  : unit Cmd.t =
@@ -591,21 +590,46 @@ let ww_config_cmd  : unit Cmd.t =
 ;; 
 
 
-let ww_updateconfig (config_dir : string option) =
+let ww_populateconfig (config_dir : string option) =
 
-  (* print o1 *)
+
+
+  let message_secret = "{
+    /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */
+    'githubToken'    : '', \n\n
+    /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
+    'githubBotToken' : '', \n\n
+    /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */
+    'forecastToken'  : '', \n\n
+    /* OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
+    'slackToken'     : '' }" in
+ 
   print_endline (Option.get config_dir);
 
-  
+  let secrets_path = (Option.get config_dir) ^ "secretsBLAM.json" in
 
-  Printf.printf "(Camels are still bae 🐫 ! )"
+  (* if the file exists do X, if not do Y *)
+  try 
+    let _ = open_in secrets_path in
+    (* Printf.printf "\n\nsecretsBLAM.json already exists in %s\n\n" (Option.get config_dir); *)
+    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "W0001 ";
+    Printf.printf "The secrets.json already exists in %s. I am not going to do anything to avoid overwriting your prescious tokens. If you want to make any changes, please update the file yourself in %s\n" (Option.get config_dir) secrets_path
+  with
+    | Sys_error _ -> 
+      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention: ";
+      Printf.printf "I have written a template secrets.json file to %s. You will need to update the tokens yourself, following the comment instructions in %s" (Option.get config_dir) secrets_path;
+
+      let oc = open_out secrets_path in
+      Printf.fprintf oc "%s\n" message_secret;
+      close_out oc;
+
 ;;
 
-let ww_updateconfig_cmd  : unit Cmd.t =
+let ww_populateconfig_cmd  : unit Cmd.t =
   Cmd.v
-    (Cmd.info "updateconfig" ~doc:"Update your config files. ")
+    (Cmd.info "populateconfig" ~doc:"Update your config files. ")
 
-    Term.(const ww_updateconfig $ config_dir) 
+    Term.(const ww_populateconfig $ config_dir) 
 ;; 
 
 
@@ -623,7 +647,7 @@ let cmd : unit Cmd.t =
     ; ww_person_cmd
     ; ww_test_cmd
     ; ww_config_cmd
-    ; ww_updateconfig_cmd
+    ; ww_populateconfig_cmd
     ]
 ;;
 
