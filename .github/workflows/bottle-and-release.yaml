@@ -12,20 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          platform: linux/arm64
-      -
         name: Checkout
         uses: actions/checkout@v3
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: 'arm64'
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       -
         name: Install Homebrew
         run: |
           /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           (echo; echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"') >> /home/runner/.bash_profile
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-          sudo apt-get install build-essential
       -  
         name: Test Homebrew installation
         run: |
