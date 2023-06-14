@@ -40,6 +40,37 @@ The location at which these errors appear dictates the first number in the
 error code. So, for example, an issue with GitHub metadata usually has a code
 of the form E2xxx or W2xxx.
 
+{1 Who should be notified?}
+
+Both people and projects can be the target of notifications. At the
+moment, projects are notified by posting to the relevant GitHub issue
+and people are notified by messaging them on Slack. To identify the
+person who should be notified, we define the following
+roles. Sometimes there may be no individual having a particular role,
+so we also indentify a fallback. Note that there may be multiple
+people assigned to each role.
+
+In the following, {i assigned} means “assigned to a GitHub issue”
+whereas {i allocated} means “allocated on Forecast.”
+
+- {b Team}: The project {i Team} is anyone allocated to the project at
+  any time from now. Fallback is the {i Shepherd}.
+- {b Shepherd}: The project {i Shepherd} is anyone assigned to the
+  project on GitHub. Fallback is the {i Client}.
+- {b Client}: The {i Client} is anyone assigned to the Programme Lead
+  GitHub issue in the "REG Support to Turing" column of the Standing
+  Roles Tracker. Fallback is the {i Scheduler}.
+- {b Scheduler}: The {i Scheduler} is anyone assigned to issue number
+  #576 "Project Scheduling Service Area" in the Standing Roles
+  Tracker. Fallback is {i Backstop}.
+- {b Backstop}: Writing to standard out.
+
+In addition we may escale to:
+- {b Lead}: The {i Lead} is anyone currently allocated to the relevant
+  Programme Lead service area.
+
+                    
+
 
 {1 Reading data from Forecast}
 
@@ -284,24 +315,3 @@ None of these are implemented yet.
 - A project's allocations will change within T + delta
 
 
-{1 Notifications}
-
-Currently, notifications are posted as GitHub comments on the issue belonging
-to the respective project.
-
-Issues that cannot be easily tied to a specific project are currently not
-reported to anybody (although they can be seen in the terminal output). This is
-probably a bug.
-   
-Other possibilities for notifications (which are not implemented yet) are:
-
-- Fallback (email): A hard-coded person if the Scheduler cannot be found
-- The Scheduler (GitHub): The people listed in the GitHub service area for
-  Scheduling
-- Project Shepherd (GitHub): Anyone listed in the project GitHub issue
-- Project Team (email): Anyone allocated to the project in the next six
-  months
-- Programme Shepherd (GitHub): Anyone listed in the Programme Service area
-- Programe Lead (Forecast): Anyone allocated to the Programme Service area
-  in the next six months.
-- The On-Call (Forecast): The person referred to by a particular assignment
