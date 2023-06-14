@@ -7,10 +7,19 @@ on:
 
 jobs:
   bottle:
-    runs-on: macos-13
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platform: linux/arm64
+      -
+        name: Checkout
         uses: actions/checkout@v3
-      - run: brew tap alan-turing-institute/homebrew-hut23
-      - run: brew install --build-bottle --verbose whatwhat
-      - run: brew bottle whatwhat
+      -
+        name: Build Homebrew bottle
+        run: |
+          brew tap alan-turing-institute/hut23
+          brew install --build-bottle --verbose alan-tuirng-institute/hut23/whatwhat
+          brew bottle whatwhat
