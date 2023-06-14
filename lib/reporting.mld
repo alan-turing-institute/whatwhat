@@ -50,26 +50,23 @@ roles. Sometimes there may be no individual having a particular role,
 so we also indentify a fallback. Note that there may be multiple
 people assigned to each role.
 
-In the following, {i assigned} means “assigned to a GitHub issue”
-whereas {i allocated} means “allocated on Forecast.”
+In the following list of roles, {i assigned} means “assigned to a
+GitHub issue” whereas {i allocated} means “allocated on Forecast.” The
+fallback for each role is the next role on the list.
 
 - {b Team}: The project {i Team} is anyone allocated to the project at
-  any time from now. Fallback is the {i Shepherd}.
+  any time from now. 
 - {b Shepherd}: The project {i Shepherd} is anyone assigned to the
-  project on GitHub. Fallback is the {i Client}.
+  project on GitHub. 
+- {b Lead}: The {i Lead} is anyone currently allocated to the relevant
+  Programme Lead service area. 
 - {b Client}: The {i Client} is anyone assigned to the Programme Lead
   GitHub issue in the "REG Support to Turing" column of the Standing
-  Roles Tracker. Fallback is the {i Scheduler}.
+  Roles Tracker. 
 - {b Scheduler}: The {i Scheduler} is anyone assigned to issue number
   #576 "Project Scheduling Service Area" in the Standing Roles
-  Tracker. Fallback is {i Backstop}.
+  Tracker. 
 - {b Backstop}: Writing to standard out.
-
-In addition we may escale to:
-- {b Lead}: The {i Lead} is anyone currently allocated to the relevant
-  Programme Lead service area.
-
-                    
 
 
 {1 Reading data from Forecast}
@@ -82,18 +79,23 @@ sources of errors are projects.
 {b E1001} The Forecast 'project code' field (which ought to hold the GitHub
 issue number X in the format [hut23-X]) is empty.
 
+ - {i Report to:} The Lead. (We could in principle notify the Team,
+   but by the time we get to the reporting stage, we've deleted this
+   project and any related assignments.)
  - {i Solution:} Add the project code. Note that the title of the Forecast
    project does not need to contain this info.
 
 {b E1002} The Forecast 'project code' field but does not have the correct
 format.
-
+ 
+ - {i Report to:} The Lead
  - {i Solution:} Edit the project code to conform to the format [hut23-X],
    where [X] is the GitHub issue number.
 
 {b E1003} The email field of a person tagged with the 'REG' role on Forecast is
 empty.
 
+ - {i Report to:} The Scheduler.
  - {i Solution:} Add the email. If the person is not supposed to be part of
    REG, then remove the tag from the person.
  - Note that this error can naturally occur for people who have not yet started
@@ -103,6 +105,7 @@ empty.
 {b E1004} The email field of a person tagged with the 'REG' role on Forecast is
 not a valid email address.
 
+ - {i Report to:} The Scheduler.
  - {i Solution:} Correct  the email. If the person is not supposed to be part of
    REG, then remove the tag from the person.
  - 'Valid' in this case means 'matching
@@ -115,7 +118,8 @@ not a valid email address.
 {b E1005} The project on Forecast has no client (in Forecast, a 'client' refers
 to what we usually call a 'programme').
 
- - {i Solution:} Add the client on Forecast.
+- {i Report to:} The Team.
+- {i Solution:} Add the client on Forecast.
 
 {2 Warnings}
 
