@@ -217,10 +217,13 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
       ```
     This will create a bottle (a prebuilt binary) in that directory and will print a new `bottle do` block to your terminal
 6. Copy that code snippet, go to the [ruby file](https://github.com/alan-turing-institute/homebrew-hut23/blob/main/whatwhat.rb) in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) and paste it to overwrite the previous `bottle do` instructions.
-7. Commit the changes to main
-8. Going back to the [whatwhat repo](https://github.com/alan-turing-institute/whatwhat/) go to releases -> tags and click on the latest tag (that you have just made)
-9. Upload the bottle from your computer
-10. Click publish release
+8. Commit the changes to main
+9. Rename the bottle file to remove one of the dashes (i.e. from `whatwhat--` to `whatwhat-`)
+10. Going back to the [whatwhat repo](https://github.com/alan-turing-institute/whatwhat/) go to releases -> tags tab and click on the latest tag.
+11. Click create release from tag
+12. Upload the binary from your computer
+13. Click 'publish release'
+14. Copy the url of the release and paste this below `bottle do` in the ruby file as `root_url "<url>"`
 
 
 
