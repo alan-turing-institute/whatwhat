@@ -106,11 +106,11 @@ let attempt_file (path : string) (message : string) (update_message : bool) =
     Printf.printf "The %s file already exists. I am not going to do anything to avoid overwriting your set-up. If you want to make any changes, please update the file yourself in %s\n" file_type path
   with
     | Sys_error _ -> 
-      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "\nAttention: ";
+      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
       Printf.printf "I have written a %s file to %s. " file_type path;
 
       if update_message then
-        print_endline "Make sure you update the tokens following the instructions in comments. ";
+        print_endline "Make sure you update the tokens there following the instructions in comments. ";
       let oc = open_out path in
       Printf.fprintf oc "%s\n" message;
       close_out oc
@@ -122,11 +122,37 @@ let load_settings () : t =
   let secrets_json_opt =
     try Some (Yojson.Basic.from_file secrets_path) with
     | Sys_error _ -> 
-        Printf.printf "\n";
-        Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0001 ";
-        Printf.printf "Missing secrets file: %s\n" secrets_path ;
-        Printf.printf "Run whathwhat populateconfig to create a %s file." secrets_path;
-        raise (MissingSecretsFile secrets_path)
+      Printf.printf "\n";
+      Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0002 ";
+      Printf.printf "Missing secrets file: %s\n" secrets_path; 
+
+      (* Ask user if its ok to set up new file *)
+      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
+      print_string "Are you happy for me to set up a secrets template for you? (yes/no): ";
+      let answer = read_line () in
+
+      (* If answer starts with Y or y *)
+      if String.lowercase_ascii (String.sub answer 0 1) = "y" then
+        let message_secrets = "{
+          /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */
+          \"githubToken\"    : \"\", \n\n
+          /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
+          \"githubBotToken\" : \"\", \n\n
+          /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */
+          \"forecastToken\"  : \"\", \n\n
+          /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
+          \"slackToken\"     : \"\" 
+        }" in
+        
+        (* run attempt_file on the secrets_path *)
+        let _ = attempt_file secrets_path message_secrets true in
+        
+        Some (Yojson.Basic.from_file secrets_path)
+
+      (*  If no, exit *)
+      else
+        (Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
+        raise (MissingSecretsFile secrets_path))
   in
   let config_json_opt =
     try Some (Yojson.Basic.from_file config_path) with
@@ -139,9 +165,6 @@ let load_settings () : t =
       Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
       print_string "Are you happy for me to set up a config template for you? (yes/no): ";
       let answer = read_line () in
-
-      (* print the answer *)
-      Printf.printf "You entered: %s\n" answer;
 
       (* If answer starts with Y or y *)
       if String.lowercase_ascii (String.sub answer 0 1) = "y" then
@@ -160,18 +183,17 @@ let load_settings () : t =
         (* run attempt_file on the config_path *)
         let _ = attempt_file config_path message_config false in
 
-        (* run attempt_file on the secrets_path *)
         
-        (* let _ = attempt_file secrets_path message_secret true in *)
-        print_endline " "
+        Some (Yojson.Basic.from_file config_path)
+        
 
       (*  If no, exit *)
       else
-        Printf.printf "Exiting...";
-        raise (MissingConfigFile config_path)
+        (Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
+        raise (MissingConfigFile config_path) )
   in
-  { github_project_name =
-      find_setting string_opt_of_json "githubProjectName" config_json_opt
+  { 
+    github_project_name = find_setting string_opt_of_json "githubProjectName" config_json_opt
   ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
   ; github_repo_owner = find_setting string_opt_of_json "githubRepoOwner" config_json_opt
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
