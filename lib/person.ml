@@ -146,6 +146,19 @@ let print_reactions ~(use_color : bool) (psn : person) (prjs : project Domain.In
     print_endline (make_table ~header_rows:1 ~column_padding:1 (header :: table_rows))
 ;;
 
+let get_github_assignments (prjs : project list) =
+  let prj_details =
+    match prjs with
+    | [] -> [ "None found." ]
+    | _ ->
+      let print_prj prj = Printf.sprintf "#%-4d %s\n" prj.number prj.name in
+      List.map print_prj prjs
+  in
+  String.concat
+    "\n"
+    ("GitHub issue assignments" :: "------------------------" :: prj_details)
+;;
+
 let print
   ~(use_color : bool)
   (psn : person)
@@ -177,4 +190,78 @@ let print
   print_capacity ~use_color this_asns;
   print_endline "";
   print_reactions ~use_color psn prjs
+;;
+
+let get_info (psn : person) =
+  String.concat
+    "\n"
+    (match psn.github_handle with
+     | None -> [ psn.full_name; psn.email ]
+     | Some g -> [ psn.full_name; psn.email; "https://github.com/" ^ g ])
+;;
+
+let get_assignments (asns : assignment list) =
+  let make_name asn = Printf.sprintf "#%-4d %s" asn.project.number asn.project.name in
+  let assignment_details =
+    match asns with
+    | [] -> [ "None found." ]
+    | this_asns ->
+      (* The assignments themselves *)
+      let project_names = List.map make_name this_asns in
+      let name_fieldwidth = Utils.max_by ~default:0 wcswidth project_names in
+      let print_asn asn =
+        Printf.sprintf
+          "%9s %s  %18s, %s to %s"
+          ("(" ^ Assignment.show_time_status asn ^ ")")
+          (pad name_fieldwidth (make_name asn))
+          (FTE.show_t (Assignment.to_fte_weeks asn))
+          (CL.Printer.Date.to_string (get_first_day asn.allocation))
+          (CL.Printer.Date.to_string (get_last_day asn.allocation))
+      in
+      List.map print_asn this_asns
+  in
+  String.concat
+    "\n"
+    ("Forecast assignments" :: "--------------------" :: assignment_details)
+;;
+
+let make_slack_output
+  (psn : person)
+  (prjs : project Domain.IntMap.t)
+  (asns : assignment list)
+  : string Lwt.t
+  =
+  let this_asns =
+    asns
+    |> List.filter (fun a ->
+         a.entity = Person psn
+         && get_last_day a.allocation
+            >= CL.Date.add (CL.Date.today ()) (CL.Date.Period.month (-2)))
+    |> List.sort Assignment.compare_by_date
+  in
+  let this_github_prjs =
+    prjs
+    |> IntMap.filter (fun _ v -> List.mem psn v.assignees)
+    |> IntMap.bindings
+    |> List.map snd
+  in
+  let info = get_info psn in
+  let github_assignments = get_github_assignments this_github_prjs in
+  let forecast_assignments = get_assignments this_asns in
+  (* let* capacity = print_capacity ~use_color this_asns in *)
+  (* let* reactions = print_reactions ~use_color psn prjs in *)
+  Lwt.return
+    (String.concat
+       "\n"
+       [ info
+       ; ""
+       ; ""
+       ; github_assignments
+       ; ""
+       ; forecast_assignments
+         (* ; "" *)
+         (* ; capacity *)
+         (* ; "" *)
+         (* ; reactions *)
+       ])
 ;;

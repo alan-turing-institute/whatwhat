@@ -295,3 +295,12 @@ let gfm_escape s =
     s;
   Buffer.contents b
 ;;
+
+let dequote (s : string) : string =
+  let len = String.length s in
+  if len < 2
+  then s
+  else if s.[0] = '"' && s.[len - 1] = '"'
+  then String.sub s 1 (len - 2)
+  else s
+;;

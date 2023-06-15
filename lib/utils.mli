@@ -126,3 +126,6 @@ val all_throttled : ?max_concurrent:int -> 'a Lwt.t list -> 'a list Lwt.t
     Markdown. Note: this means that formatting etc. will be lost in the
     resulting post, and it'll purely appear as a string. *)
 val gfm_escape : string -> string
+
+(** Remove double quotes around a string (if present. *)
+val dequote : string -> string

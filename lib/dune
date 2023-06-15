@@ -12,6 +12,7 @@
   tyre
   csv
   yaml
+  websocket-lwt-unix
   ANSITerminal)
  (preprocess
   (pps ppx_deriving.show ppx_deriving.ord ppx_yojson_conv)))

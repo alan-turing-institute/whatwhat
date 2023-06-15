@@ -10,7 +10,8 @@ type t =
   ; githubbot_token : string option
   ; forecast_id : string option
   ; forecast_token : string option
-  ; slack_token : string option
+  ; slack_bot_token : string option
+  ; slack_app_token : string option
   }
 
 exception MissingGHToken of string
@@ -142,8 +143,10 @@ let load_settings () : t =
           "  \"githubBotToken\" : \"\", \n\n" ^
           "  /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */\n" ^
           "  \"forecastToken\"  : \"\", \n\n" ^
-          "  /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
-          "  \"slackToken\"     : \"\" \n" ^
+          "  /* slackBotToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
+          "  \"slackBotToken\"     : \"\" \n" ^
+          "  /* slackAppToken: OPTIONAL (used to connect to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
+          "  \"slackAppToken\"     : \"\" \n" ^
         "}" in
         
         (* run attempt_file on the secrets_path *)
@@ -214,7 +217,8 @@ let load_settings () : t =
   ; github_project_columns = find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_token = find_setting string_opt_of_json "forecastToken" secrets_json_opt
-  ; slack_token = find_setting string_opt_of_json "slackToken" secrets_json_opt
+  ; slack_bot_token = find_setting string_opt_of_json "slackBotToken" secrets_json_opt
+  ; slack_app_token = find_setting string_opt_of_json "slackAppToken" secrets_json_opt
   }
 ;;
 
@@ -252,7 +256,7 @@ let get_github_token () =
   | Some value -> value
   | None -> raise (MissingSecret "githubToken")
 ;;
-git 
+
 let get_githubbot_token () =
   (* let* settings = load_settings () in *)
   match settings.githubbot_token with
@@ -274,11 +278,18 @@ let get_forecast_token () =
   | None -> raise (MissingSecret "forecastToken")
 ;;
 
-let get_slack_token () =
+let get_slack_bot_token () =
   (* let* settings = load_settings () in *)
-  match settings.slack_token with
+  match settings.slack_bot_token with
   | Some value -> value
-  | None -> raise (MissingSecret "githubBotToken")
+  | None -> raise (MissingSecret "slackBotToken")
+;;
+
+let get_slack_app_token () =
+  (* let* settings = load_settings () in *)
+  match settings.slack_app_token with
+  | Some value -> value
+  | None -> raise (MissingSecret "slackAppToken")
 ;;
 
 let get_extra_users () =

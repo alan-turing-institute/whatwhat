@@ -541,23 +541,28 @@ let check_projects projects assignments =
 (* ---------------------------------------------------------------------- *)
 (* BUILD SCHEDULE *)
 
-let get_the_schedule ~start_date ~end_date =
-  let fc_projects, fc_people', fc_assignments =
-    Forecast.get_the_schedule ~start_date ~end_date
+let get_the_schedule_async ~start_date ~end_date =
+  let open Lwt.Syntax in
+  let* fc_projects, fc_people', fc_assignments =
+    Forecast.get_the_schedule_async ~start_date ~end_date
   in
   let fc_people = fc_people' |> Forecast.StringMap.bindings |> List.map snd in
-  let gh_issues = Github.get_project_issues () in
+  let* gh_issues = Github.get_project_issues_async () in
   let gh_issues_map =
     gh_issues
     |> List.map (fun (i : Github.issue) -> i.number, i)
     |> List.to_seq
     |> IntMap.of_seq
   in
-  let gh_people = Github.get_all_users_async |> Lwt_main.run in
+  let* gh_people = Github.get_all_users_async in
   let people = merge_people fc_people gh_people fc_assignments in
   let projects = merge_projects fc_projects gh_issues_map people in
   let assignments = List.filter_map (merge_assignment people projects) fc_assignments in
   check_projects projects assignments;
 
-  people, projects, assignments
+  Lwt.return (people, projects, assignments)
+;;
+
+let get_the_schedule ~start_date ~end_date =
+  Lwt_main.run (get_the_schedule_async ~start_date ~end_date)
 ;;

@@ -123,6 +123,16 @@ val show_assignment : assignment -> string
     well as all other data required to make sense of the assignments, such as
     clients, people, placeholders, and projects. For an explanation of the data
     types involved, see the sections above. *)
+val get_the_schedule_async
+  :  start_date:CalendarLib.Date.t
+  -> end_date:CalendarLib.Date.t
+  -> (client IntMap.t
+     * person IntMap.t
+     * placeholder IntMap.t
+     * project IntMap.t
+     * assignment list)
+     Lwt.t
+
 val get_the_schedule
   :  start_date:CalendarLib.Date.t
   -> end_date:CalendarLib.Date.t

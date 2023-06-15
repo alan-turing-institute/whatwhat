@@ -443,13 +443,18 @@ let make_project_map projects_id : project IntMap.t =
 (* ------------------------------------------------------------ *)
 (* Interface *)
 
-let get_the_schedule ~start_date ~end_date =
-  let _, peopl, _, projs, asnts = Raw.get_the_schedule ~start_date ~end_date in
+let get_the_schedule_async ~start_date ~end_date =
+  let open Lwt.Syntax in
+  let* _, peopl, _, projs, asnts = Raw.get_the_schedule_async ~start_date ~end_date in
   let projects_id = IntMap.filter_map validate_project projs in
   let people_id = IntMap.filter_map (fun _ e -> validate_person e) peopl in
   let assignments =
     List.filter_map (validate_assignment people_id projects_id) asnts
     |> collate_allocations
   in
-  make_project_map projects_id, make_people_map people_id, assignments
+  Lwt.return (make_project_map projects_id, make_people_map people_id, assignments)
+;;
+
+let get_the_schedule ~start_date ~end_date =
+  get_the_schedule_async ~start_date ~end_date |> Lwt_main.run
 ;;

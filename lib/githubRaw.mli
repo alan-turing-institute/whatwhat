@@ -96,6 +96,7 @@ type issue_r =
   }
 
 (** Fetch reactions for multiple projects as defined by their issue numbers. *)
+val get_multiple_reactions_async : int list -> (string * person) list Domain.IntMap.t Lwt.t
 val get_multiple_reactions : int list -> (string * person) list Domain.IntMap.t
 
 (** Fetch a numbered issue from GitHub. *)
@@ -175,3 +176,6 @@ type project_r =
 val get_project_n : unit -> project_n
 val get_project : unit -> project
 val get_project_r : unit -> project_r
+val get_project_n_async : unit -> project_n Lwt.t
+val get_project_async : unit -> project Lwt.t
+val get_project_r_async : unit -> project_r Lwt.t

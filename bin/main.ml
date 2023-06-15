@@ -467,6 +467,19 @@ let ww_person_cmd : unit Cmd.t =
 ;;
 
 (* ------------------------------- *)
+(* ----- whatwhat slack-bot ------- *)
+
+let ww_slack_bot () =
+  Slack.run_bot ();
+;;
+
+let ww_slack_bot_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "slack-bot" ~doc:"Run the Slack bot.")
+    Term.(const ww_slack_bot $ const ())
+;;
+
+(* ------------------------------- *)
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
@@ -638,6 +651,7 @@ let cmd : unit Cmd.t =
     ; ww_person_cmd
     ; ww_test_cmd
     ; ww_init_cmd 
+    ; ww_slack_bot_cmd
     ]
 ;;
 

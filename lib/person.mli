@@ -12,3 +12,9 @@ val print
   -> Domain.project Domain.IntMap.t
   -> Domain.Assignment.t list
   -> unit
+
+val make_slack_output
+  :  Domain.person
+  -> Domain.project Domain.IntMap.t
+  -> Domain.Assignment.t list
+  -> string Lwt.t

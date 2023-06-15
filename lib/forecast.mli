@@ -47,3 +47,7 @@ val get_the_schedule
   :  start_date:CalendarLib.Date.t
   -> end_date:CalendarLib.Date.t
   -> project IntMap.t * person StringMap.t * assignment list
+val get_the_schedule_async
+  :  start_date:CalendarLib.Date.t
+  -> end_date:CalendarLib.Date.t
+  -> (project IntMap.t * person StringMap.t * assignment list) Lwt.t

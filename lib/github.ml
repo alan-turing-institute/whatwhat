@@ -353,10 +353,13 @@ let make_issue (col_name : string) (issue : Raw.issue) : issue =
   }
 ;;
 
-let get_project_issues () =
-  let project_board = Raw.get_project () in
+let get_project_issues_async () =
+  let open Lwt.Syntax in
+  let* project_board = Raw.get_project_async () in
   let pair_issues (col : Raw.column) = List.map (fun i -> col.name, i) col.issues in
   let pairs = project_board.columns |> List.concat_map pair_issues in
   let projects = pairs |> List.map (fun (c, i) -> make_issue c i) in
-  projects
+  Lwt.return projects
 ;;
+
+let get_project_issues () = Lwt_main.run (get_project_issues_async ())

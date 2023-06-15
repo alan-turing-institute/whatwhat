@@ -1,30 +1,11 @@
-open Cohttp
+open Printf
 open Cohttp_lwt_unix
 module Basic = Yojson.Basic
+open Utils
+open Lwt.Syntax
 
 exception SlackAPIError of string
-
-let slack_post_message_url = "https://slack.com/api/chat.postMessage"
-let slack_token = Config.get_slack_token ()
-let slack_channel = "C0465E3FEN4" (* The #hut23-whatwhat-bot-test channel *)
-
-let header =
-  let auth_cred = Auth.credential_of_string ("Bearer " ^ slack_token) in
-  Header.init ()
-  |> (fun header -> Header.add_authorization header auth_cred)
-  |> fun header -> Header.add header "Content-type" "application/json"
-;;
-
-let slack_uri = Uri.of_string slack_post_message_url
-
-let make_body msg =
-  Cohttp_lwt.Body.of_string
-  @@ "{\"channel\": \""
-  ^ slack_channel
-  ^ "\", \"text\": \""
-  ^ String.escaped msg
-  ^ "\"}"
-;;
+exception ParseFailed
 
 let check_response (response, body) =
   let () = Utils.check_http_response response in
@@ -50,14 +31,368 @@ let check_response (response, body) =
     raise @@ SlackAPIError error
 ;;
 
-(** Post a [msg] to Slack.
+type message =
+  { envelope_id : string
+  ; text : string
+  ; user : string
+  ; channel : string
+  ; timestamp : string
+  }
+[@@deriving show]
 
-    If the HTTP POST request fails, raise a [HttpError]. If it passes, but the Slack API
-    returns a response that indicates an error, raise a [SlackAPIError]. If the Slack API
-    response indicates success with a warning, print the warning to [stdout].
+type slack_event =
+  | Ping
+    (* This is not an @ ping on Slack, but just a 'ping' from Slack's server to
+  check whether we're still connected, part of the WebSocket protocol *)
+  | Hello of int (* connection count *)
+  | Message of message (* someone posted a message in a channel *)
+  | PingMessage of message
+(* someone pinged the bot in a channel *)
+(* envelope_id, event type, text, user, channel, timestamp *)
+[@@deriving show]
 
-    Return [()]. *)
-let post msg =
-  let body = make_body msg in
-  Client.post ~headers:header ~body slack_uri |> Lwt_main.run |> check_response
+(** Parse frame as a message *)
+let parse_as_message (frame : Websocket.Frame.t) : slack_event =
+  let open Yojson.Basic in
+  try
+    let contents = frame.content |> from_string in
+    let message_type = contents |> Util.member "type" |> to_string in
+    let envelope_id = contents |> Util.member "envelope_id" |> to_string |> dequote in
+    if dequote message_type <> "events_api" then raise ParseFailed;
+    let event =
+      frame.content |> from_string |> Util.member "payload" |> Util.member "event"
+    in
+    let event_type = event |> Util.member "type" |> to_string |> dequote in
+    if dequote event_type <> "message" then raise ParseFailed;
+    let text = event |> Util.member "text" |> to_string |> dequote in
+    let user = event |> Util.member "user" |> to_string |> dequote in
+    let channel = event |> Util.member "channel" |> to_string |> dequote in
+    let timestamp = event |> Util.member "ts" |> to_string |> dequote in
+    Message { envelope_id; text; user; channel; timestamp }
+  with
+  | _ -> raise ParseFailed
+;;
+
+(** Parse frame as a ping-message *)
+let parse_as_pingmessage (frame : Websocket.Frame.t) : slack_event =
+  let open Yojson.Basic in
+  try
+    let contents = frame.content |> from_string in
+    let message_type = contents |> Util.member "type" |> to_string in
+    let envelope_id = contents |> Util.member "envelope_id" |> to_string |> dequote in
+    if dequote message_type <> "events_api" then raise ParseFailed;
+    let event =
+      frame.content |> from_string |> Util.member "payload" |> Util.member "event"
+    in
+    let event_type = event |> Util.member "type" |> to_string |> dequote in
+    if dequote event_type <> "app_mention" then raise ParseFailed;
+    let text = event |> Util.member "text" |> to_string |> dequote in
+    let user = event |> Util.member "user" |> to_string |> dequote in
+    let channel = event |> Util.member "channel" |> to_string |> dequote in
+    let timestamp = event |> Util.member "ts" |> to_string |> dequote in
+    PingMessage { envelope_id; text; user; channel; timestamp }
+  with
+  | _ -> raise ParseFailed
+;;
+
+(** Parse frame as hello *)
+let parse_as_hello (frame : Websocket.Frame.t) : slack_event =
+  let open Yojson.Basic in
+  try
+    let contents = frame.content |> from_string in
+    let message_type = contents |> Util.member "type" |> to_string in
+    if message_type <> "\"hello\"" then raise ParseFailed;
+    let conn_count = contents |> Util.member "num_connections" |> to_string in
+    Hello (int_of_string conn_count)
+  with
+  | _ -> raise ParseFailed
+;;
+
+(** Parse frame as a ping *)
+let parse_as_ping (frame : Websocket.Frame.t) : slack_event =
+  if frame.opcode = Websocket.Frame.Opcode.Ping then Ping else raise ParseFailed
+;;
+
+(** Attempt to parse a WebSocket frame as a Slack event. *)
+let parse_frame (frame : Websocket.Frame.t) : slack_event =
+  let parsers =
+    [ parse_as_pingmessage; parse_as_message; parse_as_hello; parse_as_ping ]
+  in
+  let rec getFirstParseSuccess ps =
+    match ps with
+    | [] -> raise ParseFailed
+    | p :: ps' ->
+      (try p frame with
+       | ParseFailed -> getFirstParseSuccess ps')
+  in
+  getFirstParseSuccess parsers
+;;
+
+(** Print JSON contents of a frame to standard output. *)
+let print_frame_json (frame : Websocket.Frame.t) : unit Lwt.t =
+  print_endline frame.content;
+  Lwt.return_unit
+;;
+
+let pong (conn : Websocket_lwt_unix.conn) : unit Lwt.t =
+  let frame = Websocket.Frame.create ~opcode:Websocket.Frame.Opcode.Pong () in
+  Websocket_lwt_unix.write conn frame
+;;
+
+let post_message (bot_token : string) (channel : string) (message : string) : unit Lwt.t =
+  let reply_content = sprintf {|{"channel": "%s", "text": "%s"}|} channel message in
+  let body = Cohttp_lwt.Body.of_string reply_content in
+  let postMessageUri =
+    "https://slack.com/api/chat.postMessage"
+    |> Uri.of_string
+    |> fun u -> Uri.add_query_param' u ("channel", channel)
+  in
+  let headers =
+    Cohttp.Header.of_list
+      [ "Content-type", "application/json"; "Authorization", "Bearer " ^ bot_token ]
+  in
+  let* _ = Client.post ~headers ~body postMessageUri in
+  Lwt.return_unit
+;;
+
+let add_reaction
+  (bot_token : string)
+  (channel : string)
+  (timestamp : string)
+  (reaction : string)
+  : unit Lwt.t
+  =
+  let addReactionUri =
+    "https://slack.com/api/reactions.add"
+    |> Uri.of_string
+    |> fun u ->
+    Uri.add_query_param' u ("channel", channel)
+    |> fun u ->
+    Uri.add_query_param' u ("timestamp", timestamp)
+    |> fun u -> Uri.add_query_param' u ("name", reaction)
+  in
+  let headers =
+    Cohttp.Header.of_list
+      [ "Content-type", "application/x-www-form-urlencoded"
+      ; "Authorization", "Bearer " ^ bot_token
+      ]
+  in
+  let* _ = Client.post ~headers addReactionUri in
+  Lwt.return_unit
+;;
+
+let get_current_user (bot_token : string) : string Lwt.t =
+  let meUri = "https://slack.com/api/auth.test" |> Uri.of_string in
+  let headers =
+    Cohttp.Header.of_list
+      [ "Content-type", "application/x-www-form-urlencoded"
+      ; "Authorization", "Bearer " ^ bot_token
+      ]
+  in
+  let* _, respBody = Client.get ~headers meUri in
+  let* body = Cohttp_lwt.Body.to_string respBody in
+  let open Yojson.Basic in
+  let json = from_string body in
+  Lwt.return (json |> Util.member "user_id" |> Util.to_string |> dequote)
+;;
+
+let get_username (bot_token : string) (user_id : string) : string option Lwt.t =
+  let userUri =
+    "https://slack.com/api/users.profile.get"
+    |> Uri.of_string
+    |> fun u -> Uri.add_query_param' u ("user", user_id)
+  in
+  let headers =
+    Cohttp.Header.of_list
+      [ "Content-type", "application/x-www-form-urlencoded"
+      ; "Authorization", "Bearer " ^ bot_token
+      ]
+  in
+  let* _, respBody = Client.get ~headers userUri in
+  let* body = Cohttp_lwt.Body.to_string respBody in
+  try
+    let open Yojson.Basic in
+    let json = from_string body in
+    let real_name =
+      json
+      |> Util.member "profile"
+      |> Util.member "real_name"
+      |> Util.to_string
+      |> dequote
+    in
+    Lwt.return (Some real_name)
+  with
+  | _ -> Lwt.return_none
+;;
+
+let acknowledge_event (envelope_id : string) (conn : Websocket_lwt_unix.conn) : unit Lwt.t
+  =
+  let content = sprintf "{ \"envelope_id\": \"%s\" }" envelope_id in
+  let frame = Websocket.Frame.create ~content () in
+  Websocket_lwt_unix.write conn frame
+;;
+
+let handle_frame
+  (conn : Websocket_lwt_unix.conn)
+  (bot_token : string)
+  (userId : string)
+  (frame : Websocket.Frame.t)
+  : unit Lwt.t
+  =
+  let* _ = print_frame_json frame in
+  match parse_frame frame with
+  | Ping ->
+    print_endline " *** Received ping. Ponging back";
+    pong conn
+  | Hello n ->
+    printf " *** Received a hello. Current number of connections: %d\n" n;
+    Lwt.return_unit
+  | PingMessage m ->
+    printf
+      " *** Received a ping-message. Envelope ID: %s, text: %s, user: %s\n"
+      m.envelope_id
+      m.text
+      m.user;
+
+    (* Acknowledge event *)
+    acknowledge_event m.envelope_id conn
+  | Message m ->
+    printf
+      " *** Received a message. Envelope ID: %s, text: %s, user: %s\n"
+      m.envelope_id
+      m.text
+      m.user;
+
+    (* Acknowledge event *)
+    let* _ = acknowledge_event m.envelope_id conn in
+
+    (* React if it's in #general *)
+    let possible_reactions =
+      [ "eyes"
+      ; "heart_eyes"
+      ; "kissing_closed_eyes"
+      ; "face_with_rolling_eyes"
+      ; "thinking_face"
+      ; "face_with_monocle"
+      ; "exploding_head"
+      ]
+    in
+    let reaction =
+      List.nth possible_reactions (Random.int (List.length possible_reactions))
+    in
+    let* _ = add_reaction bot_token m.channel m.timestamp reaction in
+
+    (* Reply to message (but not in #general) *)
+    (* if m.channel <> "C057JCC147R" && m.user <> userId *)
+    if m.user <> userId
+    then
+      let* maybe_person = get_username bot_token m.user in
+
+      match maybe_person with
+      | None ->
+        printf " *** Could not find user with ID %s\n" m.user;
+        Lwt.return_unit
+      | Some person ->
+        let open CalendarLib.Date in
+        let start_date = make 2016 1 1 in
+        let end_date = add (today ()) (Period.year 1) in
+        let* people, projects, assignments =
+          Schedule.get_the_schedule_async ~start_date ~end_date
+        in
+
+        let matched_people =
+          List.filter
+            (fun (p : Domain.person) ->
+              Utils.contains ~case_sensitive:false p.full_name person
+              || Utils.contains ~case_sensitive:false p.email person
+              ||
+              match p.github_handle with
+              | None -> false
+              | Some s -> Utils.contains ~case_sensitive:false s person)
+            people
+        in
+        (match matched_people with
+         | [] ->
+           let msg = Printf.sprintf "No person with the name '%s' was found." person in
+           post_message bot_token m.channel ("```" ^ msg ^ "```")
+         | [ p ] ->
+           let* msg = Person.make_slack_output p projects assignments in
+           post_message bot_token m.channel ("```" ^ msg ^ "```")
+         | ps ->
+           let s =
+             Printf.sprintf "Multiple people were found matching the string '%s':" person
+           in
+           let possible_names =
+             List.map
+               (fun (p : Domain.person) ->
+                 match p.github_handle with
+                 | None -> p.full_name
+                 | Some s -> Printf.sprintf "%s (@%s)" p.full_name s)
+               ps
+           in
+           let msg = String.concat "\n" (s :: possible_names) in
+           post_message bot_token m.channel ("```" ^ msg ^ "```"))
+    else Lwt.return_unit
+;;
+
+(** Obtain the web socket URL from Slack, using an app-level token. This URL
+    will be the one used for communication. *)
+let getWebsocketUrl (token : string) : Uri.t Lwt.t =
+  let authUri = Uri.of_string "https://slack.com/api/apps.connections.open" in
+  let headers =
+    Cohttp.Header.of_list
+      [ "Content-type", "application/x-www-form-urlencoded"
+      ; "Authorization", "Bearer " ^ token
+      ]
+  in
+  let* _, respBody = Client.post ~headers authUri in
+  let* body = Cohttp_lwt.Body.to_string respBody in
+  match Yojson.Safe.from_string body with
+  | `Assoc ps ->
+    (match List.assoc_opt "url" ps with
+     | Some (`String url) ->
+       (* wss doesn't exist in Unix /etc/services, so we need to replace it
+           with https, see https://github.com/mirage/ocaml-conduit/issues/79 *)
+       Lwt.return
+         (Uri.of_string (Str.replace_first (Str.regexp_string "wss") "https" url))
+     | _ -> Lwt.fail (Failure "url was not found"))
+  | _ -> Lwt.fail (Failure "response was not a json object")
+;;
+
+(** Connect to the websocket URL and return an open websocket connection. *)
+let connect_websocket (uri : Uri.t) : Websocket_lwt_unix.conn Lwt.t =
+  let* (endp : Conduit.endp) = Resolver_lwt.resolve_uri ~uri Resolver_lwt_unix.system in
+  let ctx : Conduit_lwt_unix.ctx = Lazy.force Conduit_lwt_unix.default_ctx in
+  let* (client : Conduit_lwt_unix.client) = Conduit_lwt_unix.endp_to_client ~ctx endp in
+  Websocket_lwt_unix.connect client uri
+;;
+
+let run_bot () =
+  let rec loop (conn : Websocket_lwt_unix.conn) (bot_token : string) (userId : string)
+    : unit Lwt.t
+    =
+    let* frame = Websocket_lwt_unix.read conn in
+    try
+      let* _ = handle_frame conn bot_token userId frame in
+      loop conn bot_token userId
+    with
+    | ParseFailed ->
+      print_endline "Failed to parse frame.";
+      print_endline "Its opcode is:";
+      print_endline (Websocket.Frame.Opcode.to_string frame.opcode);
+      print_endline "Its contents are:";
+      print_frame_json frame
+    | End_of_file ->
+      print_endline "Connection was unexpectedly closed.";
+      exit 1
+  in
+  let app_token = Config.get_slack_app_token () in
+  let bot_token = Config.get_slack_bot_token () in
+  let main =
+    let* uri = getWebsocketUrl app_token in
+    let* conn = connect_websocket uri in
+    let* userId = get_current_user bot_token in
+    loop conn bot_token userId
+  in
+  Lwt_main.run main
 ;;
