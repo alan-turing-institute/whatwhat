@@ -30,7 +30,7 @@
   tyre
   yaml
   csv
-  ppx_yojson_conv
+  (ppx_yojson_conv (<= v0.15.1))
   ppx_deriving
   ANSITerminal
   ounit2
