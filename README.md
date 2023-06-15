@@ -14,8 +14,15 @@ It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwha
 ## Brew install whatwhat
 The simplest way to use `whatwhat` is to brew install it. It is hosted in our local [Hut23 tap](https://github.com/alan-turing-institute/homebrew-hut23). You will need to run the following two commands:
 
-`brew tap alan-turing-institute/hut23`
-`brew install whatwhat`
+```sh
+brew tap alan-turing-institute/hut23
+brew install whatwhat
+```
+
+Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
+by running `whatwhat populateconfig`.
+
+`whatwhat` should now work, see [Usage](#usage) for commands.
 
 ## Setting up OCaml on macOS
 
