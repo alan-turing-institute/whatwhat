@@ -22,15 +22,13 @@ opam init --shell-setup -y
 opam install dune utop odig ocaml-lsp-server ocamlformat -y
 ```
 
-`opam` is the OCaml package manager.
-It installs all packages into `~/.opam`.
-
 Setup for some editors (others can be set up in an analogous way):
 
  - (Emacs) `opam install tuareg`
  - (Neovim) The easiest way is to use
    [`lspconfig`](https://github.com/neovim/nvim-lspconfig), and add something like
    `require'lspconfig'.ocamllsp.setup{}` to your config.
+ - (VSCode) There is a VS Code extension for OCaml called [OCaml Platform](https://marketplace.visualstudio.com/items?itemName=ocamllabs.ocaml-platform). This includes features for syntax highlighting, editing, navigation and snippets. 
 
 ## Installation and configuration
 
@@ -174,6 +172,3 @@ See the [Documentation wiki page](https://github.com/alan-turing-institute/whatw
   (Goes faster and is more in-depth, so quite good if you have some experience with functional programming.
   However, note that it relies on Jane Street's alternative standard library, which `whatwhat` doesn't use.)
 - [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
-
-### VS Code extension
-- There is a VS Code extension for OCaml called [OCaml Platform](https://marketplace.visualstudio.com/items?itemName=ocamllabs.ocaml-platform). This includes features for syntax highlighting, editing, navigation and snippets. 
