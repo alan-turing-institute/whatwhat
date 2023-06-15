@@ -24,7 +24,7 @@ let run_github_query_async
   let github_token =
     if as_bot then Config.get_githubbot_token () else Config.get_github_token ()
   in
-  let auth_cred = Auth.credential_of_string ("Bearer " ^ github_token) in
+  let auth_cred = Auth.credential_of_string ("Bearer " ^ ( github_token ) ) in
   let header_obj =
     (* This would be a lot cleaner if the functions in Cohttp.Header actually
        put the header argument as the final one... *)
@@ -94,11 +94,16 @@ let get_all_users_async =
      this promise is actually run. Otherwise, a missing config/secret file will
      cause the programme to fail even when the config/secret is not needed, e.g.
      when using the --help option. See #84. *)
-  let* github_repo_owner, github_repo_name =
-    try Lwt.return (Config.get_github_repo_owner (), Config.get_github_repo_name ()) with
+  
+  
+  let github_repo_owner = Config.get_github_repo_owner () in
+  let github_repo_name = Config.get_github_repo_name  () in
+
+  
+    (* try Lwt.return (Config.get_github_repo_owner (), Config.get_github_repo_name ()) with
     | Config.MissingConfig s -> Lwt.fail (Config.MissingConfig s)
-    | Config.MissingSecret s -> Lwt.fail (Config.MissingSecret s)
-  in
+    | Config.MissingSecret s -> Lwt.fail (Config.MissingSecret s) *)
+  
   let query =
     Printf.sprintf
       {|{ "query": "query { repository(owner: \"%s\", name: \"%s\") { assignableUsers(first: 100) { edges { node { login name email } } } } }" } |}

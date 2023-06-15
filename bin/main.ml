@@ -166,10 +166,12 @@ let ww_export_team_cmd : unit Cmd.t =
 (* ------------------------------- *)
 (* ---------- whatwhat ----------- *)
 
+
 type project_subset =
   | AllProjects
   | SelectedColumnsOnly
   | Specific of int list
+
 
 let ww_main notify no_color quiet verbose codes_without codes_only project_subset =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
@@ -219,6 +221,7 @@ let ww_main notify no_color quiet verbose codes_without codes_only project_subse
     Printf.eprintf "%s\n" msg;
     exit Cmd.Exit.internal_error (* Defined as 125. *)
 ;;
+
 
 let notify_arg =
   let tgs =
@@ -346,6 +349,7 @@ let ww_main_term : unit Term.t =
     $ projects_arg)
 ;;
 
+
 (* ------------------------------- *)
 (* ------ whatwhat project ------- *)
 
@@ -446,7 +450,7 @@ let person_arg =
   Arg.(required & pos 0 (some string) None & info ~docv:"PERSON" ~doc [])
 ;;
 
-let config_dir : string option Term.t =
+(* let config_dir : string option Term.t =
 Arg.(
   value
   & opt (some string) (Some (XDGBaseDir.default.config_home ^ "/whatwhat/") )
@@ -454,7 +458,7 @@ Arg.(
       ~docv:"OUTPUT"
       ~doc:"File to output CSV to. By default, the CSV is printed to standard output."
       [ "o"; "output" ])
-;;
+;; *)
 
 let ww_person_cmd : unit Cmd.t =
   Cmd.v
@@ -571,6 +575,8 @@ let ww_test_cmd : unit Cmd.t =
 ;; 
 
 
+(*----------------------------------*)
+(*------- whatwhat config --------- *)
 
 (* let ww_config (config_dir : string option) =
   (* Cmd.v *)
@@ -581,40 +587,19 @@ let ww_test_cmd : unit Cmd.t =
   Printf.printf "\nConfig files successfully found in %s" (Option.get config_dir)
 ;;
 
-let _ww_config_cmd  : unit Cmd.t =
+let ww_config_cmd  : unit Cmd.t =
   Cmd.v
     (Cmd.info "config" ~doc:"Command to set up or print config.")
 
-    Term.(const ww_config $ config_dir)
+  Term.(const ww_config $ config_dir)
 
-;;  *)
-
-let attempt_file (path : string) (message : string) (update_message : bool)= 
-
-  (* strip all before / from string *)
-  let file_type = String.split_on_char '/' path |> List.rev |> List.hd in 
-
-
-  (* if the file exists do X, if not do Y *)
-  try 
-    let _ = open_in path in
-    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
-    Printf.printf "The %s file already exists. I am not going to do anything to avoid overwriting your set-up. If you want to make any changes, please update the file yourself in %s\n" file_type path
-  with
-    | Sys_error _ -> 
-      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "\nAttention: ";
-      Printf.printf "I have written a %s file to %s. " file_type path;
-      (* if update message print hi*)
-      if update_message then
-        print_endline "Make sure you update the tokens following the instructions in comments. ";
-      let oc = open_out path in
-      Printf.fprintf oc "%s\n" message;
-      close_out oc
-;;
+;;   *)
 
 
 
-let ww_populateconfig (config_dir : string option) =
+
+
+(* let ww_populateconfig (config_dir : string option) =
 
   (* First check for the secrets file*)
   let message_secret = "{
@@ -632,7 +617,7 @@ let ww_populateconfig (config_dir : string option) =
   (* Now check for the config file *)
   let message_config = "{
     'forecastId': '974183',
-    'forecastIgnoredProjects': '1684536]'
+    'forecastIgnoredProjects': ['1684536'],
     'forecastUrl': 'https://api.forecastapp.com',
     'githubProjectName': 'Project Tracker',
     'githubProjectColumns': ['Finding people', 'Awaiting start', 'Active'],
@@ -655,7 +640,7 @@ let ww_populateconfig_cmd  : unit Cmd.t =
     (Cmd.info "populateconfig" ~doc:"Update your config files. ")
 
     Term.(const ww_populateconfig $ config_dir) 
-;; 
+;;  *)
 
 
 (* ------------------------------- *)
@@ -671,7 +656,7 @@ let cmd : unit Cmd.t =
     ; ww_project_cmd
     ; ww_person_cmd
     ; ww_test_cmd
-    ; ww_populateconfig_cmd
+    (* ; ww_populateconfig_cmd *)
     ]
 ;;
 
