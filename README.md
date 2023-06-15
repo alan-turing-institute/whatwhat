@@ -19,7 +19,7 @@ Most online instructions suggest that you need to run `eval $(opam env)`, but wi
 ```sh
 brew install opam
 opam init --shell-setup -y
-opam install dune utop odig ocaml-lsp-server -y
+opam install dune utop odig ocaml-lsp-server ocamlformat -y
 ```
 
 `opam` is the OCaml package manager.
