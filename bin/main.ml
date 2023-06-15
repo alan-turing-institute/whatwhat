@@ -599,48 +599,50 @@ let ww_config_cmd  : unit Cmd.t =
 
 
 
-(* let ww_populateconfig (config_dir : string option) =
+let ww_init () =
+
+  let config_dir = XDGBaseDir.default.config_home in
 
   (* First check for the secrets file*)
   let message_secret = "{
     /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */
-    'githubToken'    : '', \n\n
+    \"githubToken\"    : \"\", \n\n
     /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
-    'githubBotToken' : '', \n\n
+    \"githubBotToken\" : \"\", \n\n
     /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */
-    'forecastToken'  : '', \n\n
-    /* OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
-    'slackToken'     : '' }" in
+    \"forecastToken\"  : \"\", \n\n
+    /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
+    \"slackToken\"     : \"\" 
+  }" in
 
-  let secrets_path = (Option.get config_dir) ^ "secrets.json" in
+  let secrets_path = (config_dir) ^ "secrets.json" in
 
   (* Now check for the config file *)
   let message_config = "{
-    'forecastId': '974183',
-    'forecastIgnoredProjects': ['1684536'],
-    'forecastUrl': 'https://api.forecastapp.com',
-    'githubProjectName': 'Project Tracker',
-    'githubProjectColumns': ['Finding people', 'Awaiting start', 'Active'],
-    'githubRepoOwner': 'alan-turing-institute',
-    'githubRepoName': 'Hut23',
-    'githubUrl': 'https://api.github.com',
-    'userLookup': '/Users/kgoldmann/.config/nowwhat/user_lookup.csv'
-  }" in
- 
+    \"forecastId\": \"974183\",
+    \"forecastIgnoredProjects\": [\"1684536\"],
+    \"forecastUrl\": \"https://api.forecastapp.com\",
+    \"githubProjectName\": \"Project Tracker\",
+    \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \"Active\"],
+    \"githubRepoOwner\": \"alan-turing-institute\",
+    \"githubRepoName\": \"Hut23\",
+    \"githubUrl\": \"https://api.github.com\",
+    \"userLookup\": \"/Users/kgoldmann/.config/nowwhat/user_lookup.csv\"
+  }" in 
 
-  let config_path = (Option.get config_dir) ^ "config.json" in
+  let config_path = (config_dir) ^ "config.json" in
 
-  let _ = attempt_file config_path message_config false in
-  let _ = attempt_file secrets_path message_secret true in
+  let _ = Config.attempt_file config_path message_config false in
+  let _ = Config.attempt_file secrets_path message_secret true in
   print_endline " "
 ;;
 
-let ww_populateconfig_cmd  : unit Cmd.t =
+let ww_init_cmd  : unit Cmd.t =
   Cmd.v
-    (Cmd.info "populateconfig" ~doc:"Update your config files. ")
+    (Cmd.info "init" ~doc:"Update your config files. ")
 
-    Term.(const ww_populateconfig $ config_dir) 
-;;  *)
+    Term.(const ww_init $ const ()) 
+;;  
 
 
 (* ------------------------------- *)
@@ -656,7 +658,7 @@ let cmd : unit Cmd.t =
     ; ww_project_cmd
     ; ww_person_cmd
     ; ww_test_cmd
-    (* ; ww_populateconfig_cmd *)
+    ; ww_init_cmd 
     ]
 ;;
 
