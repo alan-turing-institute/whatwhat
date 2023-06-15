@@ -13,6 +13,8 @@ type t =
   ; slack_token : string option
   }
 
+exception MissingGHToken of string
+exception MissingForecastToken of string
 exception MissingSecret of string
 exception MissingConfig of string
 exception MissingSecretsFile of string
@@ -133,16 +135,16 @@ let load_settings () : t =
 
       (* If answer starts with Y or y *)
       if String.lowercase_ascii (String.sub answer 0 1) = "y" then
-        let message_secrets = "{
-          /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */
-          \"githubToken\"    : \"\", \n\n
-          /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
-          \"githubBotToken\" : \"\", \n\n
-          /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */
-          \"forecastToken\"  : \"\", \n\n
-          /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
-          \"slackToken\"     : \"\" 
-        }" in
+        let message_secrets = "{\n" ^
+          "  /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */\n" ^
+          "  \"githubToken\"    : \"\", \n\n" ^
+          "  /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
+          "  \"githubBotToken\" : \"\", \n\n" ^
+          "  /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */\n" ^
+          "  \"forecastToken\"  : \"\", \n\n" ^
+          "  /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
+          "  \"slackToken\"     : \"\" \n" ^
+        "}" in
         
         (* run attempt_file on the secrets_path *)
         let _ = attempt_file secrets_path message_secrets true in
@@ -168,17 +170,17 @@ let load_settings () : t =
 
       (* If answer starts with Y or y *)
       if String.lowercase_ascii (String.sub answer 0 1) = "y" then
-        let message_config = "{
-          \"forecastId\": \"974183\",
-          \"forecastIgnoredProjects\": [\"1684536\"],
-          \"forecastUrl\": \"https://api.forecastapp.com\",
-          \"githubProjectName\": \"Project Tracker\",
-          \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \"Active\"],
-          \"githubRepoOwner\": \"alan-turing-institute\",
-          \"githubRepoName\": \"Hut23\",
-          \"githubUrl\": \"https://api.github.com\",
-          \"userLookup\": \"/Users/kgoldmann/.config/nowwhat/user_lookup.csv\"
-        }" in
+          let message_config = "{\n" ^ 
+          "  \"forecastId\": \"974183\",\n" ^ 
+          "  \"forecastIgnoredProjects\": [\"1684536\"],\n" ^ 
+          "  \"forecastUrl\": \"https://api.forecastapp.com\",\n" ^ 
+          "  \"githubProjectName\": \"Project Tracker\",\n" ^ 
+          "  \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \"Active\"],\n" ^ 
+          "  \"githubRepoOwner\": \"alan-turing-institute\",\n" ^ 
+          "  \"githubRepoName\": \"Hut23\",\n" ^ 
+          "  \"githubUrl\": \"https://api.github.com\",\n" ^ 
+          "  \"userLookup\": \"/Users/kgoldmann/.config/nowwhat/user_lookup.csv\"\n" ^ 
+        "}" in
         
         (* run attempt_file on the config_path *)
         let _ = attempt_file config_path message_config false in
@@ -192,6 +194,17 @@ let load_settings () : t =
         (Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
         raise (MissingConfigFile config_path) )
   in
+
+  (* if githubToken == '' throw error *)
+  if Option.get (find_setting string_opt_of_json "githubToken" secrets_json_opt) = "" then
+    (Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
+    Printf.printf "Your Github token is empty! Update in %s\n" secrets_path);
+  
+  if Option.get (find_setting string_opt_of_json "forecastToken" secrets_json_opt) = "" then
+    (Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
+    Printf.printf "Your Forecast token is empty!\n");
+
+  
   { 
     github_project_name = find_setting string_opt_of_json "githubProjectName" config_json_opt
   ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
@@ -239,7 +252,7 @@ let get_github_token () =
   | Some value -> value
   | None -> raise (MissingSecret "githubToken")
 ;;
-
+git 
 let get_githubbot_token () =
   (* let* settings = load_settings () in *)
   match settings.githubbot_token with
