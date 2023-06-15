@@ -34,6 +34,7 @@
   ppx_deriving
   ANSITerminal
   ounit2
+  websocket-lwt-unix
   )
  (tags
   (topics "REG")))
