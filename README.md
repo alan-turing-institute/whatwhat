@@ -17,8 +17,8 @@ However, if the latest tag of `whatwhat` is newer than the latest release, you c
 brew install --build-from-source alan-turing-institute/hut23/whatwhat
 ```
 
-Once you have installed `whatwhat`, you will need to create a secrets.json file to store your personal access tokens, which you can do
-by running `whatwhat populateconfig`.
+Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
+by running `whatwhat init` then populating with your github and forecast tokens.
 
 `whatwhat` should now work, the following examples can get you started.
 
@@ -33,24 +33,10 @@ For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help
 
 ## Developers Contents
 
-1. [Brew install whatwhat](#brew-install-whatwhat)
 1. [Setting up OCaml on macOS](#setting-up-ocaml-on-macos)
 1. [Installation and configuration](#installation-and-configuration)
 1. [Usage](#usage)
 1. [Resources for getting started with OCaml](#resources-for-getting-started-with-ocaml)
-
-## Brew install whatwhat
-The simplest way to use `whatwhat` is to brew install it. It is hosted in our local [Hut23 tap](https://github.com/alan-turing-institute/homebrew-hut23). You will need to run the following two commands:
-
-```sh
-brew tap alan-turing-institute/hut23
-brew install whatwhat
-```
-
-Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
-by running `whatwhat init` then populating with your github and forecast tokens.
-
-`whatwhat` should now work, see [Usage](#usage) for commands.
 
 ## Setting up OCaml on macOS
 
