@@ -20,7 +20,7 @@ brew install whatwhat
 ```
 
 Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
-by running `whatwhat populateconfig`.
+by running `whatwhat init` then populating with your github and forecast tokens.
 
 `whatwhat` should now work, see [Usage](#usage) for commands.
 
@@ -138,6 +138,7 @@ The following examples can get you started.
 For extensive usage options, do `dune exec -- whatwhat --help`, or `dune exec -- whatwhat <COMMAND> --help` for the subcommands.
 
  - `dune exec -- whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
+ - `dune exec -- whatwhat init`: Sets up the secrets and config files from a template.
  - `dune exec -- whatwhat --notify github`: Same as above, but additionally post GitHub comments on all of those issues.
  - `dune exec -- whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
  - `dune exec -- whatwhat person [NAME]`: Print an overview of a person, as specified by their name or GitHub username (a substring is fine).
