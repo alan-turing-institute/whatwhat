@@ -40,28 +40,52 @@ type message =
   }
 [@@deriving show]
 
+type slash_command =
+  { envelope_id : string
+  ; channel_id : string
+  ; user_id : string (* user who invoked the command *)
+  ; command : string
+  ; text : string
+  }
+[@@deriving show]
+
 type slack_event =
   | Ping
     (* This is not an @ ping on Slack, but just a 'ping' from Slack's server to
   check whether we're still connected, part of the WebSocket protocol *)
   | Hello of int (* connection count *)
   | Message of message (* someone posted a message in a channel *)
-  | PingMessage of message
-(* someone pinged the bot in a channel *)
-(* envelope_id, event type, text, user, channel, timestamp *)
+  | PingMessage of message (* someone pinged the bot in a channel *)
+  | SlashCommand of slash_command
 [@@deriving show]
+
+(** Parse frame as a slash command *)
+let parse_as_slash_command (frame : Websocket.Frame.t) : slack_event =
+  let open Yojson.Basic in
+  try
+    let contents = frame.content |> from_string in
+    let message_type = contents |> Util.member "type" |> to_string |> dequote in
+    let envelope_id = contents |> Util.member "envelope_id" |> to_string |> dequote in
+    if message_type <> "slash_commands" then raise ParseFailed;
+    let payload = contents |> Util.member "payload" in
+    let command = payload |> Util.member "command" |> to_string |> dequote in
+    let text = payload |> Util.member "text" |> to_string |> dequote in
+    let user_id = payload |> Util.member "user_id" |> to_string |> dequote in
+    let channel_id = payload |> Util.member "channel_id" |> to_string |> dequote in
+    SlashCommand { envelope_id; channel_id; user_id; command; text }
+  with
+  | _ -> raise ParseFailed
+;;
 
 (** Parse frame as a message *)
 let parse_as_message (frame : Websocket.Frame.t) : slack_event =
   let open Yojson.Basic in
   try
     let contents = frame.content |> from_string in
-    let message_type = contents |> Util.member "type" |> to_string in
+    let message_type = contents |> Util.member "type" |> to_string |> dequote in
     let envelope_id = contents |> Util.member "envelope_id" |> to_string |> dequote in
-    if dequote message_type <> "events_api" then raise ParseFailed;
-    let event =
-      frame.content |> from_string |> Util.member "payload" |> Util.member "event"
-    in
+    if message_type <> "events_api" then raise ParseFailed;
+    let event = contents |> Util.member "payload" |> Util.member "event" in
     let event_type = event |> Util.member "type" |> to_string |> dequote in
     if dequote event_type <> "message" then raise ParseFailed;
     let text = event |> Util.member "text" |> to_string |> dequote in
@@ -116,7 +140,12 @@ let parse_as_ping (frame : Websocket.Frame.t) : slack_event =
 (** Attempt to parse a WebSocket frame as a Slack event. *)
 let parse_frame (frame : Websocket.Frame.t) : slack_event =
   let parsers =
-    [ parse_as_pingmessage; parse_as_message; parse_as_hello; parse_as_ping ]
+    [ parse_as_slash_command
+    ; parse_as_pingmessage
+    ; parse_as_message
+    ; parse_as_hello
+    ; parse_as_ping
+    ]
   in
   let rec getFirstParseSuccess ps =
     match ps with
@@ -225,25 +254,32 @@ let get_username (bot_token : string) (user_id : string) : string option Lwt.t =
   | _ -> Lwt.return_none
 ;;
 
-let acknowledge_event (envelope_id : string) (conn : Websocket_lwt_unix.conn) : unit Lwt.t
-  =
+let return_envelope (envelope_id : string) (conn : Websocket_lwt_unix.conn) : unit Lwt.t =
   let content = sprintf "{ \"envelope_id\": \"%s\" }" envelope_id in
   let frame = Websocket.Frame.create ~content () in
   Websocket_lwt_unix.write conn frame
 ;;
 
-let handle_frame
+let acknowledge_event (conn : Websocket_lwt_unix.conn) (event : slack_event) : unit Lwt.t =
+  match event with
+  | Ping -> pong conn
+  | Hello _ -> Lwt.return_unit
+  | PingMessage m -> return_envelope m.envelope_id conn
+  | Message m -> return_envelope m.envelope_id conn
+  | SlashCommand m -> return_envelope m.envelope_id conn
+;;
+
+let handle_event
   (conn : Websocket_lwt_unix.conn)
   (bot_token : string)
   (userId : string)
-  (frame : Websocket.Frame.t)
+  (event : slack_event)
   : unit Lwt.t
   =
-  let* _ = print_frame_json frame in
-  match parse_frame frame with
-  | Ping ->
-    print_endline " *** Received ping. Ponging back";
-    pong conn
+  ignore conn;
+  ignore userId;
+  match event with
+  | Ping -> Lwt.return_unit
   | Hello n ->
     printf " *** Received a hello. Current number of connections: %d\n" n;
     Lwt.return_unit
@@ -253,9 +289,7 @@ let handle_frame
       m.envelope_id
       m.text
       m.user;
-
-    (* Acknowledge event *)
-    acknowledge_event m.envelope_id conn
+    Lwt.return_unit
   | Message m ->
     printf
       " *** Received a message. Envelope ID: %s, text: %s, user: %s\n"
@@ -263,10 +297,7 @@ let handle_frame
       m.text
       m.user;
 
-    (* Acknowledge event *)
-    let* _ = acknowledge_event m.envelope_id conn in
-
-    (* React if it's in #general *)
+    (* React with a randomly selected emoji *)
     let possible_reactions =
       [ "eyes"
       ; "heart_eyes"
@@ -280,58 +311,68 @@ let handle_frame
     let reaction =
       List.nth possible_reactions (Random.int (List.length possible_reactions))
     in
-    let* _ = add_reaction bot_token m.channel m.timestamp reaction in
+    add_reaction bot_token m.channel m.timestamp reaction
+  | SlashCommand sc ->
+    printf
+      " *** Received a slash command. Envelope ID: %s, command: %s, text: %s, user: %s\n"
+      sc.envelope_id
+      sc.command
+      sc.text
+      sc.user_id;
 
-    (* Reply to message (but not in #general) *)
-    (* if m.channel <> "C057JCC147R" && m.user <> userId *)
-    if m.user <> userId
+    if sc.command = "/whatwhat-person"
     then
-      let* maybe_person = get_username bot_token m.user in
+      (* Acknowledge in channel *)
+      let* _ =
+        post_message
+          bot_token
+          sc.channel_id
+          (sprintf
+             "<@%s>, you just ran: `/whatwhat-person %s`. I will respond shortly!"
+             sc.user_id
+             sc.text)
+      in
 
-      match maybe_person with
-      | None ->
-        printf " *** Could not find user with ID %s\n" m.user;
-        Lwt.return_unit
-      | Some person ->
-        let open CalendarLib.Date in
-        let start_date = make 2016 1 1 in
-        let end_date = add (today ()) (Period.year 1) in
-        let* people, projects, assignments =
-          Schedule.get_the_schedule_async ~start_date ~end_date
+      (* Run whatwhat *)
+      let open CalendarLib.Date in
+      let start_date = make 2016 1 1 in
+      let end_date = add (today ()) (Period.year 1) in
+      let* people, projects, assignments =
+        Schedule.get_the_schedule_async ~start_date ~end_date
+      in
+
+      let matched_people =
+        List.filter
+          (fun (p : Domain.person) ->
+            Utils.contains ~case_sensitive:false p.full_name sc.text
+            || Utils.contains ~case_sensitive:false p.email sc.text
+            ||
+            match p.github_handle with
+            | None -> false
+            | Some s -> Utils.contains ~case_sensitive:false s sc.text)
+          people
+      in
+      match matched_people with
+      | [] ->
+        let msg = Printf.sprintf "No person with the name '%s' was found." sc.text in
+        post_message bot_token sc.channel_id ("```" ^ msg ^ "```")
+      | [ p ] ->
+        let* msg = Person.make_slack_output p projects assignments in
+        post_message bot_token sc.channel_id ("```" ^ msg ^ "```")
+      | ps ->
+        let s =
+          Printf.sprintf "Multiple people were found matching the string '%s':" sc.text
         in
-
-        let matched_people =
-          List.filter
+        let possible_names =
+          List.map
             (fun (p : Domain.person) ->
-              Utils.contains ~case_sensitive:false p.full_name person
-              || Utils.contains ~case_sensitive:false p.email person
-              ||
               match p.github_handle with
-              | None -> false
-              | Some s -> Utils.contains ~case_sensitive:false s person)
-            people
+              | None -> p.full_name
+              | Some s -> Printf.sprintf "%s (@%s)" p.full_name s)
+            ps
         in
-        (match matched_people with
-         | [] ->
-           let msg = Printf.sprintf "No person with the name '%s' was found." person in
-           post_message bot_token m.channel ("```" ^ msg ^ "```")
-         | [ p ] ->
-           let* msg = Person.make_slack_output p projects assignments in
-           post_message bot_token m.channel ("```" ^ msg ^ "```")
-         | ps ->
-           let s =
-             Printf.sprintf "Multiple people were found matching the string '%s':" person
-           in
-           let possible_names =
-             List.map
-               (fun (p : Domain.person) ->
-                 match p.github_handle with
-                 | None -> p.full_name
-                 | Some s -> Printf.sprintf "%s (@%s)" p.full_name s)
-               ps
-           in
-           let msg = String.concat "\n" (s :: possible_names) in
-           post_message bot_token m.channel ("```" ^ msg ^ "```"))
+        let msg = String.concat "\n" (s :: possible_names) in
+        post_message bot_token sc.channel_id ("```" ^ msg ^ "```")
     else Lwt.return_unit
 ;;
 
@@ -373,8 +414,20 @@ let run_bot () =
     : unit Lwt.t
     =
     let* frame = Websocket_lwt_unix.read conn in
+    print_endline "==================================";
+    let right_now = CalendarLib.Calendar.now () in
+    CalendarLib.Printer.Calendar.dprint right_now;
+    print_endline "";
     try
-      let* _ = handle_frame conn bot_token userId frame in
+      let event = parse_frame frame in
+      (* Run all of these concurrently *)
+      let* () =
+        Lwt.join
+          [ print_frame_json frame
+          ; acknowledge_event conn event
+          ; handle_event conn bot_token userId event
+          ]
+      in
       loop conn bot_token userId
     with
     | ParseFailed ->
@@ -382,10 +435,11 @@ let run_bot () =
       print_endline "Its opcode is:";
       print_endline (Websocket.Frame.Opcode.to_string frame.opcode);
       print_endline "Its contents are:";
-      print_frame_json frame
+      let* _ = print_frame_json frame in
+      exit 1
     | End_of_file ->
       print_endline "Connection was unexpectedly closed.";
-      exit 1
+      exit 2
   in
   let app_token = Config.get_slack_app_token () in
   let bot_token = Config.get_slack_bot_token () in
