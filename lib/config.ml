@@ -13,8 +13,12 @@ type t =
   ; slack_token : string option
   }
 
+exception MissingGHToken of string
+exception MissingForecastToken of string
 exception MissingSecret of string
 exception MissingConfig of string
+exception MissingSecretsFile of string
+exception MissingConfigFile of string
 
 let secrets_path = XDGBaseDir.default.config_home ^ "/whatwhat/secrets.json"
 let config_path = XDGBaseDir.default.config_home ^ "/whatwhat/config.json"
@@ -91,23 +95,123 @@ let find_setting json_parser key file_json_opt =
   | None, None -> None
 ;;
 
+let attempt_file (path : string) (message : string) (update_message : bool) = 
+
+  (* strip all before characters before last/ from string *)
+  let file_type = String.split_on_char '/' path |> List.rev |> List.hd in 
+
+
+  (* if the file exists do X, if not do Y *)
+  try 
+    let _ = open_in path in
+    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nInformation: ";
+    Printf.printf "The %s file exists. If you want to make any changes, please update the file yourself in %s\n" file_type path
+  with
+    | Sys_error _ -> 
+      (* Pretty.prout ~use_color:true [ Bold; Foreground Magenta ] "Please acknowledge!: "; *)
+      Printf.printf "I have written a %s file to %s. " file_type path;
+
+      if update_message then
+        print_endline "Make sure you update the tokens there following the instructions in comments. ";
+      let oc = open_out path in
+      Printf.fprintf oc "%s\n" message;
+      close_out oc
+;;
+
 let load_settings () : t =
+
+  (* let use_color = true in *)
   let secrets_json_opt =
     try Some (Yojson.Basic.from_file secrets_path) with
-    | Sys_error _ -> None
+    | Sys_error _ -> 
+      Printf.printf "\n";
+      Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0002 ";
+      Printf.printf "Missing secrets file: %s\n" secrets_path; 
+
+      (* Ask user if its ok to set up new file *)
+      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
+      print_string "Are you happy for me to set up a secrets template for you? (yes/no): ";
+      let answer = read_line () in
+
+      (* If answer starts with Y or y *)
+      if String.lowercase_ascii (String.sub answer 0 1) = "y" then
+        let message_secrets = "{\n" ^
+          "  /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */\n" ^
+          "  \"githubToken\"    : \"\", \n\n" ^
+          "  /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
+          "  \"githubBotToken\" : \"\", \n\n" ^
+          "  /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */\n" ^
+          "  \"forecastToken\"  : \"\", \n\n" ^
+          "  /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
+          "  \"slackToken\"     : \"\" \n" ^
+        "}" in
+        
+        (* run attempt_file on the secrets_path *)
+        let _ = attempt_file secrets_path message_secrets true in
+        
+        Some (Yojson.Basic.from_file secrets_path)
+
+      (*  If no, exit *)
+      else
+        (Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
+        raise (MissingSecretsFile secrets_path))
   in
   let config_json_opt =
     try Some (Yojson.Basic.from_file config_path) with
-    | Sys_error _ -> None
+    | Sys_error _ -> 
+      Printf.printf "\n";
+      Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0002 ";
+      Printf.printf "Missing config file: %s\n" config_path; 
+
+      (* Ask user if its ok to set up new file *)
+      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
+      print_string "Are you happy for me to set up a config template for you? (yes/no): ";
+      let answer = read_line () in
+
+      (* If answer starts with Y or y *)
+      if String.lowercase_ascii (String.sub answer 0 1) = "y" then
+          let message_config = "{\n" ^ 
+          "  \"forecastId\": \"974183\",\n" ^ 
+          "  \"forecastIgnoredProjects\": [\"1684536\"],\n" ^ 
+          "  \"forecastUrl\": \"https://api.forecastapp.com\",\n" ^ 
+          "  \"githubProjectName\": \"Project Tracker\",\n" ^ 
+          "  \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \"Active\"],\n" ^ 
+          "  \"githubRepoOwner\": \"alan-turing-institute\",\n" ^ 
+          "  \"githubRepoName\": \"Hut23\",\n" ^ 
+          "  \"githubUrl\": \"https://api.github.com\",\n" ^ 
+          "  \"userLookup\": \"/Users/kgoldmann/.config/nowwhat/user_lookup.csv\"\n" ^ 
+        "}" in
+        
+        (* run attempt_file on the config_path *)
+        let _ = attempt_file config_path message_config false in
+
+        
+        Some (Yojson.Basic.from_file config_path)
+        
+
+      (*  If no, exit *)
+      else
+        (Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
+        raise (MissingConfigFile config_path) )
   in
-  { github_project_name =
-      find_setting string_opt_of_json "githubProjectName" config_json_opt
+
+  (* if githubToken == '' throw error *)
+  if Option.get (find_setting string_opt_of_json "githubToken" secrets_json_opt) = "" then
+    (Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
+    Printf.printf "Your Github token is empty! Update in %s\n" secrets_path);
+  
+  if Option.get (find_setting string_opt_of_json "forecastToken" secrets_json_opt) = "" then
+    (Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
+    Printf.printf "Your Forecast token is empty!\n");
+
+  
+  { 
+    github_project_name = find_setting string_opt_of_json "githubProjectName" config_json_opt
   ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
   ; github_repo_owner = find_setting string_opt_of_json "githubRepoOwner" config_json_opt
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
-  ; github_project_columns =
-      find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
+  ; github_project_columns = find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_token = find_setting string_opt_of_json "forecastToken" secrets_json_opt
   ; slack_token = find_setting string_opt_of_json "slackToken" secrets_json_opt
@@ -117,50 +221,61 @@ let load_settings () : t =
 let settings = load_settings ()
 
 let get_github_project_name () =
+  (* let* settings = load_settings () in *)
   match settings.github_project_name with
   | Some value -> value
   | None -> raise (MissingConfig "githubProjectName")
 ;;
 
-let get_github_project_columns () = settings.github_project_columns
+let get_github_project_columns () = 
+  (* let* settings = load_settings () in *)
+  settings.github_project_columns
+;;
 
 let get_github_repo_name () =
+  (* let* settings = load_settings () in *)
   match settings.github_repo_name with
   | Some value -> value
   | None -> raise (MissingConfig "githubRepoName")
 ;;
 
 let get_github_repo_owner () =
+  (* let* settings = load_settings () in *)
   match settings.github_repo_owner with
   | Some value -> value
   | None -> raise (MissingConfig "githubRepoOwner")
 ;;
 
 let get_github_token () =
+  (* let* settings = load_settings () in *)
   match settings.github_token with
   | Some value -> value
   | None -> raise (MissingSecret "githubToken")
 ;;
-
+git 
 let get_githubbot_token () =
+  (* let* settings = load_settings () in *)
   match settings.githubbot_token with
   | Some value -> value
   | None -> raise (MissingSecret "githubbotToken")
 ;;
 
-let get_forecast_id () =
+let get_forecast_id() =
+  (* let* settings = load_settings () in *)
   match settings.forecast_id with
   | Some value -> value
   | None -> raise (MissingConfig "forecastId")
 ;;
 
 let get_forecast_token () =
+  (* let* settings = load_settings () in *)
   match settings.forecast_token with
   | Some value -> value
   | None -> raise (MissingSecret "forecastToken")
 ;;
 
 let get_slack_token () =
+  (* let* settings = load_settings () in *)
   match settings.slack_token with
   | Some value -> value
   | None -> raise (MissingSecret "githubBotToken")
