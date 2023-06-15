@@ -368,6 +368,7 @@ let connect_websocket (uri : Uri.t) : Websocket_lwt_unix.conn Lwt.t =
 ;;
 
 let run_bot () =
+  Random.self_init ();
   let rec loop (conn : Websocket_lwt_unix.conn) (bot_token : string) (userId : string)
     : unit Lwt.t
     =
