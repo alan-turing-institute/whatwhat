@@ -210,6 +210,18 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
  2. Upgrade this by running `./update_version.sh <NEW_VERSION>`. This will create a commit.
  3. To push the tag to the repo, you need to run `git push` followed by `git push --tags`
  4. Once this is pushed to the remote repo, it will trigger a github action in the `whatwhat` repo which will bump the homebrew formula in the in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo. You need to approve this pull request.
- 5. You then need to make a new bottle
+ 5. In the terminal navigate to a custom directory. You now need to type `brew update` to make sure you have the latest `whatwhat` formula, followed by
+      ```sh
+      brew install --build-bottle --verbose whatwhat
+      brew bottle whatwhat
+      ```
+    This will create a bottle (a prebuilt binary) in that directory and will print a new `bottle do` block to your terminal
+6. Copy that code snippet, go to the [ruby file](https://github.com/alan-turing-institute/homebrew-hut23/blob/main/whatwhat.rb) in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) and paste it to overwrite the previous `bottle do` instructions.
+7. Commit the changes to main
+8. Going back to the [whatwhat repo](https://github.com/alan-turing-institute/whatwhat/) go to releases -> tags and click on the latest tag (that you have just made)
+9. Upload the bottle from your computer
+10. Click publish release
+
+
 
 
