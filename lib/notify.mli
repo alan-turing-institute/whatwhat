@@ -26,3 +26,21 @@ val post_github
   -> restrict_codes:Log.code_spec
   -> restrict_issues:int list option
   -> unit
+
+(*
+(** Post a logged event to the appropriate individual on Slack. *)
+val post_event_to_slack :
+  Domain.person list * Domain.project IntMap.t * Domain.assignment list
+  -> int option * Log.event 
+  -> unit
+ *)
+
+(** Post all logged events to individuals on Slack. *)
+val post_slack :
+  Domain.person list * Domain.project IntMap.t * Domain.assignment list
+  -> verbose:int
+  -> restrict_codes:Log.code_spec
+  -> restrict_issues:int list option
+  -> unit
+
+

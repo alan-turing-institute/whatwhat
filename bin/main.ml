@@ -208,7 +208,11 @@ let ww_main notify no_color quiet verbose codes_without codes_only project_subse
     match notify with
     | Notify.NoTarget -> print_endline "No notifications requested."
     | Notify.Github -> Notify.post_github ~verbose ~restrict_codes ~restrict_issues
-    | Notify.Slack -> print_endline "CATCH: this would post reports to Slack."
+    | Notify.Slack -> Notify.post_slack
+                        (people, projects, assignments)
+                        ~verbose
+                        ~restrict_codes
+                        ~restrict_issues
     | Notify.All -> print_endline "CATCH: this would post reports to everywhere!"
   with
   | Failure msg ->

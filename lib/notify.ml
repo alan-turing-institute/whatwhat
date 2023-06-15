@@ -75,3 +75,80 @@ let post_github ~verbose ~restrict_codes ~restrict_issues =
   in
   ignore (requests |> Utils.all_throttled |> Lwt_main.run)
 ;;
+
+(* ---------------------------------------------------------------------- *)
+
+(** --- Notifications to individuals via Slack *)
+
+
+(* Find a person to notify *)
+
+(* Return the person in the assigment if
+   (a) They are a person, not a placeholder; and
+   (b) Their allocation is not in the past.
+ *)
+let assigned_person (assn : Domain.assignment) : Domain.person option =
+  match (Domain.Assignment.get_time_status assn) with
+  | Past ->
+     (match assn.entity with
+      | Person p -> Some p
+      | _        -> None)
+  | _ ->
+     None
+  
+(* Look up those allocated to a project from now *)
+let get_project_team (_, _, assignments) project_num : Domain.person list =
+  assignments
+  |> List.filter (fun (a : Domain.assignment) -> a.project.number == project_num)
+  |> List.filter_map assigned_person
+
+(* Follow the "notification chain" until we find someone
+   Returns a list of people, which may be empty *)
+
+let find_notifiable_individuals the_schedule proj_num =
+    get_project_team the_schedule proj_num
+
+let show_event_project
+      (_, (projects : Domain.project IntMap.t), _)
+      (evt : (int option * Log.event))
+    : string =
+  let (maybe_num, _) = evt in
+  match maybe_num with
+    | None -> "(Could not identify project)"
+    | Some num ->
+       "Project #"
+       ^ (string_of_int num)
+       ^ " \"" ^ (IntMap.find num projects).name ^ "\""
+           
+
+let post_event_to_slack
+      the_schedule
+      (evt : (int option * Log.event)) =
+  let (maybe_num, ev) = evt in
+  match maybe_num with
+  | None     -> ()
+  | Some num ->
+     match find_notifiable_individuals the_schedule num with
+     | [] -> ()
+     | _ as people ->
+        begin
+          print_string "\nPlease notify ";
+          print_endline @@
+            String.concat ", "
+              (List.map (fun (p : Domain.person) -> p.full_name) people);
+          print_endline "about the message:";
+          print_endline @@ show_event_project the_schedule evt;
+          print_endline @@ (Log.show_level ev.level) ^ ": " ^ ev.message
+        end
+
+let post_slack
+      the_schedule
+      ~verbose
+      ~restrict_codes
+      ~restrict_issues =
+  begin
+    print_endline "TODO. The following should be posted to Slack.";
+    Log.gather_events ~verbose ~restrict_codes ~restrict_issues
+    |> List.iter (post_event_to_slack the_schedule)
+  end
+

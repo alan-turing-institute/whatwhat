@@ -194,6 +194,10 @@ and the YAML data block has the following fields:
 
 {2 Errors}
 
+All of these errors should be report to the Team, following the
+fallback chain if none can be found. Since these are GitHub-related
+errors, we will always have an issue number.
+
 {b E2001} A metadata block cannot be found at all.
 
  - {i Solution:} Add the metadata block. If it's already there, it's probably
