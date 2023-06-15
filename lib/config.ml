@@ -95,18 +95,18 @@ let find_setting json_parser key file_json_opt =
 
 let attempt_file (path : string) (message : string) (update_message : bool) = 
 
-  (* strip all before / from string *)
+  (* strip all before characters before last/ from string *)
   let file_type = String.split_on_char '/' path |> List.rev |> List.hd in 
 
 
   (* if the file exists do X, if not do Y *)
   try 
     let _ = open_in path in
-    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
-    Printf.printf "The %s file already exists. I am not going to do anything to avoid overwriting your set-up. If you want to make any changes, please update the file yourself in %s\n" file_type path
+    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nInformation: ";
+    Printf.printf "The %s file already exists. If you want to make any changes, please update the file yourself in %s\n" file_type path
   with
     | Sys_error _ -> 
-      Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
+      Pretty.prout ~use_color:true [ Bold; Foreground Magenta ] "Please acknowledge!: ";
       Printf.printf "I have written a %s file to %s. " file_type path;
 
       if update_message then

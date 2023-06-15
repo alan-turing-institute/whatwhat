@@ -578,30 +578,9 @@ let ww_test_cmd : unit Cmd.t =
 (*----------------------------------*)
 (*------- whatwhat config --------- *)
 
-(* let ww_config (config_dir : string option) =
-  (* Cmd.v *)
-    (* (Cmd.info "config" ~doc:"Print hello world.") *)
-
-  let _settings = Config.load_settings () in
-
-  Printf.printf "\nConfig files successfully found in %s" (Option.get config_dir)
-;;
-
-let ww_config_cmd  : unit Cmd.t =
-  Cmd.v
-    (Cmd.info "config" ~doc:"Command to set up or print config.")
-
-  Term.(const ww_config $ config_dir)
-
-;;   *)
-
-
-
-
-
 let ww_init () =
 
-  let config_dir = XDGBaseDir.default.config_home in
+  let config_dir = XDGBaseDir.default.config_home ^ "/whatwhat/" in
 
   (* First check for the secrets file*)
   let message_secret = "{
@@ -633,7 +612,7 @@ let ww_init () =
   let config_path = (config_dir) ^ "config.json" in
 
   let _ = Config.attempt_file config_path message_config false in
-  let _ = Config.attempt_file secrets_path message_secret true in
+  let _ = Config.attempt_file secrets_path message_secret false in
   print_endline " "
 ;;
 
