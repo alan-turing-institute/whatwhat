@@ -103,10 +103,10 @@ let attempt_file (path : string) (message : string) (update_message : bool) =
   try 
     let _ = open_in path in
     Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nInformation: ";
-    Printf.printf "The %s file already exists. If you want to make any changes, please update the file yourself in %s\n" file_type path
+    Printf.printf "The %s file exists. If you want to make any changes, please update the file yourself in %s\n" file_type path
   with
     | Sys_error _ -> 
-      Pretty.prout ~use_color:true [ Bold; Foreground Magenta ] "Please acknowledge!: ";
+      (* Pretty.prout ~use_color:true [ Bold; Foreground Magenta ] "Please acknowledge!: "; *)
       Printf.printf "I have written a %s file to %s. " file_type path;
 
       if update_message then
