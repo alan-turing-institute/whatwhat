@@ -3,7 +3,29 @@
 `whatwhat` is an OCaml command-line tool to help monitor project status and allocations in the [Research Engineering Group](https://www.turing.ac.uk/research-engineering), aka Hut23.
 It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwhat) (F#) and [WhatNow](https://github.com/alan-turing-institute/whatnow) (Racket); the latter contains [an illuminating backbrief](https://github.com/alan-turing-institute/whatnow/blob/main/backbrief/backbrief.org) describing the history of project allocations in REG.
 
-## Contents
+## Brew install whatwhat
+The simplest way to use `whatwhat` is to brew install it. It is hosted in our local [Hut23 tap](https://github.com/alan-turing-institute/homebrew-hut23). You will need to run the following two commands:
+
+```sh
+brew tap alan-turing-institute/hut23
+brew install whatwhat
+```
+
+Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
+by running `whatwhat populateconfig`.
+
+`whatwhat` should now work, the following examples can get you started.
+
+For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help` for the subcommands.
+
+ - `whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
+ - `whatwhat --notify github`: Same as above, but additionally post GitHub comments on all of those issues.
+ - `whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
+ - `whatwhat person [NAME]`: Print an overview of a person, as specified by their name or GitHub username (a substring is fine).
+ - `whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
+ - `whatwhat open [NUM]`: Open a GitHub issue in a browser (macOS only, as this uses `open(1)`.
+
+## Developers Contents
 
 1. [Setting up OCaml on macOS](#setting-up-ocaml-on-macos)
 1. [Installation and configuration](#installation-and-configuration)
