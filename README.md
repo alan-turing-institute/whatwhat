@@ -8,10 +8,16 @@ The simplest way to use `whatwhat` is to brew install it. It is hosted in our lo
 
 ```sh
 brew tap alan-turing-institute/hut23
-brew install whatwhat
+brew install alan-turing-institute/hut23/whatwhat
+```
+This is likely to install `whatwhat` from the pre-compiled Homebrew bottle (associated with a GitHub release), which will make the installation quicker.
+However, if the latest tag of `whatwhat` is newer than the latest release, you can force Homebrew to install the formula from the source code by running:
+
+```sh
+brew install --build-from-source alan-turing-institute/hut23/whatwhat
 ```
 
-Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
+Once you have installed `whatwhat`, you will need to create a secrets.json file to store your personal access tokens, which you can do
 by running `whatwhat populateconfig`.
 
 `whatwhat` should now work, the following examples can get you started.
