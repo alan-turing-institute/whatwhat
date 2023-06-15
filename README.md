@@ -37,6 +37,7 @@ For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help
 1. [Installation and configuration](#installation-and-configuration)
 1. [Usage](#usage)
 1. [Resources for getting started with OCaml](#resources-for-getting-started-with-ocaml)
+1. [New Tags and Releases](#new-tags-and-releases
 
 ## Setting up OCaml on macOS
 
@@ -200,4 +201,15 @@ See the [Documentation wiki page](https://github.com/alan-turing-institute/whatw
 - [Real World OCaml (Jane Street)](https://dev.realworldocaml.org/index.html)
   (Goes faster and is more in-depth, so quite good if you have some experience with functional programming.
   However, note that it relies on Jane Street's alternative standard library, which `whatwhat` doesn't use.)
-- [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html)
+- [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html) 
+
+## New Tags and Releases
+When you make changes to the `whatwhat` code, the following steps will ensure that the brew installed version of `whatwhat` is up-to-date.
+
+ 1. In the root directory of this repo, you need to run `./update_version.sh`. This will tell you the current tag number.
+ 2. Upgrade this by running `./update_version.sh <NEW_VERSION>`. This will create a commit.
+ 3. To push the tag to the repo, you need to run `git push` followed by `git push --tags`
+ 4. Once this is pushed to the remote repo, it will trigger a github action in the `whatwhat` repo which will bump the homebrew formula in the in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo. You need to approve this pull request.
+ 5. You then need to make a new bottle
+
+
