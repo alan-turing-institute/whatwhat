@@ -209,7 +209,7 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
  1. In the root directory of this repo, you need to run `./update_version.sh`. This will tell you the current tag number.
  2. Upgrade this by running `./update_version.sh <NEW_VERSION>`. This will create a commit.
  3. To push the tag to the repo, you need to run `git push` followed by `git push --tags`
- 4. Once this is pushed to the remote repo, it will trigger a github action in the `whatwhat` repo which will bump the homebrew formula in the in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo. You need to approve this pull request.
+ 4. Once this is pushed to the remote repo, it will trigger a github action in the `whatwhat` repo which will then trigger an action to bump the homebrew formula in the in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo. These steps will take a little while - you can see their progress in the action tab. You need to approve this pull request.
  5. In the terminal navigate to a custom directory. You now need to type `brew update` to make sure you have the latest `whatwhat` formula, followed by
       ```sh
       brew install --build-bottle --verbose whatwhat
@@ -223,7 +223,7 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
 11. Click create release from tag
 12. Upload the binary from your computer
 13. Click 'publish release'
-14. Copy the url of the release and paste this below `bottle do` in the ruby file as `root_url "<url>"`
+14. Copy the url of the release and paste this below `bottle do` in the ruby file in the form of `root_url "https://github.com/alan-turing-institute/whatwhat/releases/download/<VERSION>"`. Note this should be the same as the url, but with 'download' rather than 'tag' 
 
 
 
