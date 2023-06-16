@@ -223,7 +223,7 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
 11. Click create release from tag
 12. Upload the binary from your computer
 13. Click 'publish release'
-14. Copy the url of the release and paste this below `bottle do` in the ruby file as `root_url "<url>"`
+14. Copy the url of the release and paste this below `bottle do` in the ruby file in the form of `root_url "https://github.com/alan-turing-institute/whatwhat/releases/download/<VERSION>"`. Note this should be the same as the url, but with 'download' rather than 'tag' 
 
 
 
