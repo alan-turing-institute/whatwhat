@@ -174,7 +174,6 @@ let post_message (bot_token : string) (channel : string) (message : string) : un
   let postMessageUri =
     "https://slack.com/api/chat.postMessage"
     |> Uri.of_string
-    |> fun u -> Uri.add_query_param' u ("channel", channel)
   in
   let headers =
     Cohttp.Header.of_list
@@ -354,25 +353,25 @@ let handle_event
       in
       match matched_people with
       | [] ->
-        let msg = Printf.sprintf "No person with the name '%s' was found." sc.text in
-        post_message bot_token sc.channel_id ("```" ^ msg ^ "```")
+        let msg = Printf.sprintf ":x: *No person with the name '%s' was found.*" sc.text in
+        post_message bot_token sc.channel_id msg
       | [ p ] ->
         let* msg = Person.make_slack_output p projects assignments in
-        post_message bot_token sc.channel_id ("```" ^ msg ^ "```")
+        post_message bot_token sc.channel_id msg
       | ps ->
         let s =
-          Printf.sprintf "Multiple people were found matching the string '%s':" sc.text
+          Printf.sprintf ":interrobang: *Multiple people were found matching the string '%s':*" sc.text
         in
         let possible_names =
           List.map
             (fun (p : Domain.person) ->
               match p.github_handle with
               | None -> p.full_name
-              | Some s -> Printf.sprintf "%s (@%s)" p.full_name s)
+              | Some s -> Printf.sprintf " ⏵ %s (`@%s`)" p.full_name s)
             ps
         in
         let msg = String.concat "\n" (s :: possible_names) in
-        post_message bot_token sc.channel_id ("```" ^ msg ^ "```")
+        post_message bot_token sc.channel_id msg
     else Lwt.return_unit
 ;;
 
