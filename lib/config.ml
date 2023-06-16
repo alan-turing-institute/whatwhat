@@ -144,7 +144,7 @@ let load_settings () : t =
           "  /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */\n" ^
           "  \"forecastToken\"  : \"\", \n\n" ^
           "  /* slackBotToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
-          "  \"slackBotToken\"     : \"\" \n" ^
+          "  \"slackBotToken\"     : \"\", \n" ^
           "  /* slackAppToken: OPTIONAL (used to connect to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
           "  \"slackAppToken\"     : \"\" \n" ^
         "}" in
