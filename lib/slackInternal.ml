@@ -11,16 +11,12 @@ exception FrameParseFailed
 let check_response (response, body) =
   let open Yojson.Basic in
   let () = Utils.check_http_response response in
-  let body_json =
-    body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> from_string
-  in
+  let body_json = body |> Cohttp_lwt.Body.to_string |> Lwt_main.run |> from_string in
   (* Error or warn if the response body reports something other than all-good. See
      https://api.slack.com/web#responses for what to expect of the response. *)
   let ok_opt = Util.member "ok" body_json |> Util.to_bool_option in
   let error_opt = Util.member "error" body_json |> Util.to_string_option in
-  let warning_opt =
-    Util.member "warning" body_json |> Util.to_string_option
-  in
+  let warning_opt = Util.member "warning" body_json |> Util.to_string_option in
   match ok_opt with
   | Some true ->
     (match warning_opt with
@@ -236,9 +232,10 @@ let print_frame_json (frame : Websocket.Frame.t) : unit Lwt.t =
 
 (** Send a pong back to the server. This should be done in response to a ping.
     *)
-let pong (conn : Websocket_lwt_unix.conn) : unit Lwt.t = let frame =
-  Websocket.Frame.create ~opcode:Websocket.Frame.Opcode.Pong () in
-Websocket_lwt_unix.write conn frame ;;
+let pong (conn : Websocket_lwt_unix.conn) : unit Lwt.t =
+  let frame = Websocket.Frame.create ~opcode:Websocket.Frame.Opcode.Pong () in
+  Websocket_lwt_unix.write conn frame
+;;
 
 (** Send a frame back to Slack's servers indicating that an envelope has been
     received. This is mandatory, or else Slack will start sending retries. *)
@@ -270,10 +267,7 @@ let acknowledge_event (conn : Websocket_lwt_unix.conn) (event : slack_event) : u
 let post_message (bot_token : string) (channel : string) (message : string) : unit Lwt.t =
   let reply_content = sprintf {|{"channel": "%s", "text": "%s"}|} channel message in
   let body = Cohttp_lwt.Body.of_string reply_content in
-  let postMessageUri =
-    "https://slack.com/api/chat.postMessage"
-    |> Uri.of_string
-  in
+  let postMessageUri = "https://slack.com/api/chat.postMessage" |> Uri.of_string in
   let headers =
     Cohttp.Header.of_list
       [ "Content-type", "application/json"; "Authorization", "Bearer " ^ bot_token ]
@@ -286,11 +280,7 @@ let post_message (bot_token : string) (channel : string) (message : string) : un
  
     The reaction is specified as a string, without the surrounding colons. For
     example, if you want to react with :eyes:, pass "eyes" as this argument. *)
-let add_reaction
-  (bot_token : string)
-  (message: message)
-  (reaction : string)
-  : unit Lwt.t
+let add_reaction (bot_token : string) (message : message) (reaction : string) : unit Lwt.t
   =
   let addReactionUri =
     "https://slack.com/api/reactions.add"

@@ -5,7 +5,6 @@
 open Whatwhat
 open Cmdliner
 
-
 (* ------------------------------- *)
 (* ------- whatwhat open --------- *)
 
@@ -166,12 +165,10 @@ let ww_export_team_cmd : unit Cmd.t =
 (* ------------------------------- *)
 (* ---------- whatwhat ----------- *)
 
-
 type project_subset =
   | AllProjects
   | SelectedColumnsOnly
   | Specific of int list
-
 
 let ww_main notify no_color quiet verbose codes_without codes_only project_subset =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
@@ -221,7 +218,6 @@ let ww_main notify no_color quiet verbose codes_without codes_only project_subse
     Printf.eprintf "%s\n" msg;
     exit Cmd.Exit.internal_error (* Defined as 125. *)
 ;;
-
 
 let notify_arg =
   let tgs =
@@ -349,7 +345,6 @@ let ww_main_term : unit Term.t =
     $ projects_arg)
 ;;
 
-
 (* ------------------------------- *)
 (* ------ whatwhat project ------- *)
 
@@ -469,9 +464,7 @@ let ww_person_cmd : unit Cmd.t =
 (* ------------------------------- *)
 (* ----- whatwhat slack-bot ------- *)
 
-let ww_slack_bot () =
-  Slack.run_bot ();
-;;
+let ww_slack_bot () = Slack.run_bot ()
 
 let ww_slack_bot_cmd : unit Cmd.t =
   Cmd.v
@@ -607,57 +600,66 @@ let ww_test_cmd : unit Cmd.t =
         where lack of purity makes it harder to reason about the behaviour of a
         programme! *)
     Term.(const ww_test $ const ())
-;; 
-
+;;
 
 (*----------------------------------*)
 (*------- whatwhat config --------- *)
 
 let ww_init () =
-
   let config_dir = XDGBaseDir.default.config_home ^ "/whatwhat/" in
 
   (* First check for the secrets file*)
-  let message_secret = "{
-    /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */
-    \"githubToken\"    : \"\", \n\n
-    /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
-    \"githubBotToken\" : \"\", \n\n
-    /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */
-    \"forecastToken\"  : \"\", \n\n
-    /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */
-    \"slackToken\"     : \"\" 
-  }" in
+  let message_secret =
+    "{\n\
+    \    /* githubToken: Required for project reactions. This can generate at \
+     https://github.com/settings/tokens. The token will need to have the permissions: \
+     read:user, repo, and user:email */\n\
+    \    \"githubToken\"    : \"\", \n\n\n\
+    \    /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily \
+     for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk \
+     group (ask someone else on the whatwhat developer team to add you, e.g. the person \
+     who most recently committed to main) */\n\
+    \    \"githubBotToken\" : \"\", \n\n\n\
+    \    /* forecastToken : Required for project allocations. This can be obtained from \
+     https://id.getharvest.com/oauth2/access_tokens/new.  */\n\
+    \    \"forecastToken\"  : \"\", \n\n\n\
+    \    /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for \
+     whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group \
+     (ask someone else on the whatwhat developer team to add you, e.g. the person who \
+     most recently committed to main) */\n\
+    \    \"slackToken\"     : \"\" \n\
+    \  }"
+  in
 
-  let secrets_path = (config_dir) ^ "secrets.json" in
+  let secrets_path = config_dir ^ "secrets.json" in
 
   (* Now check for the config file *)
-  let message_config = "{
-    \"forecastId\": \"974183\",
-    \"forecastIgnoredProjects\": [\"1684536\"],
-    \"forecastUrl\": \"https://api.forecastapp.com\",
-    \"githubProjectName\": \"Project Tracker\",
-    \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \"Active\"],
-    \"githubRepoOwner\": \"alan-turing-institute\",
-    \"githubRepoName\": \"Hut23\",
-    \"githubUrl\": \"https://api.github.com\",
-    \"userLookup\": \"/Users/kgoldmann/.config/nowwhat/user_lookup.csv\"
-  }" in 
+  let message_config =
+    "{\n\
+    \    \"forecastId\": \"974183\",\n\
+    \    \"forecastIgnoredProjects\": [\"1684536\"],\n\
+    \    \"forecastUrl\": \"https://api.forecastapp.com\",\n\
+    \    \"githubProjectName\": \"Project Tracker\",\n\
+    \    \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \"Active\"],\n\
+    \    \"githubRepoOwner\": \"alan-turing-institute\",\n\
+    \    \"githubRepoName\": \"Hut23\",\n\
+    \    \"githubUrl\": \"https://api.github.com\",\n\
+    \    \"userLookup\": \"/Users/kgoldmann/.config/nowwhat/user_lookup.csv\"\n\
+    \  }"
+  in
 
-  let config_path = (config_dir) ^ "config.json" in
+  let config_path = config_dir ^ "config.json" in
 
   let _ = Config.attempt_file config_path message_config false in
   let _ = Config.attempt_file secrets_path message_secret false in
   print_endline " "
 ;;
 
-let ww_init_cmd  : unit Cmd.t =
+let ww_init_cmd : unit Cmd.t =
   Cmd.v
     (Cmd.info "init" ~doc:"Update your config files. ")
-
-    Term.(const ww_init $ const ()) 
-;;  
-
+    Term.(const ww_init $ const ())
+;;
 
 (* ------------------------------- *)
 (* --- putting it all together --- *)
@@ -672,7 +674,7 @@ let cmd : unit Cmd.t =
     ; ww_project_cmd
     ; ww_person_cmd
     ; ww_test_cmd
-    ; ww_init_cmd 
+    ; ww_init_cmd
     ; ww_slack_bot_cmd
     ; ww_dump_users_cmd
     ]

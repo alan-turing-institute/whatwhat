@@ -96,41 +96,47 @@ let find_setting json_parser key file_json_opt =
   | None, None -> None
 ;;
 
-let attempt_file (path : string) (message : string) (update_message : bool) = 
+let attempt_file (path : string) (message : string) (update_message : bool) =
   (* get the directory name *)
-  let dir = String.split_on_char '/' path |> List.rev |> List.tl |> List.rev |> String.concat "/" in
+  let dir =
+    String.split_on_char '/' path |> List.rev |> List.tl |> List.rev |> String.concat "/"
+  in
 
   (* strip all before characters before last/ from string *)
-  let file_type = String.split_on_char '/' path |> List.rev |> List.hd in 
-
+  let file_type = String.split_on_char '/' path |> List.rev |> List.hd in
 
   (* if the file exists do X, if not do Y *)
-  try 
+  try
     let _ = open_in path in
     Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nInformation: ";
-    Printf.printf "The %s file exists. If you want to make any changes, please update the file yourself in %s\n" file_type path
+    Printf.printf
+      "The %s file exists. If you want to make any changes, please update the file \
+       yourself in %s\n"
+      file_type
+      path
   with
-    | Sys_error _ -> 
-      (* Pretty.prout ~use_color:true [ Bold; Foreground Magenta ] "Please acknowledge!: "; *)
-      Printf.printf "I have written a %s file to %s. " file_type path;
+  | Sys_error _ ->
+    (* Pretty.prout ~use_color:true [ Bold; Foreground Magenta ] "Please acknowledge!: "; *)
+    Printf.printf "I have written a %s file to %s. " file_type path;
 
-      if update_message then
-        print_endline "Make sure you update the tokens there following the instructions in comments. ";
-      let _ = Unix.system ("mkdir -p " ^ dir) in
-      let oc = open_out path in
-      Printf.fprintf oc "%s\n" message;
-      close_out oc
+    if update_message
+    then
+      print_endline
+        "Make sure you update the tokens there following the instructions in comments. ";
+    let _ = Unix.system ("mkdir -p " ^ dir) in
+    let oc = open_out path in
+    Printf.fprintf oc "%s\n" message;
+    close_out oc
 ;;
 
 let load_settings () : t =
-
   (* let use_color = true in *)
   let secrets_json_opt =
     try Some (Yojson.Basic.from_file secrets_path) with
-    | Sys_error _ -> 
+    | Sys_error _ ->
       Printf.printf "\n";
       Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0002 ";
-      Printf.printf "Missing secrets file: %s\n" secrets_path; 
+      Printf.printf "Missing secrets file: %s\n" secrets_path;
 
       (* Ask user if its ok to set up new file *)
       Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
@@ -138,36 +144,53 @@ let load_settings () : t =
       let answer = read_line () in
 
       (* If answer starts with Y or y *)
-      if String.lowercase_ascii (String.sub answer 0 1) = "y" then
-        let message_secrets = "{\n" ^
-          "  /* githubToken: Required for project reactions. This can generate at https://github.com/settings/tokens. The token will need to have the permissions: read:user, repo, and user:email */\n" ^
-          "  \"githubToken\"    : \"\", \n\n" ^
-          "  /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
-          "  \"githubBotToken\" : \"\", \n\n" ^
-          "  /* forecastToken : Required for project allocations. This can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.  */\n" ^
-          "  \"forecastToken\"  : \"\", \n\n" ^
-          "  /* slackBotToken: OPTIONAL (used to post to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
-          "  \"slackBotToken\"     : \"\", \n\n" ^
-          "  /* slackAppToken: OPTIONAL (used to connect to slack from whatwhat - primarily for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat developer team to add you, e.g. the person who most recently committed to main) */\n" ^
-          "  \"slackAppToken\"     : \"\" \n" ^
-        "}" in
-        
+      if String.lowercase_ascii (String.sub answer 0 1) = "y"
+      then (
+        let message_secrets =
+          "{\n"
+          ^ "  /* githubToken: Required for project reactions. This can generate at \
+             https://github.com/settings/tokens. The token will need to have the \
+             permissions: read:user, repo, and user:email */\n"
+          ^ "  \"githubToken\"    : \"\", \n\n"
+          ^ "  /* githubBotToken: OPTIONAL (used to post to github from whatwhat- \
+             primarily for whatwhat admins). You need to be added to the \
+             hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat \
+             developer team to add you, e.g. the person who most recently committed to \
+             main) */\n"
+          ^ "  \"githubBotToken\" : \"\", \n\n"
+          ^ "  /* forecastToken : Required for project allocations. This can be obtained \
+             from https://id.getharvest.com/oauth2/access_tokens/new.  */\n"
+          ^ "  \"forecastToken\"  : \"\", \n\n"
+          ^ "  /* slackBotToken: OPTIONAL (used to post to slack from whatwhat - \
+             primarily for whatwhat admins). You need to be added to the \
+             hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat \
+             developer team to add you, e.g. the person who most recently committed to \
+             main) */\n"
+          ^ "  \"slackBotToken\"     : \"\", \n\n"
+          ^ "  /* slackAppToken: OPTIONAL (used to connect to slack from whatwhat - \
+             primarily for whatwhat admins). You need to be added to the \
+             hut23-1206-nowwhat@turing.ac.uk group (ask someone else on the whatwhat \
+             developer team to add you, e.g. the person who most recently committed to \
+             main) */\n"
+          ^ "  \"slackAppToken\"     : \"\" \n"
+          ^ "}"
+        in
+
         (* run attempt_file on the secrets_path *)
         let _ = attempt_file secrets_path message_secrets true in
-        
-        Some (Yojson.Basic.from_file secrets_path)
 
-      (*  If no, exit *)
-      else
-        (Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
+        Some (Yojson.Basic.from_file secrets_path)
+        (*  If no, exit *))
+      else (
+        Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
         raise (MissingSecretsFile secrets_path))
   in
   let config_json_opt =
     try Some (Yojson.Basic.from_file config_path) with
-    | Sys_error _ -> 
+    | Sys_error _ ->
       Printf.printf "\n";
       Pretty.prout ~use_color:true [ Bold; Foreground Red ] "E0002 ";
-      Printf.printf "Missing config file: %s\n" config_path; 
+      Printf.printf "Missing config file: %s\n" config_path;
 
       (* Ask user if its ok to set up new file *)
       Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
@@ -175,48 +198,51 @@ let load_settings () : t =
       let answer = read_line () in
 
       (* If answer starts with Y or y *)
-      if String.lowercase_ascii (String.sub answer 0 1) = "y" then
-          let message_config = "{\n" ^ 
-          "  \"forecastId\": \"974183\",\n" ^ 
-          "  \"forecastIgnoredProjects\": [\"1684536\"],\n" ^ 
-          "  \"forecastUrl\": \"https://api.forecastapp.com\",\n" ^ 
-          "  \"githubProjectName\": \"Project Tracker\",\n" ^ 
-          "  \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \"Active\"],\n" ^ 
-          "  \"githubRepoOwner\": \"alan-turing-institute\",\n" ^ 
-          "  \"githubRepoName\": \"Hut23\",\n" ^ 
-          "  \"githubUrl\": \"https://api.github.com\",\n" ^ 
-        "}" in
-        
+      if String.lowercase_ascii (String.sub answer 0 1) = "y"
+      then (
+        let message_config =
+          "{\n"
+          ^ "  \"forecastId\": \"974183\",\n"
+          ^ "  \"forecastIgnoredProjects\": [\"1684536\"],\n"
+          ^ "  \"forecastUrl\": \"https://api.forecastapp.com\",\n"
+          ^ "  \"githubProjectName\": \"Project Tracker\",\n"
+          ^ "  \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \
+             \"Active\"],\n"
+          ^ "  \"githubRepoOwner\": \"alan-turing-institute\",\n"
+          ^ "  \"githubRepoName\": \"Hut23\",\n"
+          ^ "  \"githubUrl\": \"https://api.github.com\",\n"
+          ^ "}"
+        in
+
         (* run attempt_file on the config_path *)
         let _ = attempt_file config_path message_config false in
 
-        
         Some (Yojson.Basic.from_file config_path)
-        
-
-      (*  If no, exit *)
-      else
-        (Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
-        raise (MissingConfigFile config_path) )
+        (*  If no, exit *))
+      else (
+        Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...";
+        raise (MissingConfigFile config_path))
   in
 
   (* if githubToken == '' throw error *)
-  if Option.get (find_setting string_opt_of_json "githubToken" secrets_json_opt) = "" then
-    (Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
+  if Option.get (find_setting string_opt_of_json "githubToken" secrets_json_opt) = ""
+  then (
+    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
     Printf.printf "Your Github token is empty! Update in %s\n" secrets_path);
-  
-  if Option.get (find_setting string_opt_of_json "forecastToken" secrets_json_opt) = "" then
-    (Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
+
+  if Option.get (find_setting string_opt_of_json "forecastToken" secrets_json_opt) = ""
+  then (
+    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "\nW0001 ";
     Printf.printf "Your Forecast token is empty!\n");
 
-  
-  { 
-    github_project_name = find_setting string_opt_of_json "githubProjectName" config_json_opt
+  { github_project_name =
+      find_setting string_opt_of_json "githubProjectName" config_json_opt
   ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
   ; github_repo_owner = find_setting string_opt_of_json "githubRepoOwner" config_json_opt
   ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
   ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
-  ; github_project_columns = find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
+  ; github_project_columns =
+      find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
   ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
   ; forecast_token = find_setting string_opt_of_json "forecastToken" secrets_json_opt
   ; slack_bot_token = find_setting string_opt_of_json "slackBotToken" secrets_json_opt
@@ -233,7 +259,7 @@ let get_github_project_name () =
   | None -> raise (MissingConfig "githubProjectName")
 ;;
 
-let get_github_project_columns () = 
+let get_github_project_columns () =
   (* let* settings = load_settings () in *)
   settings.github_project_columns
 ;;
@@ -266,7 +292,7 @@ let get_githubbot_token () =
   | None -> raise (MissingSecret "githubbotToken")
 ;;
 
-let get_forecast_id() =
+let get_forecast_id () =
   (* let* settings = load_settings () in *)
   match settings.forecast_id with
   | Some value -> value

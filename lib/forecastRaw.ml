@@ -57,9 +57,9 @@ let get_clients_async () =
   let* clients = forecast_request_async "clients" in
   Lwt.return
     (clients
-    |> to_list
-    |> List.map (fun x -> client_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (fun (c : client) -> c.id))
+     |> to_list
+     |> List.map (fun x -> client_of_yojson (x : Basic.t :> Safe.t))
+     |> make_map (fun (c : client) -> c.id))
 ;;
 
 (** People, placeholders, and entities ------------------------ *)
@@ -101,9 +101,9 @@ let get_people_async () =
   let* people = forecast_request_async "people" in
   Lwt.return
     (people
-    |> to_list
-    |> List.map (fun x -> person_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (fun (p : person) -> p.id))
+     |> to_list
+     |> List.map (fun x -> person_of_yojson (x : Basic.t :> Safe.t))
+     |> make_map (fun (p : person) -> p.id))
 ;;
 
 (** Retrieve all placeholders from Forecast. *)
@@ -112,9 +112,9 @@ let get_placeholders_async () =
   let* placeholders = forecast_request_async "placeholders" in
   Lwt.return
     (placeholders
-    |> to_list
-    |> List.map (fun x -> placeholder_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (fun (p : placeholder) -> p.id))
+     |> to_list
+     |> List.map (fun x -> placeholder_of_yojson (x : Basic.t :> Safe.t))
+     |> make_map (fun (p : placeholder) -> p.id))
 ;;
 
 (** Get the name of an entity. *)
@@ -184,9 +184,9 @@ let get_project_schemas_async () =
   let* projects = forecast_request_async "projects" in
   Lwt.return
     (projects
-    |> to_list
-    |> List.map (fun x -> project_schema_of_yojson (x : Basic.t :> Safe.t))
-    |> make_map (fun (p : project_schema) -> p.id))
+     |> to_list
+     |> List.map (fun x -> project_schema_of_yojson (x : Basic.t :> Safe.t))
+     |> make_map (fun (p : project_schema) -> p.id))
 ;;
 
 (** This converts a [project_schema] to a [project], i.e., fills in the client

@@ -36,7 +36,7 @@ let test_get_turing_weeks_in_month _ =
     (Utils.get_turing_weeks_in_month (make 2023 3 31));
   assert_equal
     [ make 2023 2 27; make 2023 3 6; make 2023 3 13; make 2023 3 20; make 2023 3 27 ]
-    (Utils.get_turing_weeks_in_month (make_year_month 2023 3));
+    (Utils.get_turing_weeks_in_month (make_year_month 2023 3))
 ;;
 
 let suite =

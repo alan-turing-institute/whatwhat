@@ -5,14 +5,14 @@ let print_issue ~(col_name : string) (i : Raw.issue_r) =
   print_endline " ";
   print_endline
     ("Issue number: "
-    ^ string_of_int i.issue.number
-    ^ " (https://github.com/"
-    ^ Config.get_github_repo_owner ()
-    ^ "/"
-    ^ Config.get_github_repo_name ()
-    ^ "/issues/"
-    ^ string_of_int i.issue.number
-    ^ ")");
+     ^ string_of_int i.issue.number
+     ^ " (https://github.com/"
+     ^ Config.get_github_repo_owner ()
+     ^ "/"
+     ^ Config.get_github_repo_name ()
+     ^ "/issues/"
+     ^ string_of_int i.issue.number
+     ^ ")");
   print_endline ("Issue title: " ^ i.issue.title);
   print_endline ("State: " ^ Raw.show_issue_state i.issue.state);
   print_endline ("Column: " ^ col_name)
@@ -209,10 +209,10 @@ let individuals_reactions target =
   (* print the person's reactions *)
   print_endline
     ("\n"
-    ^ target
-    ^ " has reacted to "
-    ^ string_of_int (List.length table_body)
-    ^ " issues:\n");
+     ^ target
+     ^ " has reacted to "
+     ^ string_of_int (List.length table_body)
+     ^ " issues:\n");
 
   print_endline bl;
   print_endline hl;
@@ -222,7 +222,7 @@ let individuals_reactions target =
 
   print_endline
     ("\nThey have not reacted to "
-    ^ string_of_int (List.length difference)
-    ^ " issues: "
-    ^ String.concat ", " difference)
+     ^ string_of_int (List.length difference)
+     ^ " issues: "
+     ^ String.concat ", " difference)
 ;;

@@ -105,10 +105,10 @@ let make_table
   String.concat
     "\n"
     ([ horizontal_border ]
-    @ List.map make_row headers
-    @ [ horizontal_border ]
-    @ List.map make_row remainder
-    @ [ horizontal_border ])
+     @ List.map make_row headers
+     @ [ horizontal_border ]
+     @ List.map make_row remainder
+     @ [ horizontal_border ])
 ;;
 
 (** ----- Printing --------------------- *)

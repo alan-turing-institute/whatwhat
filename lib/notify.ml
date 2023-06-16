@@ -56,7 +56,8 @@ let make_github_message events =
     ; "You can get more info about how to fix these issues at: "
     ; error_url
     ; "\n"
-    ; "Alternatively, [contact the people in charge of project scheduling](https://github.com/alan-turing-institute/research-engineering-group/wiki/Service-areas)."
+    ; "Alternatively, [contact the people in charge of project \
+       scheduling](https://github.com/alan-turing-institute/research-engineering-group/wiki/Service-areas)."
     ];
   Buffer.contents buf
 ;;

@@ -77,6 +77,7 @@ val compare_person : person -> person -> int
 (** Given a project board name, return a list of projects, one for each issue on the
     board. *)
 val get_project_issues : unit -> issue list
+
 val get_project_issues_async : unit -> issue list Lwt.t
 
 (** This is re-exported from [GithubRaw] for convenience. See
