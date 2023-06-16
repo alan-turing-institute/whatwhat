@@ -26,9 +26,9 @@ These tokens can be found here:
 For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help` for the subcommands.
 
  - `whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
- - `whatwhat --notify github`: Same as above, but additionally post GitHub comments on all of those issues.
  - `whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
  - `whatwhat person [NAME]`: Print an overview of a person, as specified by their name or GitHub username (a substring is fine).
+ - `whatwhat --notify github`: Same as `whatwhat`, but additionally post GitHub comments on all of those issues.
  - `whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
  - `whatwhat open [NUM]`: Open a GitHub issue in a browser (macOS only, as this uses `open(1)`.
 
