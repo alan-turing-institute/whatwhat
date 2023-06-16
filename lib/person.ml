@@ -195,16 +195,21 @@ let get_info (psn : person) =
 ;;
 
 let get_github_assignments (prjs : project list) =
+  let print_prj prj =
+    Printf.sprintf
+      ":star2: <https://github.com/%s/%s/issues/%d|#%d %s>"
+      (Config.get_github_repo_owner ())
+      (Config.get_github_repo_name ())
+      prj.number
+      prj.number
+      prj.name
+  in
   let prj_details =
     match prjs with
     | [] -> [ "None found." ]
-    | _ ->
-      let print_prj prj = Printf.sprintf ":star2: #%d %s" prj.number prj.name in
-      List.map print_prj prjs
+    | _ -> List.map print_prj prjs
   in
-  String.concat
-    "\n"
-    ("*GitHub issue assignments*" :: prj_details)
+  String.concat "\n" ("*GitHub issue assignments*" :: prj_details)
 ;;
 
 let get_assignments (asns : assignment list) =
@@ -214,8 +219,11 @@ let get_assignments (asns : assignment list) =
     | this_asns ->
       let print_asn asn =
         Printf.sprintf
-          ":star2: %s *#%d %s* \n        ↳%s, %s to %s"
+          ":star2: %s <https://github.com/%s/%s/issues/%d|#%d %s> \n        ↳%s, %s to %s"
           ("(" ^ Assignment.show_time_status asn ^ ")")
+          (Config.get_github_repo_owner ())
+          (Config.get_github_repo_name ())
+          asn.project.number
           asn.project.number
           asn.project.name
           (FTE.show_t (Assignment.to_fte_weeks asn))
@@ -224,9 +232,7 @@ let get_assignments (asns : assignment list) =
       in
       List.map print_asn this_asns
   in
-  String.concat
-    "\n"
-    ("*Forecast assignments*" :: assignment_details)
+  String.concat "\n" ("*Forecast assignments*" :: assignment_details)
 ;;
 
 let make_slack_output
