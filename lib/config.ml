@@ -97,6 +97,8 @@ let find_setting json_parser key file_json_opt =
 ;;
 
 let attempt_file (path : string) (message : string) (update_message : bool) = 
+  (* get the directory name *)
+  let dir = String.split_on_char '/' path |> List.rev |> List.tl |> List.rev |> String.concat "/" in
 
   (* strip all before characters before last/ from string *)
   let file_type = String.split_on_char '/' path |> List.rev |> List.hd in 
@@ -114,6 +116,7 @@ let attempt_file (path : string) (message : string) (update_message : bool) =
 
       if update_message then
         print_endline "Make sure you update the tokens there following the instructions in comments. ";
+      let _ = Unix.system ("mkdir -p " ^ dir) in
       let oc = open_out path in
       Printf.fprintf oc "%s\n" message;
       close_out oc
