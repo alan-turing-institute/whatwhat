@@ -32,6 +32,19 @@ For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help
  - `whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
  - `whatwhat open [NUM]`: Open a GitHub issue in a browser (macOS only, as this uses `open(1)`.
 
+### Lookup table for GitHub usernames
+
+`whatwhat` attempts to match people's full names on Forecast with GitHub usernames.
+It is quite successful at doing this, but there are a few edge cases where people's GitHub profiles do not have enough data.
+To get around this, you can manually add a mapping inside the file `~/.config/whatwhat/users`.
+Each line in this file should look like:
+
+    {Full name on Forecast}:{GitHub username}
+
+(without the curly braces).
+If `whatwhat`'s automatic username detection is turning up false positives for a person, you can also override it by entering their info in this file.
+
+
 ## Developers Contents
 
 1. [Setting up OCaml on macOS](#setting-up-ocaml-on-macos)
