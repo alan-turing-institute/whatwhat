@@ -7,20 +7,16 @@ It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwha
 The simplest way to use `whatwhat` is to brew install it. It is hosted in our local [Hut23 tap](https://github.com/alan-turing-institute/homebrew-hut23). You will need to run the following two commands:
 
 ```sh
+brew update
 brew tap alan-turing-institute/hut23
 brew install alan-turing-institute/hut23/whatwhat
 ```
-This is likely to install `whatwhat` from the pre-compiled Homebrew bottle (associated with a GitHub release), which will make the installation quicker.
-However, if the latest tag of `whatwhat` is newer than the latest release, you can force Homebrew to install the formula from the source code by running:
-
-```sh
-brew install --build-from-source alan-turing-institute/hut23/whatwhat
-```
+This is likely to install `whatwhat` from the pre-compiled Homebrew bottle (associated with a GitHub release), which will make the installation quicker. However, if there is not a bottle that matches your computer build it will automatically build from the source.
 
 Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
-by running `whatwhat init` then populating with your github and forecast tokens.
+by running `whatwhat init` then populating the file with your github and forecast tokens.
 
-These can be found here:
+These tokens can be found here:
  - `githubToken` here refers to a "classic" personal access token, which you can generate at https://github.com/settings/tokens.
    The token will need to have the permissions: `repo`, `read:user` and `user:email`.
  - `forecastToken` can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.
