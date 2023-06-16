@@ -20,6 +20,11 @@ brew install --build-from-source alan-turing-institute/hut23/whatwhat
 Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
 by running `whatwhat init` then populating with your github and forecast tokens.
 
+These can be found here:
+ - `githubToken` here refers to a "classic" personal access token, which you can generate at https://github.com/settings/tokens.
+   The token will need to have the permissions: `repo`, `read:user` and `user:email`.
+ - `forecastToken` can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.
+
 `whatwhat` should now work, the following examples can get you started.
 
 For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help` for the subcommands.
