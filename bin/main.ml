@@ -479,6 +479,28 @@ let ww_slack_bot_cmd : unit Cmd.t =
     Term.(const ww_slack_bot $ const ())
 ;;
 
+(*----------------------------------*)
+(*----- whatwhat dump-users ------- *)
+
+let ww_dump_users () =
+  let open CalendarLib.Date in
+  let start_date = make 2016 1 1 in
+  let end_date = add (today ()) (Period.year 1) in
+  let people, _, _ = Schedule.get_the_schedule ~start_date ~end_date in
+  let print_person (p : Domain.person) =
+    match p.github_handle with
+    | Some gh -> Printf.printf "%s:%s\n" p.full_name gh
+    | None -> Printf.printf "%s\n" p.full_name
+  in
+  List.iter print_person people
+;;
+
+let ww_dump_users_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "dump-users" ~doc:"Print a list of all known users with GitHub handles")
+    Term.(const ww_dump_users $ const ())
+;;
+
 (* ------------------------------- *)
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
@@ -652,6 +674,7 @@ let cmd : unit Cmd.t =
     ; ww_test_cmd
     ; ww_init_cmd 
     ; ww_slack_bot_cmd
+    ; ww_dump_users_cmd
     ]
 ;;
 
