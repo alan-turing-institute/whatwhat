@@ -4,7 +4,7 @@
 It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwhat) (F#) and [WhatNow](https://github.com/alan-turing-institute/whatnow) (Racket); the latter contains [an illuminating backbrief](https://github.com/alan-turing-institute/whatnow/blob/main/backbrief/backbrief.org) describing the history of project allocations in REG.
 
 ## Brew install WhatWhat
-The simplest way to use `whatwhat` is to brew install it. It is hosted in our local [Hut23 tap](https://github.com/alan-turing-institute/homebrew-hut23). You will need to run the following two commands:
+The simplest way to use `whatwhat` is to brew install it. It is hosted in our local [Hut23 tap](https://github.com/alan-turing-institute/homebrew-hut23). You will need to run the following commands:
 
 ```sh
 brew update
@@ -18,8 +18,8 @@ by running `whatwhat init` then populating the file with your github and forecas
 
 These tokens can be found here:
  - `githubToken` here refers to a "classic" personal access token, which you can generate at https://github.com/settings/tokens.
-   The token will need to have the permissions: `repo`, `read:user` and `user:email`.
- - `forecastToken` can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.
+   The token will need to have the permissions: `repo` (top level), `read:user` and `user:email` (both within `user`).
+ - `forecastToken` can be obtained from https://id.getharvest.com/oauth2/access_tokens/new (log in if necessary).
 
 `whatwhat` should now work, the following examples can get you started.
 
@@ -38,7 +38,7 @@ For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help
 1. [Installation and configuration](#installation-and-configuration)
 1. [Usage](#usage)
 1. [Resources for getting started with OCaml](#resources-for-getting-started-with-ocaml)
-1. [New Tags and Releases](#new-tags-and-releases
+1. [New Tags and Releases](#new-tags-and-releases)
 
 ## Setting up OCaml on macOS
 
@@ -210,8 +210,8 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
  1. In the root directory of this repo, you need to run `./update_version.sh`. This will tell you the current tag number.
  2. Upgrade this by running `./update_version.sh <NEW_VERSION>`. This will create a commit.
  3. To push the tag to the repo, you need to run `git push` followed by `git push --tags`
- 4. Once this is pushed to the remote repo, it will trigger a github action in the `whatwhat` repo which will then trigger an action to bump the homebrew formula in the in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo. These steps will take a little while - you can see their progress in the action tab. You need to approve this pull request.
- 5. In the terminal navigate to a custom directory. You now need to type `brew update` to make sure you have the latest `whatwhat` formula, followed by
+ 4. Once this is pushed to the remote repo, it will trigger a github action in the `whatwhat` repo which will then trigger an action to bump the homebrew formula in the in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo and create a pull request. These steps will take a little while - you can see their progress in the action tab. You need to approve this pull request.
+ 5. In the terminal navigate to a custom directory. You now need to type `brew update` to make sure you have the latest `whatwhat` formula. If you already have `whatwhat` brew installed, you'll need to uninstall it `brew uninstall whatwhat`. Then type
       ```sh
       brew install --build-bottle --verbose whatwhat
       brew bottle whatwhat
@@ -224,7 +224,8 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
 11. Click create release from tag
 12. Upload the binary from your computer
 13. Click 'publish release'
-14. Copy the url of the release and paste this below `bottle do` in the ruby file in the form of `root_url "https://github.com/alan-turing-institute/whatwhat/releases/download/<VERSION>"`. Note this should be the same as the url, but with 'download' rather than 'tag' 
+14. Copy the url of the release and paste this as the first line within `bottle do` in the ruby file, in the form of `root_url "https://github.com/alan-turing-institute/whatwhat/releases/download/<VERSION>"`. Note this should be the same as the url, but with 'download' rather than 'tag'
+15. This should now work
 
 
 
