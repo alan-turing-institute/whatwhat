@@ -257,7 +257,7 @@ let metadata_of_yaml issue (pairs : (string * Yaml.value) list) =
   let* earliest_start_date = read_date_field issue pairs "earliest-start-date" in
   let* latest_start_date =
     read_date_field issue pairs "latest-start-date"
-    >>= enforce_non_null_field issue "turing-project-code"
+    >>= enforce_non_null_field issue "latest-start-date"
   in
   let* latest_end_date = read_date_field issue pairs "latest-end-date" in
   let* max_fte_percent_opt = read_nonneg_float_field issue pairs "max-FTE-percent" in
