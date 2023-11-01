@@ -49,7 +49,7 @@ jobs:
       run:
         tar cf whatwhat-${GITHUB_REF#refs/tags/v}-macos.tar.gz -C _build/default/bin main.exe
     - name: Create tarball for upload (M1 Mac)
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-latest-xlarge'
       run:
         tar cf whatwhat-${GITHUB_REF#refs/tags/v}-arm-macos.tar.gz -C _build/default/bin main.exe
 
