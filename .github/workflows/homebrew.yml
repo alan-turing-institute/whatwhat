@@ -1,0 +1,81 @@
+# This Action updates the Homebrew tap (located at
+# https://github.com/alan-turing-institute/homebrew-hut23) whenever a new
+# version tag is pushed to this repository.
+
+name: Bump Homebrew release
+
+on:
+  push:
+    tags: "v*"
+
+jobs:
+  create_github_release:
+    name: Create a new GitHub release for the tag
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get-version.outputs.version }}
+
+    steps:
+    - name: Get the version number
+      id: get_version
+      run: echo "version=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
+
+    - name: Create the release
+      if: ${{ success() }}
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: v${{ steps.get_version.outputs.version }}
+        draft: false
+        prerelease: true
+
+  
+  build_upload:
+    name: Build whatwhat and upload executable for ${{ matrix.os }}
+    needs: [create_release]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # respectively: Linux, Intel Mac, M1 Mac
+        os: [ubuntu-latest, macos-latest, macos-latest-xlarge]
+    outputs:
+      commit_sha: ${{ steps.get_sha.outputs.sha }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Get SHA of latest commit
+      id: get_sha
+      run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Set up OCaml 5.0.x
+      uses: ocaml/setup-ocaml@v2
+      with:
+        ocaml-compiler: 5.0.x
+        dune-cache: false
+
+    - name: Install dependencies, build, and create tarball for upload
+      # See: https://github.com/alan-turing-institute/whatwhat/wiki/Installing-dependencies
+      run: |
+        eval $(opam env)
+        opam install dune
+        dune build || true
+        opam install . --deps-only -y
+        dune build
+        tar cf whatwhat-${{ needs.create_release.outputs.version }}-${{ runner.os }}.tar.gz -C _build/default/bin main.exe
+
+    - name: Upload tarball
+      id: upload_release_asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: whatwhat-${{ needs.create_release.outputs.version }}-${{ runner.os }}.tar.gz
+        asset_name: whatwhat-${{ needs.create_release.outputs.version }}-${{ runner.os }}.tar.gz
+        asset_content_type: application/octet-stream
