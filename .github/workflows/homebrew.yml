@@ -59,6 +59,12 @@ jobs:
         ocaml-compiler: 5.0.x
         dune-cache: false
 
+    - name: Restore OPAM cache
+      id: restore_opam_cache
+      uses: actions/cache/restore@v3
+      with:
+        path: ~/.opam
+
     - name: Install dependencies, build, and create tarball for upload
       # See: https://github.com/alan-turing-institute/whatwhat/wiki/Installing-dependencies
       run: |
@@ -68,6 +74,13 @@ jobs:
         opam install . --deps-only -y
         dune build
         tar cf whatwhat-${{ needs.create_release.outputs.version }}-${{ runner.os }}.tar.gz -C _build/default/bin main.exe
+
+    - name: Save OPAM cache (if it wasn't found)
+      id: save_opam_cache
+      if: steps.restore_opam_cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v3
+      with:
+        path: ~/.opam
 
     - name: Upload tarball
       id: upload_release_asset
