@@ -15,14 +15,6 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: 5.0.x
-          dune-cache: false
-
-      - name: Restore OPAM cache
-        id: restore_opam_cache
-        uses: actions/cache/restore@v3
-        with:
-          path: ~/.opam
-          key: gha
 
       - name: Install dependencies and build
         # See: https://github.com/alan-turing-institute/whatwhat/wiki/Installing-dependencies
@@ -42,14 +34,6 @@ jobs:
           eval $(opam env)
           opam install odoc
           dune build @doc
-
-      - name: Save OPAM cache (if it wasn't found)
-        id: save_opam_cache
-        if: steps.restore_opam_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
-        with:
-          path: ~/.opam
-          key: gha
 
       - name: Clone gh-pages branch
         uses: actions/checkout@v3
