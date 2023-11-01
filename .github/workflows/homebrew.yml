@@ -25,6 +25,10 @@ jobs:
       if: ${{ success() }}
       id: create_release
       uses: softprops/action-gh-release@v1
+      # Temporary, to silence email notifs
+      with:
+        draft: true
+        prerelease: true
 
   
   build_upload:
