@@ -1,0 +1,20 @@
+# this action is used to bump the homebrew formula for whatwhat
+# it is triggered every time a new tag is pushed to the repo
+# it uses the NowWhatBot to open a PR with the updated formula
+name: Bump Homebrew formula
+
+on:
+  push:
+    tags: "v*.*.*"
+
+jobs:
+  homebrew:
+    name: Bump Homebrew formula for whatwhat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dawidd6/action-homebrew-bump-formula@v3
+        with:
+          token: ${{secrets.NOW_WHAT_BOT_TOKEN}}
+          tap: alan-turing-institute/homebrew-hut23
+          formula: whatwhat
+          force: true  # set to True if don't want to check for already open PRs

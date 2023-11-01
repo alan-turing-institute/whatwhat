@@ -15,6 +15,7 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: 5.0.x
+          dune-cache: false
 
       - name: Install dependencies and build
         # See: https://github.com/alan-turing-institute/whatwhat/wiki/Installing-dependencies
