@@ -82,6 +82,7 @@ jobs:
       uses: actions/cache/save@v3
       with:
         path: ~/.opam
+        key: gha
 
     - name: Upload tarball
       id: upload_release_asset

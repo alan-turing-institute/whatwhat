@@ -22,7 +22,7 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: ~/.opam
-          key: gha   # Just a static key
+          key: gha
 
       - name: Install dependencies and build
         # See: https://github.com/alan-turing-institute/whatwhat/wiki/Installing-dependencies
@@ -49,6 +49,7 @@ jobs:
         uses: actions/cache/save@v3
         with:
           path: ~/.opam
+          key: gha
 
       - name: Clone gh-pages branch
         uses: actions/checkout@v3
