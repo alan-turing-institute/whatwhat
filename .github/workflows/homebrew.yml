@@ -42,15 +42,15 @@ jobs:
         dune build
 
     - name: Create tarball for upload (Linux)
-      if: ${{ matrix.os == "ubuntu-latest" }}
+      if: matrix.os == 'ubuntu-latest'
       run:
         tar cf whatwhat-${GITHUB_REF#refs/tags/v}-linux.tar.gz -C _build/default/bin main.exe
     - name: Create tarball for upload (Intel Mac)
-      if: ${{ matrix.os == "macos-latest" }}
+      if: matrix.os == 'macos-latest'
       run:
         tar cf whatwhat-${GITHUB_REF#refs/tags/v}-macos.tar.gz -C _build/default/bin main.exe
     - name: Create tarball for upload (M1 Mac)
-      if: ${{ matrix.os == "macos-latest" }}
+      if: matrix.os == 'macos-latest'
       run:
         tar cf whatwhat-${GITHUB_REF#refs/tags/v}-arm-macos.tar.gz -C _build/default/bin main.exe
 
