@@ -64,6 +64,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         path: ~/.opam
+        key: gha   # Just a static key
 
     - name: Install dependencies, build, and create tarball for upload
       # See: https://github.com/alan-turing-institute/whatwhat/wiki/Installing-dependencies
