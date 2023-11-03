@@ -168,48 +168,54 @@ let log_event (error : schedule_event) =
 
 (* I don't understand why OCaml makes me write this boilerplate. *)
 module FcSet = Set.Make (struct
-  type t = Forecast.person
+    type t = Forecast.person
 
-  let compare = compare
-end)
+    let compare = compare
+  end)
 
 module GhSet = Set.Make (struct
-  type t = Github.person
+    type t = Github.person
 
-  let compare = compare
-end)
+    let compare = compare
+  end)
 
 module PsnSet = Set.Make (struct
-  type t = Domain.person
+    type t = Domain.person
 
-  let compare = compare
-end)
+    let compare = compare
+  end)
 
 (** Create a list of all people, merging data from Forecast and Github. Our
     approach here is generally to map over Forecast people, because Forecast is
     considered authoritative for people.
 
-    TODO: It would be nice to get Slack handles for people.
-    *)
+    TODO: It would be nice to get Slack handles for people. *)
 let merge_people
   (fc_people : Forecast.person list)
   (gh_people : Github.person list)
   (fc_assignments : Forecast.assignment list)
   =
+  (* Helper function to check if assignment is current *)
+  let is_current (asn : Forecast.assignment) =
+    get_first_day asn.allocation < CalendarLib.Date.today ()
+    && get_last_day asn.allocation > CalendarLib.Date.today ()
+  in
   (* In a first pass, we remove anyone who is not in REG (as determined by
      roles) or who is only assigned to UNAVAILABLE, as we probably don't need to
      care about these. *)
   let is_available (fc_p : Forecast.person) =
     (* Has REG role *)
     List.mem "REG" fc_p.roles
-    && (* Is currently assigned to something that isn't just UNAVAILABLE *)
-    List.exists
-      (fun (a : Forecast.assignment) ->
-        get_first_day a.allocation < CalendarLib.Date.today ()
-        && get_last_day a.allocation > CalendarLib.Date.today ()
-        && a.entity = Person fc_p
-        && a.project.programme <> "UNAVAILABLE")
-      fc_assignments
+    && ((* Is currently assigned to something that isn't just UNAVAILABLE *)
+        List.exists
+          (fun (a : Forecast.assignment) ->
+            is_current a && a.entity = Person fc_p && a.project.programme <> "UNAVAILABLE")
+          fc_assignments
+        || (* Or is not assigned to anything at all *)
+        not
+          (List.exists
+             (fun (a : Forecast.assignment) -> is_current a && a.entity = Person fc_p)
+             fc_assignments))
   in
   let fc_all = List.filter is_available fc_people |> FcSet.of_list in
   let gh_all = GhSet.of_list gh_people in
@@ -314,7 +320,7 @@ type project_pair = Pair of (Forecast.project option * project option)
 (* Check that each Forecast project has a hut23 code which matches that of a
    GitHub project. Additionally, check that the programmes and names of the
    projects are the same on both platforms.
- *)
+*)
 let merge_projects
   (fc_projects : Forecast.project IntMap.t)
   (gh_issues : Github.issue IntMap.t)
