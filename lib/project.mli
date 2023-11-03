@@ -14,3 +14,15 @@ val print
   -> Domain.person list
   -> Domain.Assignment.t list
   -> unit
+
+(** Pretty-print a list of current people working on a project. The following
+    details are shown:
+
+    - The project name, issue number, and GitHub link
+    - People working on them any time in the past or next 1 month
+    *)
+val print_current_people
+  :  use_color:bool
+  -> Domain.project
+  -> Domain.Assignment.t list
+  -> unit

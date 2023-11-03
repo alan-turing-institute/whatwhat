@@ -484,98 +484,30 @@ let ww_dump_users_cmd : unit Cmd.t =
 ;;
 
 (* ------------------------------- *)
+(* ----- whatwhat overview ------- *)
+let ww_overview no_color =
+  let use_color = Unix.isatty Unix.stdout && not no_color in
+
+  let open CalendarLib.Date in
+  let start_date = rem (today ()) (Period.month 1) in
+  let end_date = add (today ()) (Period.month 1) in
+  let _, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
+  Domain.IntMap.iter
+    (fun _ (p : Domain.project) -> Project.print_current_people ~use_color p assignments)
+    projects
+;;
+
+let ww_overview_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "overview" ~doc:"Provide an overview of what the team is working on.")
+    Term.(const ww_overview $ no_color_arg)
+;;
+
+(* ------------------------------- *)
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
-let post_github_comment issue user repo post_body =
-  let uri =
-    String.concat
-      "/"
-      [ Config.github_url
-      ; "repos"
-      ; user
-      ; repo
-      ; "issues"
-      ; string_of_int issue
-      ; "comments"
-      ]
-  in
-  let body = `Assoc [ "body", `String post_body ] |> Yojson.Basic.to_string in
-  ignore @@ GithubRaw.run_github_query ~as_bot:true ~http_method:POST ~body uri
-;;
-
-let ww_test () =
-  let open Yojson.Basic in
-  let params = [ "participating", [ "true" ] ] in
-  let resp =
-    GithubRaw.run_github_query ~as_bot:true ~params "https://api.github.com/notifications"
-  in
-  let resp_list = resp |> Util.to_list in
-  match resp_list with
-  | [] -> print_endline "No new notifications."
-  | _ ->
-    let to_reply_to =
-      List.filter_map
-        (fun json ->
-          if json
-             |> Util.member "subject"
-             |> Util.member "type"
-             |> Util.to_string
-             = "Issue"
-          then (
-            let url =
-              json |> Util.member "subject" |> Util.member "url" |> Util.to_string
-            in
-            let issue_number =
-              url |> String.split_on_char '/' |> List.rev |> List.hd |> int_of_string
-            in
-            let user =
-              json
-              |> Util.member "repository"
-              |> Util.member "owner"
-              |> Util.member "login"
-              |> Util.to_string
-            in
-            let name =
-              json |> Util.member "repository" |> Util.member "name" |> Util.to_string
-            in
-            let subscription_url =
-              json |> Util.member "subscription_url" |> Util.to_string
-            in
-            Some (user, name, issue_number, subscription_url))
-          else None)
-        resp_list
-    in
-    List.iter
-      (fun (user, repo, n, _) ->
-        Printf.printf
-          "Hello, you summoned me in issue #%d of repository %s/%s!\n"
-          n
-          user
-          repo;
-        post_github_comment
-          n
-          user
-          repo
-          (Printf.sprintf
-             "Hello, you summoned me in issue #%d of repository %s/%s!\n"
-             n
-             user
-             repo))
-      to_reply_to;
-    (* Mark all notifications as read *)
-    ignore
-    @@ GithubRaw.run_github_query
-         ~as_bot:true
-         ~http_method:PUT
-         ~body:"{\"read\": true}"
-         "https://api.github.com/notifications";
-    (* Delete subscription to stop other comments from triggering it *)
-    List.iter
-      (fun (_, _, _, subsc_url) ->
-        ignore @@ GithubRaw.run_github_query ~as_bot:true ~http_method:DELETE subsc_url)
-      to_reply_to
-;;
+let ww_test () = print_endline "Testing."
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v
@@ -662,6 +594,7 @@ let cmd : unit Cmd.t =
     ; ww_open_cmd
     ; ww_project_cmd
     ; ww_person_cmd
+    ; ww_overview_cmd
     ; ww_test_cmd
     ; ww_init_cmd
     ; ww_slack_bot_cmd
@@ -674,7 +607,7 @@ let () =
   | Sys_error e when e = "Broken pipe" ->
     (* When piped into `head`, for example. Note the awkward construction
        used here instead of directly pattern matching against
-           Sys_error "Broken pipe"
+       Sys_error "Broken pipe"
        This is needed to get around a "fragile match" warning, explained
        in https://v2.ocaml.org/releases/5.1/htmlman/comp.html#ss:warn52 *)
     (try Sys.set_signal Sys.sigpipe Sys.Signal_default with
@@ -683,7 +616,7 @@ let () =
      | _ -> ());
     (try flush stdout with
      | _ -> ());
-    exit 141   (* Choice of exit code is arbitrary, but mimics opam. *)
+    exit 141 (* Choice of exit code is arbitrary, but mimics opam. *)
   | e ->
     (* Any other errors. *)
     let use_color = Unix.isatty Unix.stdout in

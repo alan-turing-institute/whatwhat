@@ -140,11 +140,11 @@ let print_reactions ~use_color (ppl : person list) (prj : project) =
   let reacted_rows =
     sorted_reactions
     |> List.map (fun (e, n) ->
-         match e with
-         | Laugh -> [ n; "x"; ""; "" ]
-         | ThumbsUp -> [ n; ""; "x"; "" ]
-         | ThumbsDown -> [ n; ""; ""; "x" ]
-         | Other -> [ n; ""; ""; "" ])
+      match e with
+      | Laugh -> [ n; "x"; ""; "" ]
+      | ThumbsUp -> [ n; ""; "x"; "" ]
+      | ThumbsDown -> [ n; ""; ""; "x" ]
+      | Other -> [ n; ""; ""; "" ])
     (* Last case should not happen *)
   in
   let unreacted_rows = List.map (fun p -> [ p.full_name; ""; ""; "" ]) unreacted_people in
@@ -182,4 +182,46 @@ let print ~(use_color : bool) (prj : project) (ppl : person list) (asns : assign
   print_reactions ~use_color ppl prj;
   print_endline "";
   print_log_events ~use_color prj
+;;
+
+let print_current_people ~(use_color : bool) (prj : project) (asns : assignment list) =
+  match
+    asns
+    |> List.filter (fun a ->
+      a.project.number = prj.number
+      && Assignment.get_time_status a = Current
+      &&
+      match a.entity with
+      | Person _ -> true
+      | _ -> false)
+    |> List.sort Assignment.compare_by_date
+  with
+  | [] -> ()
+  | this_asns ->
+    let s = Printf.sprintf "Project %d: %s\n" prj.number prj.name in
+    prout ~use_color [ ANSI.Bold ] s;
+    let url =
+      String.concat
+        "/"
+        [ "https://github.com"
+        ; Config.get_github_repo_owner ()
+        ; Config.get_github_repo_name ()
+        ; "issues"
+        ; string_of_int prj.number
+        ]
+    in
+    print_endline url;
+    (* Longest name. *)
+    let name_fieldwidth =
+      Utils.max_by ~default:0 wcswidth (List.map Assignment.get_entity_name this_asns)
+    in
+    List.iter
+      (fun asn ->
+        Printf.printf
+          "    %s  %s to %s\n"
+          (pad name_fieldwidth (Assignment.get_entity_name asn))
+          (CalendarLib.Printer.Date.to_string (get_first_day asn.allocation))
+          (CalendarLib.Printer.Date.to_string (get_last_day asn.allocation)))
+      this_asns;
+    print_endline ""
 ;;
