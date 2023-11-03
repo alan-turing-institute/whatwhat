@@ -1,6 +1,5 @@
 (** Entry point for the whatwhat executable.
-    Use [whatwhat --help] for usage instructions.
-    *)
+    Use [whatwhat --help] for usage instructions. *)
 
 open Whatwhat
 open Cmdliner
@@ -216,7 +215,7 @@ let ww_main notify no_color quiet verbose codes_without codes_only project_subse
     Log.pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues:None;
     Pretty.prerr ~use_color [ Bold; Foreground Red ] "Fatal error: ";
     Printf.eprintf "%s\n" msg;
-    exit Cmd.Exit.internal_error (* Defined as 125. *)
+    exit Cmd.Exit.internal_error
 ;;
 
 let notify_arg =
@@ -371,7 +370,7 @@ let ww_project project_name_or_number no_color =
       |> Domain.IntMap.to_seq
       |> List.of_seq
       |> List.filter (fun (_, (p : Domain.project)) ->
-           Utils.contains ~case_sensitive:false p.name s)
+        Utils.contains ~case_sensitive:false p.name s)
       |> List.map snd
     in
     (match matched_projects with
@@ -444,16 +443,6 @@ let person_arg =
   let doc = "Full name, Turing username, or GitHub username of a person." in
   Arg.(required & pos 0 (some string) None & info ~docv:"PERSON" ~doc [])
 ;;
-
-(* let config_dir : string option Term.t =
-Arg.(
-  value
-  & opt (some string) (Some (XDGBaseDir.default.config_home ^ "/whatwhat/") )
-  & info
-      ~docv:"OUTPUT"
-      ~doc:"File to output CSV to. By default, the CSV is printed to standard output."
-      [ "o"; "output" ])
-;; *)
 
 let ww_person_cmd : unit Cmd.t =
   Cmd.v
@@ -592,13 +581,13 @@ let ww_test_cmd : unit Cmd.t =
   Cmd.v
     (Cmd.info "test" ~doc:"Command to be freely used for internal testing purposes.")
     (* The homomorphism law for applicative functors suggests that
-          [const ww_test $ const ()]
-       should be equivalent to 
-          [const (ww_test ())],
-        but because of side effects (and eager evaluation) this isn't true: the
-        latter always evaluates [ww_test ()] whereas the former doesn't. A case
-        where lack of purity makes it harder to reason about the behaviour of a
-        programme! *)
+       [const ww_test $ const ()]
+       should be equivalent to
+       [const (ww_test ())],
+       but because of side effects (and eager evaluation) this isn't true: the
+       latter always evaluates [ww_test ()] whereas the former doesn't. A case
+       where lack of purity makes it harder to reason about the behaviour of a
+       programme! *)
     Term.(const ww_test $ const ())
 ;;
 
@@ -680,4 +669,25 @@ let cmd : unit Cmd.t =
     ]
 ;;
 
-let () = exit (Cmd.eval cmd)
+let () =
+  try exit (Cmd.eval ~catch:false cmd) with
+  | Sys_error e when e = "Broken pipe" ->
+    (* When piped into `head`, for example. Note the awkward construction
+       used here instead of directly pattern matching against
+           Sys_error "Broken pipe"
+       This is needed to get around a "fragile match" warning, explained
+       in https://v2.ocaml.org/releases/5.1/htmlman/comp.html#ss:warn52 *)
+    (try Sys.set_signal Sys.sigpipe Sys.Signal_default with
+     | Invalid_argument _ -> ());
+    (try flush stderr with
+     | _ -> ());
+    (try flush stdout with
+     | _ -> ());
+    exit 141   (* Choice of exit code is arbitrary, but mimics opam. *)
+  | e ->
+    (* Any other errors. *)
+    let use_color = Unix.isatty Unix.stdout in
+    Pretty.prerr ~use_color [ Bold; Foreground Red ] "Fatal error: ";
+    Printf.eprintf "%s\n" (Printexc.to_string e);
+    exit Cmd.Exit.internal_error (* Defined as 125. *)
+;;
