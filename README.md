@@ -227,7 +227,7 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
  5. In the terminal navigate to a custom directory. You now need to type `brew update` to make sure you have the latest `whatwhat` formula. If you already have `whatwhat` brew installed, you'll need to uninstall it `brew uninstall whatwhat`. Then type
       ```sh
       brew install --build-bottle --verbose whatwhat
-      brew bottle whatwhat
+      brew bottle whatwhat --no-rebuild
       ```
     This will create a bottle (a prebuilt binary) in that directory and will print a new `bottle do` block to your terminal
 6. Copy that code snippet, go to the [ruby file](https://github.com/alan-turing-institute/homebrew-hut23/blob/main/whatwhat.rb) in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) and paste it to overwrite the previous `bottle do` instructions.
