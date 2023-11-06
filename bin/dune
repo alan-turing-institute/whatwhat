@@ -1,6 +1,8 @@
-(executable
- (public_name whatwhat)
+(executables
+ (public_names whatwhat update_whatwhat)
  (package whatwhat)
- (name main)
- (modules Main)
- (libraries whatwhat cmdliner))
+ (names main update)
+ (modules Main Update)
+ (libraries whatwhat cmdliner)
+ (preprocess (pps ppx_deriving.show))
+ )

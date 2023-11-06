@@ -69,7 +69,7 @@ fi
 # git add and commit
 git add -A
 git commit -m "Update version number to v${new_vno}"
-git tag "v${new_vno}"
+git tag "v${new_vno}" -m "Version ${new_vno}"
 
 echo ""
 echo "Version numbers updated from v${git_vno} to v${new_vno}."
