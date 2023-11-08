@@ -23,12 +23,11 @@ let run_github_query_async
   in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ github_token) in
   let header_obj =
-    (* This would be a lot cleaner if the functions in Cohttp.Header actually
-       put the header argument as the final one... *)
-    Header.init ()
-    |> fun header ->
-    Header.add_authorization header auth_cred
-    |> fun header -> Header.prepend_user_agent header "Whatwhat"
+    Header.of_list
+      [ "Accept", "application/vnd.github.v3+json"; "X-GitHub-Api-Version", "2022-11-28" ]
+    |> fun headers ->
+    Header.add_authorization headers auth_cred
+    |> fun headers -> Header.prepend_user_agent headers "Whatwhat"
   in
   let body_obj = Cohttp_lwt.Body.of_string body in
   let uri = Uri.add_query_params (Uri.of_string uri) params in
@@ -307,16 +306,14 @@ type column =
   ; issues : issue list
   }
 
-(** The same as a column, but issues are represented only by their issue number.
-    *)
+(** The same as a column, but issues are represented only by their issue number. *)
 type column_n =
   { name : string
   ; id : int
   ; issues_n : int list
   }
 
-(** The same as a column, but issues additionally contain reactions.
-    *)
+(** The same as a column, but issues additionally contain reactions. *)
 type column_r =
   { name : string
   ; id : int

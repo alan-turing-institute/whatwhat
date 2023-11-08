@@ -36,9 +36,22 @@ module ExitError = struct
        Please commit or remove these before running update_whatwhat." )
   ;;
 
-  let git_commit_failed = 4, "Could not run git commit"
-  let git_tag_failed = 5, "Could not run git tag"
-  let git_push_failed = 6, "Could not run git push"
+  let wrong_branch name =
+    4, "Please checkout the '" ^ name ^ "' branch before running update_whatwhat."
+  ;;
+
+  let remote_does_not_exist name = 5, "The remote '" ^ name ^ "' does not exist."
+  let git_commit_failed = 6, "Could not run git commit"
+  let git_tag_failed = 7, "Could not run git tag"
+  let git_push_failed = 8, "Could not run git push. Are you connected to the Internet?"
+  let git_fetch_failed = 9, "Could not run git fetch. Are you connected to the Internet?"
+  let git_merge_abort_failed = 10, "Could not abort git merge"
+
+  let merge_conflicts_present =
+    ( 10
+    , "Encountered merge conflicts when attempting to automatically merge upstream \
+       branch. Please manually run `git merge` before rerunning `update_whatwhat`." )
+  ;;
 
   let exit (code, msg) =
     prerr ~use_color:true [ Bold; Foreground Red ] "Error: ";
@@ -174,6 +187,7 @@ let get_new_version current_version =
     "What kind of version bump do you want to perform?"
 ;;
 
+(** Replace the version number in the dune-project file. *)
 let update_version_number_in_dune_project current_version new_version =
   let file_name = "dune-project" in
   let file_contents = In_channel.with_open_text file_name In_channel.input_all in
@@ -199,7 +213,51 @@ let update_version_number_in_dune_project current_version new_version =
     Out_channel.output_string t new_file_contents)
 ;;
 
+(** Run a command and ensure that it succeeds. *)
+let run_command exit_error command =
+  let exit_code = Unix.system command in
+  if exit_code <> Unix.WEXITED 0 then ExitError.exit exit_error
+;;
+
+(** Check for merge conflicts with remote main branch. *)
+let check_merge_conflicts remote_name branch_name =
+  run_command
+    ExitError.git_fetch_failed
+    (String.concat " " [ "git"; "fetch"; remote_name; branch_name ]);
+  (* This bit is a bit more subtle, as we need to try to merge, but also abort
+     the merge before exiting. *)
+  let merge_exit_code =
+    Unix.system (Printf.sprintf "git merge %s/%s --no-edit" remote_name branch_name)
+  in
+  if merge_exit_code <> Unix.WEXITED 0
+  then (
+    run_command ExitError.git_merge_abort_failed "git merge --abort";
+    ExitError.(exit merge_conflicts_present))
+;;
+
 (* COMMAND-LINE ARGUMENTS *)
+
+let branch_name_arg =
+  Arg.(
+    value
+    & opt string "main"
+    & info
+        [ "b"; "branch-name" ]
+        ~doc:"Name of the Git branch you are on. Defaults to 'main'."
+        ~docv:"BRANCH_NAME")
+;;
+
+let remote_name_arg =
+  Arg.(
+    value
+    & opt string "origin"
+    & info
+        [ "r"; "remote-name" ]
+        ~doc:
+          "Name of the Git remote to push to. Defaults to 'origin'. Assumes that a \
+           branch with the same name as $(b,branch_name) exists on the remote."
+        ~docv:"REMOTE_NAME")
+;;
 
 let ignore_dirty_arg =
   Arg.(
@@ -214,7 +272,9 @@ let ignore_dirty_arg =
 
 (* ENTRY POINT *)
 
-let main ignore_dirty =
+let main branch_name remote_name ignore_dirty =
+  let announce s = prout ~use_color:true [ Bold ] (s ^ "\n\n") in
+
   (* Detect current working directory and make sure it looks like the top level
      of the repo. A bit hacky but this should suffice. Also check for .git
      because we do need to perform git operations. *)
@@ -227,82 +287,95 @@ let main ignore_dirty =
   (* Detect and show current version. *)
   let current_version = parse_git_version () in
   (if current_version.dirty && not ignore_dirty then ExitError.(exit dirty_working_dir));
-  prout
-    ~use_color:true
-    [ Bold ]
+  announce
     (Printf.sprintf
-       "Detected current version of whatwhat: %d.%d.%d\n"
+       "Detected current version of whatwhat: %d.%d.%d"
        current_version.major
        current_version.minor
        current_version.patch);
-  print_endline "";
 
   (* Prompt user for the new version. *)
   let new_version = get_new_version current_version in
-  prout
-    ~use_color:true
-    [ Bold ]
+  announce
     (Printf.sprintf
-       "Updating whatwhat to version: %d.%d.%d\n"
+       "Updating whatwhat to version: %d.%d.%d"
        new_version.major
        new_version.minor
        new_version.patch);
-  print_endline "";
+
+  (* Check if we are on the main branch *)
+  let current_git_branch =
+    Unix.open_process_in "git rev-parse --abbrev-ref HEAD" |> input_line
+  in
+  announce ("Checking if we are on the '" ^ branch_name ^ "' branch...");
+  (if current_git_branch <> branch_name then ExitError.(exit @@ wrong_branch branch_name));
+
+  (* Check if the given remote name exists *)
+  announce ("Checking if the remote '" ^ remote_name ^ "' exists...");
+  let remote_names =
+    Unix.open_process_in "git remote"
+    |> In_channel.input_all
+    |> String.split_on_char '\n'
+    |> List.map String.trim
+  in
+  (if not (List.mem remote_name remote_names)
+   then ExitError.(exit @@ remote_does_not_exist remote_name));
+
+  (* Check if there are any merge conflicts with upstream *)
+  announce "Checking if there are any changes on the remote...";
+  check_merge_conflicts remote_name branch_name;
+
+  (* TODO: If anything after this point fails, it has to be undone manually. It
+     would be nice to have a way to undo everything automatically. *)
 
   (* Replace the version number in the dune-project file. *)
   prout ~use_color:true [ Bold ] "Updating version number in dune-project file...\n";
   update_version_number_in_dune_project current_version new_version;
   print_endline "";
 
-  (* TODO Check if we are on the main branch and if there are any merge
-     conflicts with upstream. *)
-
   (* Commit changes *)
   prout ~use_color:true [ Bold ] "Committing changes in git...\n";
-  let git_commit_exit_code =
-    Unix.system
-      (Printf.sprintf
-         "git commit -am 'Update version number to %d.%d.%d'"
-         new_version.major
-         new_version.minor
-         new_version.patch)
-  in
-  (if git_commit_exit_code <> Unix.WEXITED 0 then ExitError.(exit git_commit_failed));
+  run_command
+    ExitError.git_commit_failed
+    (Printf.sprintf
+       "git commit -am 'Update version number to %d.%d.%d'"
+       new_version.major
+       new_version.minor
+       new_version.patch);
   print_endline "";
 
   (* Add git tag *)
   prout ~use_color:true [ Bold ] "Adding git tag...\n";
-  let git_tag_exit_code =
-    Unix.system
-      (Printf.sprintf
-         "git tag -a v%d.%d.%d -m 'Version %d.%d.%d'"
-         new_version.major
-         new_version.minor
-         new_version.patch
-         new_version.major
-         new_version.minor
-         new_version.patch)
-  in
-  (if git_tag_exit_code <> Unix.WEXITED 0 then ExitError.(exit git_tag_failed));
+  run_command
+    ExitError.git_tag_failed
+    (Printf.sprintf
+       "git tag -a v%d.%d.%d -m 'Version %d.%d.%d'"
+       new_version.major
+       new_version.minor
+       new_version.patch
+       new_version.major
+       new_version.minor
+       new_version.patch);
   print_endline "";
 
-  (* TODO Push to GitHub with git cli *)
+  (* Push to GitHub *)
   let push_now =
     prompt_cli_options
       ~default_option:(Some { user_input = "y"; value = false; description = "Yes" })
       [ { user_input = "n"; value = true; description = "No" } ]
-      "Do you want to push this tag to GitHub?"
+      "Do you want to push this tag to GitHub now?"
   in
   if push_now
-  then (
-    let git_push_exit_code = Unix.system "git push" in
-    if git_push_exit_code <> Unix.WEXITED 0 then ExitError.(exit git_push_failed))
-  else
-    prout
-      ~use_color:true
-      [ Foreground Green; Bold ]
-      "update_whatwhat exiting.\n\
-       To resume from this point, use `update_whatwhat --step=4`\n";
+  then
+    run_command
+      ExitError.git_push_failed
+      (Printf.sprintf
+         "git push %s %s:%s && git push %s --tags"
+         remote_name
+         branch_name
+         branch_name
+         remote_name)
+  else prout ~use_color:true [ Foreground Green; Bold ] "update_whatwhat exiting.\n";
 
   (* TODO Edit contents of homebrew-hut23/whatwhat.rb with GitHub API *)
 
@@ -319,7 +392,17 @@ let main ignore_dirty =
 let main_cmd =
   Cmd.v
     (Cmd.info "update_whatwhat" ~doc:"Prepare and release a new version of whatwhat.")
-    Term.(const main $ ignore_dirty_arg)
+    Term.(const main $ branch_name_arg $ remote_name_arg $ ignore_dirty_arg)
 ;;
 
-let () = exit (Cmd.eval main_cmd)
+let _ = exit (Cmd.eval main_cmd)
+
+let () =
+  let current_rb_contents =
+    Whatwhat.GithubRaw.run_github_query
+      ~as_bot:true
+      ~http_method:GET
+      "https://api.github.com/repos/alan-turing-institute/homebrew-hut23/contents/whatwhat.rb"
+  in
+  current_rb_contents |> Yojson.Basic.to_string |> print_endline
+;;
