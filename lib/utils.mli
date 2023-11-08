@@ -12,6 +12,9 @@ open CalendarLib
 (** Check whether a character is [0-9]. *)
 val is_digit : char -> bool
 
+(** Check whether a character is [0-9a-f]. *)
+val is_hex_digit : char -> bool
+
 (** Generate a range from i to j-1 inclusive. *)
 val range : int -> int -> int list
 

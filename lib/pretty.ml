@@ -116,13 +116,15 @@ let make_table
 (** Prints a string to standard output. If ~use_color is true, then the string
     is printed with the given styles. *)
 let prout ~(use_color : bool) (styles : ANSI.style list) (string : string) : unit =
-  if use_color then ANSI.print_string styles string else print_string string
+  if use_color then ANSI.print_string styles string else print_string string;
+  flush stdout
 ;;
 
 (** Prints a string to standard error. If ~use_color is true, then the string
     is printed with the given styles. *)
 let prerr ~(use_color : bool) (styles : ANSI.style list) (string : string) : unit =
-  if use_color then ANSI.prerr_string styles string else prerr_string string
+  if use_color then ANSI.prerr_string styles string else prerr_string string;
+  flush stderr
 ;;
 
 (** Print a bold, underlined heading *)

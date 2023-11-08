@@ -9,6 +9,13 @@ let is_digit c =
   | _ -> false
 ;;
 
+let is_hex_digit c =
+  match c with
+  | '0' .. '9' -> true
+  | 'a' .. 'f' -> true
+  | _ -> false
+;;
+
 let range i j = List.init (j - i) (( + ) i)
 
 let group_by (p : 'a -> 'a -> bool) (xs : 'a list) : 'a list list =

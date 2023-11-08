@@ -35,6 +35,7 @@
   ANSITerminal
   ounit2
   websocket-lwt-unix
+  angstrom
   )
  (tags
   (topics "REG")))
