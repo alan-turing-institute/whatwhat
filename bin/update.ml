@@ -22,16 +22,20 @@ type git_version =
 
 (** Exit codes and error messages used by this executable. *)
 module ExitError = struct
-  let git_describe_failed = 1, "Could not parse git version"
+  let not_in_repo =
+    1, "Please run update_whatwhat from the top level of the whatwhat git repository."
+  ;;
+
+  let git_describe_failed = 2, "Could not parse git version"
 
   let dirty_working_dir =
-    ( 2
+    ( 3
     , "There are uncommitted changes or untracked files present in the working directory.\n\
        Please commit or remove these before running update_whatwhat." )
   ;;
 
-  let git_commit_failed = 3, "Could not run git commit"
-  let git_tag_failed = 4, "Could not run git tag"
+  let git_commit_failed = 4, "Could not run git commit"
+  let git_tag_failed = 5, "Could not run git tag"
 
   let exit (code, msg) =
     prerr ~use_color:true [ Bold; Foreground Red ] "Error: ";
@@ -193,6 +197,15 @@ let update_version_number_in_dune_project current_version new_version =
 ;;
 
 let () =
+  (* Detect current working directory and make sure it looks like the top level
+     of the repo. A bit hacky but this should suffice. Also check for .git
+     because we do need to perform git operations. *)
+  let dir_contents = Sys.getcwd () |> Sys.readdir |> Array.to_list in
+  (if (not (List.mem "dune-project" dir_contents))
+      || (not (List.mem ".git" dir_contents))
+      || not (List.mem "whatwhat.opam" dir_contents)
+   then ExitError.(exit not_in_repo));
+
   (* Detect and show current version. *)
   let current_version = parse_git_version () in
   (if current_version.dirty then ExitError.(exit dirty_working_dir));
@@ -218,11 +231,13 @@ let () =
        new_version.patch);
   print_endline "";
 
+  (* Replace the version number in the dune-project file. *)
   prout ~use_color:true [ Bold ] "Updating version number in dune-project file...\n";
   update_version_number_in_dune_project current_version new_version;
   print_endline "";
 
-  prout ~use_color:true [ Bold ] "Performing git commit -am...\n";
+  (* Commit changes *)
+  prout ~use_color:true [ Bold ] "Committing changes in git...\n";
   let git_commit_exit_code =
     Unix.system
       (Printf.sprintf
@@ -234,6 +249,7 @@ let () =
   (if git_commit_exit_code <> Unix.WEXITED 0 then ExitError.(exit git_commit_failed));
   print_endline "";
 
+  (* Add git tag *)
   prout ~use_color:true [ Bold ] "Adding git tag...\n";
   let git_tag_exit_code =
     Unix.system
@@ -249,5 +265,5 @@ let () =
   (if git_tag_exit_code <> Unix.WEXITED 0 then ExitError.(exit git_tag_failed));
   print_endline "";
 
-  prout ~use_color:true [ Foreground Green; Bold ] "Success!\n";
+  prout ~use_color:true [ Foreground Green; Bold ] "Success!\n"
 ;;
