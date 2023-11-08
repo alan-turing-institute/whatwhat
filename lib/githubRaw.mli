@@ -1,9 +1,7 @@
 (** [GithubRaw] queries the GitHub GraphQL and REST APIs for data about issues,
-    users, and project boards, and parses that into OCaml records.
-    *)
+    users, and project boards, and parses that into OCaml records. *)
 
-(** {1 HTTP requests}
-    *)
+(** {1 HTTP requests} *)
 
 (** HTTP methods. Only [GET], [POST], [PUT], and [DELETE] are supported within
     [whatwhat] (for now). *)
@@ -13,19 +11,30 @@ type http_method =
   | PUT
   | DELETE
 
+(** MIME types for HTTP requests to the GitHub API. Most requests are JSON, but
+    raw text is possible when retrieving the contents of READMEs, files, and
+    symlinks; and HTML is possible when retrieving the contents of rendered
+    Markdown files. *)
+type accept =
+  | Json
+  | Raw
+  | Html
+
 (** Run a GitHub query, returning a promise for the body JSON.
 
     - [as_bot] defaults to [false]. Set this to [true] if you want to interact
       as the GitHub bot account (this requires that you have a token set up in
       your secrets file).
+    - [http_method] defaults to [GET].
+    - [accept] defaults to [Json].
     - [params] are URL-encoded parameters.
     - [body] is the request body (used only for [POST], [PUT], and [DELETE]
       requests).
-    - The mandatory argument is the URI.
-    *)
+    - The mandatory argument is the URI. *)
 val run_github_query_async
   :  ?as_bot:bool
   -> ?http_method:http_method
+  -> ?accept:accept
   -> ?params:(string * string list) list
   -> ?body:string
   -> string
@@ -36,13 +45,13 @@ val run_github_query_async
 val run_github_query
   :  ?as_bot:bool
   -> ?http_method:http_method
+  -> ?accept:accept
   -> ?params:(string * string list) list
   -> ?body:string
   -> string
   -> Yojson.Basic.t
 
-(** {1 People}
-    *)
+(** {1 People} *)
 
 (** A [person] is a GitHub user: they are identified by their login username, a
     real name, and an email. The latter two are obtained from their public
@@ -51,8 +60,7 @@ val run_github_query
     In general, we would like to have an external lookup of GitHub usernames to
     real names as this would allow for foolproof matching of Forecast and GitHub
     accounts. See
-    {{: https://github.com/alan-turing-institute/whatwhat/issues/70 }#70}.
-    *)
+    {{:https://github.com/alan-turing-institute/whatwhat/issues/70} #70}. *)
 type person =
   { login : string
   ; name : string option
@@ -67,8 +75,7 @@ val get_all_users_async : person list Lwt.t
 (** {1 Issues}
 
     Each issue on the GitHub project tracker nominally refers to a project
-    within REG.
-    *)
+    within REG. *)
 
 (** The state of an issue on GitHub. *)
 type issue_state =
@@ -76,8 +83,7 @@ type issue_state =
   | Closed
 [@@deriving show]
 
-(** An [issue] is a GitHub issue on the repository being queried.
-    *)
+(** An [issue] is a GitHub issue on the repository being queried. *)
 type issue =
   { number : int
   ; title : string
@@ -111,11 +117,11 @@ val get_issue_r : int -> issue_r
 (** {1 Columns}
 
     A [column] refers to a column within a project board on GitHub.
-    
+
     There are several forms of columns, in order to deal with the fact that
     different parts of [whatwhat] require different requirements for data. There
     are at least three possibilities:
-    
+
     + Only the numbers of issues in a column are required. (For example, to
       determine whether an issue is in a column.)
     + The issues themselves are needed, but not the reactions. (This is the most
@@ -125,8 +131,7 @@ val get_issue_r : int -> issue_r
 
     In order to ensure that functions can be called in a type-safe manner, these
     three classes of columns are respectively represented by the [column_n]
-    ('numbers'), [column], and [column_r] ('reactions') record types.
-    *)
+    ('numbers'), [column], and [column_r] ('reactions') record types. *)
 
 type column_n =
   { name : string
@@ -151,8 +156,7 @@ type column_r =
     A [project] refers to a project board on GitHub, which contains a list of
     columns. For similar reasons as described for columns, there are three
     record types: [project_n], [project], and [project_r], each with the same
-    meaning as above.
-    *)
+    meaning as above. *)
 
 type project_n =
   { id : int

@@ -48,10 +48,16 @@ module ExitError = struct
   let git_merge_abort_failed = 10, "Could not abort git merge"
 
   let merge_conflicts_present =
-    ( 10
+    ( 11
     , "Encountered merge conflicts when attempting to automatically merge upstream \
        branch. Please manually run `git merge` before rerunning `update_whatwhat`." )
   ;;
+
+  let homebrew_formula_update_failed s =
+    12, "Failed to update Homebrew formula on GitHub. Error details: " ^ s
+  ;;
+
+  let homebrew_bottle_failed = 13, "Failed to create Homebrew bottle"
 
   let exit (code, msg) =
     prerr ~use_color:true [ Bold; Foreground Red ] "Error: ";
@@ -235,6 +241,90 @@ let check_merge_conflicts remote_name branch_name =
     ExitError.(exit merge_conflicts_present))
 ;;
 
+(** Update the 'tag' and 'revision' items in the whatwhat.rb formula in the
+    GitHub alan-turing-institute/homebrew-hut23 repository. This enables
+    Homebrew to build the new version when instructed to build from source.
+
+    The GitHub API is used here; you must have the GitHub bot token in your
+    whatwhat config file. It assumes that the bot (i.e. the NowWhatBot GitHub
+    account) has push permissions for the repository (which it does).
+
+    NOTE: This function will throw exceptions if something fails. *)
+let update_homebrew_hut23_formula current_version new_version =
+  (* Fetch the file contents from GitHub *)
+  let gh_get_file_resp =
+    Whatwhat.GithubRaw.run_github_query
+      ~as_bot:true
+      ~http_method:GET
+      ~accept:Json
+      "https://api.github.com/repos/yongrenjie/homebrew-hut23/contents/whatwhat.rb"
+  in
+  let current_rb_contents =
+    gh_get_file_resp
+    |> Yojson.Basic.Util.member "content"
+    |> Yojson.Basic.Util.to_string
+    |> Str.global_replace (Str.regexp "\n") ""
+    |> Base64.decode_exn
+  in
+  let current_sha =
+    gh_get_file_resp |> Yojson.Basic.Util.member "sha" |> Yojson.Basic.Util.to_string
+  in
+  (* Update the file contents *)
+  let current_git_commit = Unix.open_process_in "git rev-parse HEAD" |> input_line in
+  let old_commit_regexp = Str.regexp "revision: \"\\([0-9a-f]+\\)\"" in
+  let new_commit_string = "revision: \"" ^ current_git_commit ^ "\"" in
+  let current_version_regexp =
+    Str.regexp
+    @@ Printf.sprintf
+         "tag: \"v%d.%d.%d\""
+         current_version.major
+         current_version.minor
+         current_version.patch
+  in
+  let new_version_string =
+    Printf.sprintf
+      "tag: \"v%d.%d.%d\""
+      new_version.major
+      new_version.minor
+      new_version.patch
+  in
+  let new_text =
+    current_rb_contents
+    |> Str.replace_first current_version_regexp new_version_string
+    |> Str.replace_first old_commit_regexp new_commit_string
+  in
+  (* Send the updated file contents back to GitHub *)
+  let body_string =
+    Yojson.Basic.to_string
+      (`Assoc
+        [ ( "message"
+          , `String
+              (Printf.sprintf
+                 "Update Git revision for whatwhat.rb to v%d.%d.%d\n\n\
+                  Co-authored-by: %s <%s>"
+                 new_version.major
+                 new_version.minor
+                 new_version.patch
+                 (Unix.open_process_in "git config --get user.name" |> input_line)
+                 (Unix.open_process_in "git config --get user.email" |> input_line)) )
+        ; ( "committer"
+          , `Assoc
+              [ "name", `String "NowWhatBot"
+              ; "email", `String "hut23-1206-nowwhat@turing.ac.uk"
+              ] )
+        ; "content", `String (Base64.encode_exn new_text)
+        ; "sha", `String current_sha
+        ])
+  in
+  ignore
+  @@ Whatwhat.GithubRaw.run_github_query
+       ~as_bot:true
+       ~http_method:PUT
+       ~accept:Raw
+       ~body:body_string
+       "https://api.github.com/repos/yongrenjie/homebrew-hut23/contents/whatwhat.rb"
+;;
+
 (* COMMAND-LINE ARGUMENTS *)
 
 let branch_name_arg =
@@ -334,7 +424,7 @@ let main branch_name remote_name ignore_dirty =
   print_endline "";
 
   (* Commit changes *)
-  prout ~use_color:true [ Bold ] "Committing changes in git...\n";
+  announce "Committing changes in git...";
   run_command
     ExitError.git_commit_failed
     (Printf.sprintf
@@ -345,7 +435,7 @@ let main branch_name remote_name ignore_dirty =
   print_endline "";
 
   (* Add git tag *)
-  prout ~use_color:true [ Bold ] "Adding git tag...\n";
+  announce "Adding git tag...";
   run_command
     ExitError.git_tag_failed
     (Printf.sprintf
@@ -377,9 +467,19 @@ let main branch_name remote_name ignore_dirty =
          remote_name)
   else prout ~use_color:true [ Foreground Green; Bold ] "update_whatwhat exiting.\n";
 
-  (* TODO Edit contents of homebrew-hut23/whatwhat.rb with GitHub API *)
+  (* Edit contents of homebrew-hut23/whatwhat.rb with GitHub API *)
+  announce "Updating homebrew-hut23/whatwhat.rb...";
+  (try update_homebrew_hut23_formula current_version new_version with
+   | e -> ExitError.(exit @@ homebrew_formula_update_failed (Printexc.to_string e)));
 
-  (* TODO Create Homebrew bottle *)
+  (* Create Homebrew bottle *)
+  announce "Creating Homebrew bottle on local machine...";
+  run_command ExitError.homebrew_bottle_failed "brew update";
+  run_command ExitError.homebrew_bottle_failed "brew uninstall whatwhat || true";
+  run_command ExitError.homebrew_bottle_failed "brew tap yongrenjie/hut23";
+  run_command ExitError.homebrew_bottle_failed "brew install --build-bottle --verbose whatwhat";
+  let bottle_do_block = Unix.open_process_in "brew bottle whatwhat --no-rebuild" |> In_channel.input_all in
+  print_endline bottle_do_block;
 
   (* TODO Create new release with GitHub API *)
 
@@ -395,14 +495,4 @@ let main_cmd =
     Term.(const main $ branch_name_arg $ remote_name_arg $ ignore_dirty_arg)
 ;;
 
-let _ = exit (Cmd.eval main_cmd)
-
-let () =
-  let current_rb_contents =
-    Whatwhat.GithubRaw.run_github_query
-      ~as_bot:true
-      ~http_method:GET
-      "https://api.github.com/repos/alan-turing-institute/homebrew-hut23/contents/whatwhat.rb"
-  in
-  current_rb_contents |> Yojson.Basic.to_string |> print_endline
-;;
+let () = if false then exit (Cmd.eval main_cmd)

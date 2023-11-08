@@ -3,6 +3,6 @@
  (package whatwhat)
  (names main update)
  (modules Main Update)
- (libraries whatwhat cmdliner)
+ (libraries whatwhat cmdliner base64)
  (preprocess (pps ppx_deriving.show))
  )

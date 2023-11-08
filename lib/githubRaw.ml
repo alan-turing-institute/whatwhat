@@ -9,9 +9,15 @@ type http_method =
   | PUT
   | DELETE
 
+type accept =
+  | Json
+  | Raw
+  | Html
+
 let run_github_query_async
   ?(as_bot = false)
   ?(http_method = GET)
+  ?(accept = Json)
   ?(params = [])
   ?(body = "")
   uri
@@ -22,9 +28,14 @@ let run_github_query_async
     if as_bot then Config.get_githubbot_token () else Config.get_github_token ()
   in
   let auth_cred = Auth.credential_of_string ("Bearer " ^ github_token) in
+  let accept_header_val =
+    match accept with
+    | Json -> "application/vnd.github.v3+json"
+    | Raw -> "application/vnd.github.raw"
+    | Html -> "application/vnd.github.html"
+  in
   let header_obj =
-    Header.of_list
-      [ "Accept", "application/vnd.github.v3+json"; "X-GitHub-Api-Version", "2022-11-28" ]
+    Header.of_list [ "Accept", accept_header_val; "X-GitHub-Api-Version", "2022-11-28" ]
     |> fun headers ->
     Header.add_authorization headers auth_cred
     |> fun headers -> Header.prepend_user_agent headers "Whatwhat"
@@ -51,22 +62,27 @@ let run_github_query_async
        | exn -> Lwt.fail exn)
   in
   let* body_string = Cohttp_lwt.Body.to_string body in
-  let body_json =
-    match body_string with
-    | "" -> `Null
-    | _ -> Basic.from_string body_string
-  in
-  Lwt.return body_json
+  match accept with
+  | Json ->
+    let body_json =
+      match body_string with
+      | "" -> `Null
+      | _ -> Basic.from_string body_string
+    in
+    Lwt.return body_json
+  | Raw -> Lwt.return (`String body_string)
+  | Html -> Lwt.return (`String body_string)
 ;;
 
 let run_github_query
   ?(as_bot = false)
   ?(http_method = GET)
+  ?(accept = Json)
   ?(params = [])
   ?(body = "")
   uri
   =
-  run_github_query_async ~as_bot ~http_method ~params ~body uri |> Lwt_main.run
+  run_github_query_async ~as_bot ~http_method ~accept ~params ~body uri |> Lwt_main.run
 ;;
 
 (** Users -------------------------------------------- *)
