@@ -17,7 +17,7 @@
 
 (package
  (name whatwhat)
- (version 0.0.25)
+ (version 0.0.26)
  (synopsis "A reimagining of nowwhat")
  (description "Project scheduling")
  (depends
