@@ -673,7 +673,9 @@ let main branch_name remote_name ignore_dirty =
        homebrew_tap_filename);
   update_homebrew_hut23_formula_bottle new_version bottle_do_block;
 
-  prout ~use_color:true [ Foreground Green; Bold ] "Success!\n"
+  prout ~use_color:true [ Foreground Green; Bold ] "✨✨✨ Success! ✨✨✨\n";
+  prout ~use_color:true [ ] "You can check that everything worked by running: \n";
+  prout ~use_color:true [ ] "    brew update && brew reinstall whatwhat\n"
 ;;
 
 let main_cmd =
