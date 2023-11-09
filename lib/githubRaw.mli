@@ -20,7 +20,8 @@ type accept =
   | Raw
   | Html
 
-(** Run a GitHub query, returning a promise for the body JSON.
+(** Run a GitHub query, returning a promise for the body JSON (or the string
+    itself if [accept] is set to [Raw] or [Html]).
 
     - [as_bot] defaults to [false]. Set this to [true] if you want to interact
       as the GitHub bot account (this requires that you have a token set up in
@@ -28,6 +29,8 @@ type accept =
     - [http_method] defaults to [GET].
     - [accept] defaults to [Json].
     - [params] are URL-encoded parameters.
+    - [headers] are extra request headers. By default, the Authorization,
+      User-Agent, and X-GitHub-Api-Version headers are already set for you.
     - [body] is the request body (used only for [POST], [PUT], and [DELETE]
       requests).
     - The mandatory argument is the URI. *)
@@ -36,17 +39,20 @@ val run_github_query_async
   -> ?http_method:http_method
   -> ?accept:accept
   -> ?params:(string * string list) list
+  -> ?headers:(string * string) list
   -> ?body:string
   -> string
   -> Yojson.Basic.t Lwt.t
 
-(** Run a GitHub query, returning the body JSON directly. All arguments are the
+(** Run a GitHub query, returning the body JSON directly (or the string
+    itself if [accept] is set to [Raw] or [Html]). All arguments are the
     same as in {!run_github_query_async}. *)
 val run_github_query
   :  ?as_bot:bool
   -> ?http_method:http_method
   -> ?accept:accept
   -> ?params:(string * string list) list
+  -> ?headers:(string * string) list
   -> ?body:string
   -> string
   -> Yojson.Basic.t
