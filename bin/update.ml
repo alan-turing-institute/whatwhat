@@ -390,7 +390,7 @@ let update_homebrew_hut23_formula_bottle new_version new_bottle_do_block =
     all_lines
     |> Seq.drop_while (fun line -> String.trim line <> "bottle do")
     |> Seq.drop_while (fun line -> String.trim line <> "end")
-    |> Seq.drop_while (fun line -> String.trim line == "end")
+    |> Seq.drop_while (fun line -> String.trim line = "end")
     |> List.of_seq
   in
   let new_bottle_do_lines = new_bottle_do_block |> String.split_on_char '\n' in
