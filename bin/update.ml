@@ -16,10 +16,6 @@ let homebrew_tap_owner = "alan-turing-institute"
 let homebrew_tap_repo = "homebrew-hut23"
 let homebrew_tap_filename = "whatwhat.rb"
 
-(* These are used when updating the Homebrew formula *)
-let nowwhatbot_name = "NowWhatBot"
-let nowwhatbot_email = "hut23-1206-nowwhat@turing.ac.uk"
-
 (** TYPES *)
 
 (** Information about how far away our current commit is from the last tag. *)
@@ -258,13 +254,19 @@ let check_merge_conflicts remote_name branch_name =
     ExitError.(exit merge_conflicts_present))
 ;;
 
+let get_git_user_name () = Unix.open_process_in "git config --get user.name" |> input_line
+
+let get_git_user_email () =
+  Unix.open_process_in "git config --get user.email" |> input_line
+;;
+
 let get_github_file ~owner ~repo ~filename =
   let url =
     String.concat
       "/"
       [ "https://api.github.com"; "repos"; owner; repo; "contents"; filename ]
   in
-  let resp = Whatwhat.GithubRaw.run_github_query ~as_bot:true url in
+  let resp = Whatwhat.GithubRaw.run_github_query ~as_bot:false url in
   let current_contents =
     resp
     |> Yojson.Basic.Util.member "content"
@@ -305,9 +307,8 @@ let update_github_file
   in
   ignore
   @@ Whatwhat.GithubRaw.run_github_query
-       ~as_bot:true
+       ~as_bot:false
        ~http_method:PUT
-       ~accept:Raw
        ~body:body_string
        url
 ;;
@@ -315,12 +316,11 @@ let update_github_file
 (** Update the 'tag' and 'revision' items in the Homebrew formula. This enables
     Homebrew to build the new version when instructed to build from source.
 
-    The GitHub API is used here; you must have the GitHub bot token in your
-    whatwhat config file. It assumes that the bot (i.e. the NowWhatBot GitHub
-    account) has push permissions for the repository (which it does).
+    The GitHub API is used here; you must have a personal GitHub token in your
+    whatwhat config file.
 
     This function will throw exceptions if something fails. *)
-let update_homebrew_hut23_formula current_version new_version =
+let update_homebrew_hut23_formula new_version =
   let current_rb_contents, old_sha =
     get_github_file
       ~owner:homebrew_tap_owner
@@ -331,14 +331,9 @@ let update_homebrew_hut23_formula current_version new_version =
   let current_git_commit = Unix.open_process_in "git rev-parse HEAD" |> input_line in
   let old_commit_regexp = Str.regexp "revision: \"\\([0-9a-f]+\\)\"" in
   let new_commit_string = "revision: \"" ^ current_git_commit ^ "\"" in
-  let current_version_regexp =
-    Str.regexp
-    @@ Printf.sprintf
-         "tag: \"v%d.%d.%d\""
-         current_version.major
-         current_version.minor
-         current_version.patch
-  in
+  (* Avoid hardcoding old version number as it may be that we're updating from
+     a version that is not the latest. *)
+  let current_version_regexp = Str.regexp {|"tag: v\d\+.\d\+.\d\+"|} in
   let new_version_string =
     Printf.sprintf
       "tag: \"v%d.%d.%d\""
@@ -351,6 +346,8 @@ let update_homebrew_hut23_formula current_version new_version =
     |> Str.replace_first current_version_regexp new_version_string
     |> Str.replace_first old_commit_regexp new_commit_string
   in
+  let committer_name = get_git_user_name () in
+  let committer_email = get_git_user_email () in
   (* Send the updated file contents back to GitHub *)
   update_github_file
     ~owner:homebrew_tap_owner
@@ -360,15 +357,13 @@ let update_homebrew_hut23_formula current_version new_version =
     ~new_contents:new_text
     ~commit_message:
       (Printf.sprintf
-         "Update Git revision for %s to v%d.%d.%d\n\nCo-authored-by: %s <%s>"
+         "Update Git revision for %s to v%d.%d.%d"
          homebrew_tap_filename
          new_version.major
          new_version.minor
-         new_version.patch
-         (Unix.open_process_in "git config --get user.name" |> input_line)
-         (Unix.open_process_in "git config --get user.email" |> input_line))
-    ~committer_name:nowwhatbot_name
-    ~committer_email:nowwhatbot_email
+         new_version.patch)
+    ~committer_name
+    ~committer_email
 ;;
 
 (** Update the `bottle do` block in the Homebrew formula. *)
@@ -411,6 +406,8 @@ let update_homebrew_hut23_formula_bottle new_version new_bottle_do_block =
     |> List.concat
     |> String.concat "\n"
   in
+  let committer_name = get_git_user_name () in
+  let committer_email = get_git_user_email () in
   (* Send the updated file contents back to GitHub *)
   update_github_file
     ~owner:homebrew_tap_owner
@@ -420,15 +417,13 @@ let update_homebrew_hut23_formula_bottle new_version new_bottle_do_block =
     ~new_contents:new_text
     ~commit_message:
       (Printf.sprintf
-         "Update %s bottle to v%d.%d.%d\n\nCo-authored-by: %s <%s>"
+         "Update %s bottle to v%d.%d.%d"
          homebrew_tap_filename
          new_version.major
          new_version.minor
-         new_version.patch
-         (Unix.open_process_in "git config --get user.name" |> input_line)
-         (Unix.open_process_in "git config --get user.email" |> input_line))
-    ~committer_name:nowwhatbot_name
-    ~committer_email:nowwhatbot_email
+         new_version.patch)
+    ~committer_name
+    ~committer_email
 ;;
 
 (** Create a GitHub release and return the release ID. *)
@@ -619,7 +614,7 @@ let main branch_name remote_name ignore_dirty =
        homebrew_tap_owner
        homebrew_tap_repo
        homebrew_tap_filename);
-  (try update_homebrew_hut23_formula current_version new_version with
+  (try update_homebrew_hut23_formula new_version with
    | e -> ExitError.(exit @@ homebrew_formula_update_failed (Printexc.to_string e)));
 
   (* Create Homebrew bottle *)
