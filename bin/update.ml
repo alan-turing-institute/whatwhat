@@ -334,7 +334,7 @@ let update_homebrew_hut23_formula new_version =
   let new_commit_string = "revision: \"" ^ current_git_commit ^ "\"" in
   (* Avoid hardcoding old version number as it may be that we're updating from
      a version that is not the latest. *)
-  let current_version_regexp = Str.regexp {|tag: "v\d+\.\d+\.\d+"|} in
+  let current_version_regexp = Str.regexp {|tag: "v[0-9]+\.[0-9]+\.[0-9]+"|} in
   let new_version_string =
     Printf.sprintf
       "tag: \"v%d.%d.%d\""
