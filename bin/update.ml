@@ -5,6 +5,23 @@ open Cmdliner
 open Whatwhat.Pretty
 open ANSITerminal
 
+(** GLOBALS *)
+
+(* These specify the whatwhat source repository *)
+let whatwhat_owner = "alan-turing-institute"
+let whatwhat_repo = "whatwhat"
+
+(* These specify the Homebrew tap repository *)
+let homebrew_tap_owner = "alan-turing-institute"
+let homebrew_tap_repo = "homebrew-hut23"
+let homebrew_tap_filename = "whatwhat.rb"
+
+(* These are used when updating the Homebrew formula *)
+let nowwhatbot_name = "NowWhatBot"
+let nowwhatbot_email = "hut23-1206-nowwhat@turing.ac.uk"
+
+(** TYPES *)
+
 (** Information about how far away our current commit is from the last tag. *)
 type git_commit =
   { _commits_since_tag : int
@@ -295,8 +312,7 @@ let update_github_file
        url
 ;;
 
-(** Update the 'tag' and 'revision' items in the whatwhat.rb formula in the
-    GitHub alan-turing-institute/homebrew-hut23 repository. This enables
+(** Update the 'tag' and 'revision' items in the Homebrew formula. This enables
     Homebrew to build the new version when instructed to build from source.
 
     The GitHub API is used here; you must have the GitHub bot token in your
@@ -305,10 +321,12 @@ let update_github_file
 
     This function will throw exceptions if something fails. *)
 let update_homebrew_hut23_formula current_version new_version =
-  let owner = "alan-turing-institute" in
-  let repo = "homebrew-hut23" in
-  let filename = "whatwhat.rb" in
-  let current_rb_contents, old_sha = get_github_file ~owner ~repo ~filename in
+  let current_rb_contents, old_sha =
+    get_github_file
+      ~owner:homebrew_tap_owner
+      ~repo:homebrew_tap_repo
+      ~filename:homebrew_tap_filename
+  in
   (* Update the file contents *)
   let current_git_commit = Unix.open_process_in "git rev-parse HEAD" |> input_line in
   let old_commit_regexp = Str.regexp "revision: \"\\([0-9a-f]+\\)\"" in
@@ -335,29 +353,32 @@ let update_homebrew_hut23_formula current_version new_version =
   in
   (* Send the updated file contents back to GitHub *)
   update_github_file
-    ~owner
-    ~repo
-    ~filename
+    ~owner:homebrew_tap_owner
+    ~repo:homebrew_tap_repo
+    ~filename:homebrew_tap_filename
     ~old_sha
     ~new_contents:new_text
     ~commit_message:
       (Printf.sprintf
-         "Update Git revision for whatwhat.rb to v%d.%d.%d\n\nCo-authored-by: %s <%s>"
+         "Update Git revision for %s to v%d.%d.%d\n\nCo-authored-by: %s <%s>"
+         homebrew_tap_filename
          new_version.major
          new_version.minor
          new_version.patch
          (Unix.open_process_in "git config --get user.name" |> input_line)
          (Unix.open_process_in "git config --get user.email" |> input_line))
-    ~committer_name:"NowWhatBot"
-    ~committer_email:"hut23-1206-nowwhat@turing.ac.uk"
+    ~committer_name:nowwhatbot_name
+    ~committer_email:nowwhatbot_email
 ;;
 
-(** Update the `bottle do` block in the homebrew-hut23/whatwhat.rb formula. *)
+(** Update the `bottle do` block in the Homebrew formula. *)
 let update_homebrew_hut23_formula_bottle new_version new_bottle_do_block =
-  let owner = "alan-turing-institute" in
-  let repo = "homebrew-hut23" in
-  let filename = "whatwhat.rb" in
-  let current_rb_contents, old_sha = get_github_file ~owner ~repo ~filename in
+  let current_rb_contents, old_sha =
+    get_github_file
+      ~owner:homebrew_tap_owner
+      ~repo:homebrew_tap_repo
+      ~filename:homebrew_tap_filename
+  in
   (* Modify the contents *)
   let all_lines = String.split_on_char '\n' current_rb_contents |> List.to_seq in
   let pre_bottle_block_lines =
@@ -377,8 +398,9 @@ let update_homebrew_hut23_formula_bottle new_version new_bottle_do_block =
     [ pre_bottle_block_lines
     ; [ List.hd new_bottle_do_lines ]
     ; [ Printf.sprintf
-          "    root_url \
-           \"https://github.com/alan-turing-institute/whatwhat/releases/download/v%d.%d.%d\""
+          "    root_url \"https://github.com/%s/%s/releases/download/v%d.%d.%d\""
+          whatwhat_owner
+          whatwhat_repo
           new_version.major
           new_version.minor
           new_version.patch
@@ -391,21 +413,22 @@ let update_homebrew_hut23_formula_bottle new_version new_bottle_do_block =
   in
   (* Send the updated file contents back to GitHub *)
   update_github_file
-    ~owner
-    ~repo
-    ~filename
+    ~owner:homebrew_tap_owner
+    ~repo:homebrew_tap_repo
+    ~filename:homebrew_tap_filename
     ~old_sha
     ~new_contents:new_text
     ~commit_message:
       (Printf.sprintf
-         "Update whatwhat.rb bottle to v%d.%d.%d\n\nCo-authored-by: %s <%s>"
+         "Update %s bottle to v%d.%d.%d\n\nCo-authored-by: %s <%s>"
+         homebrew_tap_filename
          new_version.major
          new_version.minor
          new_version.patch
          (Unix.open_process_in "git config --get user.name" |> input_line)
          (Unix.open_process_in "git config --get user.email" |> input_line))
-    ~committer_name:"NowWhatBot"
-    ~committer_email:"hut23-1206-nowwhat@turing.ac.uk"
+    ~committer_name:nowwhatbot_name
+    ~committer_email:nowwhatbot_email
 ;;
 
 (** Create a GitHub release and return the release ID. *)
@@ -418,7 +441,9 @@ let create_github_release new_version =
     Whatwhat.GithubRaw.run_github_query
       ~http_method:POST
       ~body:body_string
-      "https://api.github.com/repos/alan-turing-institute/whatwhat/releases"
+      (String.concat
+         "/"
+         [ "https://api.github.com"; "repos"; whatwhat_owner; whatwhat_repo; "releases" ])
   in
   resp |> Yojson.Basic.Util.member "id" |> Yojson.Basic.Util.to_int
 ;;
@@ -427,9 +452,16 @@ let create_github_release new_version =
     directory. *)
 let upload_bottle_to_release release_id bottle_fname =
   let upload_url =
-    Printf.sprintf
-      "https://uploads.github.com/repos/alan-turing-institute/whatwhat/releases/%d/assets"
-      release_id
+    String.concat
+      "/"
+      [ "https://uploads.github.com"
+      ; "repos"
+      ; whatwhat_owner
+      ; whatwhat_repo
+      ; "releases"
+      ; string_of_int release_id
+      ; "assets"
+      ]
   in
   let bottle_as_binary = In_channel.(open_bin bottle_fname |> input_all) in
   let content_length = bottle_as_binary |> Bytes.of_string |> Bytes.length in
@@ -588,8 +620,13 @@ let main branch_name remote_name ignore_dirty =
          remote_name)
   else prout ~use_color:true [ Foreground Green; Bold ] "update_whatwhat exiting.\n";
 
-  (* Edit contents of homebrew-hut23/whatwhat.rb with GitHub API *)
-  announce "Updating contents of homebrew-hut23/whatwhat.rb on GitHub...";
+  (* Edit contents of Homebrew formula with GitHub API *)
+  announce
+    (Printf.sprintf
+       "Updating contents of %s/%s/%s on GitHub..."
+       homebrew_tap_owner
+       homebrew_tap_repo
+       homebrew_tap_filename);
   (try update_homebrew_hut23_formula current_version new_version with
    | e -> ExitError.(exit @@ homebrew_formula_update_failed (Printexc.to_string e)));
 
@@ -597,7 +634,9 @@ let main branch_name remote_name ignore_dirty =
   announce "Creating Homebrew bottle on local machine...";
   run_command ExitError.homebrew_bottle_failed "brew update";
   run_command ExitError.homebrew_bottle_failed "brew uninstall whatwhat || true";
-  run_command ExitError.homebrew_bottle_failed "brew tap yongrenjie/hut23";
+  run_command
+    ExitError.homebrew_bottle_failed
+    (Printf.sprintf "brew tap %s/%s" homebrew_tap_owner homebrew_tap_repo);
   run_command
     ExitError.homebrew_bottle_failed
     "brew install --build-bottle --verbose whatwhat";
@@ -620,9 +659,13 @@ let main branch_name remote_name ignore_dirty =
   announce "Uploading bottle to GitHub release...";
   upload_bottle_to_release release_id bottle_fname_correct;
 
-  (* Edit contents of homebrew-hut23/whatwhat.rb to include bottle *)
+  (* Edit contents of Homebrew formula to include bottle *)
   announce
-    "Updating contents of homebrew-hut23/whatwhat.rb on GitHub (again) with new bottle...";
+    (Printf.sprintf
+       "Updating contents of %s/%s/%s on GitHub (again) with new bottle..."
+       homebrew_tap_owner
+       homebrew_tap_repo
+       homebrew_tap_filename);
   update_homebrew_hut23_formula_bottle new_version bottle_do_block;
 
   prout ~use_color:true [ Foreground Green; Bold ] "Success!\n"
