@@ -267,6 +267,7 @@ let get_github_file ~owner ~repo ~filename =
       [ "https://api.github.com"; "repos"; owner; repo; "contents"; filename ]
   in
   let resp = Whatwhat.GithubRaw.run_github_query ~as_bot:false url in
+  print_endline (Yojson.Basic.pretty_to_string resp);
   let current_contents =
     resp
     |> Yojson.Basic.Util.member "content"

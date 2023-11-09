@@ -54,8 +54,6 @@ let run_github_query_async
           | PUT -> Client.put ~headers:header_obj ~body:body_obj uri
           | DELETE -> Client.delete ~headers:header_obj ~body:body_obj uri
         in
-        let* bs = b |> Cohttp_lwt.Body.to_string in
-        print_endline bs;
         Utils.check_http_response r;
         Lwt.return b)
       (function
