@@ -602,23 +602,15 @@ let main branch_name remote_name ignore_dirty =
   print_endline "";
 
   (* Push to GitHub *)
-  let push_now =
-    prompt_cli_options
-      ~default_option:(Some { user_input = "y"; value = false; description = "Yes" })
-      [ { user_input = "n"; value = true; description = "No" } ]
-      "Do you want to push this tag to GitHub now?"
-  in
-  if push_now
-  then
-    run_command
-      ExitError.git_push_failed
-      (Printf.sprintf
-         "git push %s %s:%s && git push %s --tags"
-         remote_name
-         branch_name
-         branch_name
-         remote_name)
-  else prout ~use_color:true [ Foreground Green; Bold ] "update_whatwhat exiting.\n";
+  announce "Pushing to GitHub...";
+  run_command
+    ExitError.git_push_failed
+    (Printf.sprintf
+       "git push %s %s:%s && git push %s --tags"
+       remote_name
+       branch_name
+       branch_name
+       remote_name);
 
   (* Edit contents of Homebrew formula with GitHub API *)
   announce
