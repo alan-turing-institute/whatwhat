@@ -72,6 +72,8 @@ module ExitError = struct
 
   let homebrew_bottle_failed = 13, "Failed to create Homebrew bottle"
 
+  let bottle_cleanup_failed = 14, "Failed to remove Homebrew bottles from working directory"
+
   let exit (code, msg) =
     prerr ~use_color:true [ Bold; Foreground Red ] "Error: ";
     prerr ~use_color:true [] (msg ^ "\n");
@@ -228,6 +230,8 @@ let update_version_number_in_dune_project current_version new_version =
   let new_file_contents =
     Str.global_replace current_version_regexp new_version_string file_contents
   in
+  (* Make sure we actually replaced something. *)
+  assert (new_file_contents <> file_contents);
   Out_channel.with_open_text file_name (fun t ->
     Out_channel.output_string t new_file_contents)
 ;;
@@ -512,7 +516,7 @@ let ignore_dirty_arg =
 (* ENTRY POINT *)
 
 let main branch_name remote_name ignore_dirty =
-  let announce s = prout ~use_color:true [ Bold ] (s ^ "\n\n") in
+  let announce s = prout ~use_color:true [ Bold ] ("✨ " ^ s ^ "\n\n") in
 
   (* Detect current working directory and make sure it looks like the top level
      of the repo. A bit hacky but this should suffice. Also check for .git
@@ -621,7 +625,9 @@ let main branch_name remote_name ignore_dirty =
   (* Create Homebrew bottle *)
   announce "Creating Homebrew bottle on local machine...";
   run_command ExitError.homebrew_bottle_failed "brew update";
-  run_command ExitError.homebrew_bottle_failed "brew uninstall whatwhat || true 2>/dev/null";
+  run_command
+    ExitError.homebrew_bottle_failed
+    "brew uninstall whatwhat || true 2>/dev/null";
   run_command
     ExitError.homebrew_bottle_failed
     (Printf.sprintf "brew tap %s/%s" homebrew_tap_owner homebrew_tap_repo);
@@ -629,7 +635,14 @@ let main branch_name remote_name ignore_dirty =
     ExitError.homebrew_bottle_failed
     "brew install --build-bottle --verbose whatwhat";
   let bottle_do_block =
-    Unix.open_process_in "brew bottle whatwhat --no-rebuild" |> In_channel.input_all
+    Unix.open_process_in "brew bottle whatwhat --no-rebuild"
+    |> In_channel.input_all
+    |> String.split_on_char '\n'
+    |> List.to_seq
+    (* This gets rid of Homebrew's output itself *)
+    |> Seq.drop_while (fun s -> String.trim s <> "bottle do")
+    |> List.of_seq
+    |> String.concat "\n"
   in
   let bottle_fname_wrong =
     Unix.open_process_in "ls -1 whatwhat--*.bottle.tar.gz" |> input_line
@@ -646,6 +659,10 @@ let main branch_name remote_name ignore_dirty =
   (* Upload Homebrew bottle to release *)
   announce "Uploading bottle to GitHub release...";
   upload_bottle_to_release release_id bottle_fname_correct;
+
+  (* Delete bottle files *)
+  announce "Cleaning up bottle files...";
+  run_command ExitError.bottle_cleanup_failed "rm -f whatwhat-*.bottle.tar.gz";
 
   (* Edit contents of Homebrew formula to include bottle *)
   announce
