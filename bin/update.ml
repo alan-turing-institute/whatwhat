@@ -334,7 +334,7 @@ let update_homebrew_hut23_formula new_version =
   let new_commit_string = "revision: \"" ^ current_git_commit ^ "\"" in
   (* Avoid hardcoding old version number as it may be that we're updating from
      a version that is not the latest. *)
-  let current_version_regexp = Str.regexp {|"tag: v\d\+.\d\+.\d\+"|} in
+  let current_version_regexp = Str.regexp {|tag: "v\d\+.\d\+.\d\+"|} in
   let new_version_string =
     Printf.sprintf
       "tag: \"v%d.%d.%d\""
@@ -621,7 +621,7 @@ let main branch_name remote_name ignore_dirty =
   (* Create Homebrew bottle *)
   announce "Creating Homebrew bottle on local machine...";
   run_command ExitError.homebrew_bottle_failed "brew update";
-  run_command ExitError.homebrew_bottle_failed "brew uninstall whatwhat || true";
+  run_command ExitError.homebrew_bottle_failed "brew uninstall whatwhat || true 2>/dev/null";
   run_command
     ExitError.homebrew_bottle_failed
     (Printf.sprintf "brew tap %s/%s" homebrew_tap_owner homebrew_tap_repo);
