@@ -169,7 +169,14 @@ type project_subset =
   | SelectedColumnsOnly
   | Specific of int list
 
-let ww_main notify no_color quiet verbose codes_without codes_only project_subset =
+let ww_main version notify no_color quiet verbose codes_without codes_only project_subset =
+  if version
+  then (
+    (match Build_info.V1.version () with
+     | None -> print_endline "whatwhat-dev"
+     | Some v -> print_endline @@ "whatwhat " ^ Build_info.V1.Version.to_string v);
+    exit 0);
+
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
@@ -251,6 +258,8 @@ let no_color_arg =
 let quiet_arg =
   Arg.(value & flag & info [ "q"; "quiet" ] ~doc:"Turn off all notifications.")
 ;;
+
+let version_arg = Arg.(value & flag & info [ "version" ] ~doc:"Display version number.")
 
 let verbose_arg =
   Term.app
@@ -335,6 +344,7 @@ let projects_arg =
 let ww_main_term : unit Term.t =
   Term.(
     const ww_main
+    $ version_arg
     $ notify_arg
     $ no_color_arg
     $ quiet_arg
