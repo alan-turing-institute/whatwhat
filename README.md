@@ -224,20 +224,27 @@ When you make changes to the `whatwhat` code, the following steps will ensure th
 **These steps are now entirely automated.**
 In this repository, run **`dune exec update_whatwhat`** and it will do all of the following for you:
 
-> 1. To push the tag to the repo, you need to run `git push` followed by `git push --tags`
-> 1. Once this is pushed to the remote, it will trigger a github action in the `whatwhat` repo that opens a pull request to bump the homebrew formula in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo. These steps will take a little while - you can see their progress in the action tab. You need to merge this pull request with the `main` branch before moving to the next step.
-> 1. In the terminal navigate to a custom directory. You now need to type `brew update` to make sure you have the latest `whatwhat` formula. If you already have `whatwhat` brew installed, you'll need to uninstall it `brew uninstall whatwhat`. Then type
->       ```sh
->       brew install --build-bottle --verbose whatwhat
->       brew bottle whatwhat --no-rebuild
->       ```
->    This will create a bottle (a prebuilt binary) in that directory and will print a new `bottle do` block to your terminal
-> 1. Copy that code snippet, go to the [ruby file](https://github.com/alan-turing-institute/homebrew-hut23/blob/main/whatwhat.rb) in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) and paste it to overwrite the previous `bottle do` instructions.
-> 1. Commit the changes to main
-> 1. Rename the bottle file to remove one of the dashes (i.e. from `whatwhat--` to `whatwhat-`)
-> 1. Going back to the [whatwhat repo](https://github.com/alan-turing-institute/whatwhat/) go to releases -> tags tab and click on the latest tag.
-> 1. Click create release from tag
-> 1. Upload the binary from your computer
-> 1. Click 'publish release'
-> 1. Copy the url of the release and paste this as the first line within `bottle do` in the [ruby file](https://github.com/alan-turing-institute/homebrew-hut23/blob/main/whatwhat.rb), in the form of `root_url "https://github.com/alan-turing-institute/whatwhat/releases/download/<VERSION>"`. Note this should be the same as the url, but with 'download' rather than 'tag'. Make sure you commit this change.
-> 1. This should now work - users will now be able to `brew install` the latest version of Whatwhat.
+<details>
+    <summary>Steps for manually updating Homebrew release</summary>
+
+    1. Update the `version` in the `dune-project` file and commit that.
+    1. Create a new git tag using `git tag -a vX.Y.Z -m vX.Y.Z` (replace X, Y, Z with the appropriate numbers.
+    1. To push the tag to the repo, run `git push` followed by `git push --tags`
+    1. Edit the `whatwhat.rb` file in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo. In this instance, you only need to edit the line beginning `url "...", tag "vX.Y.Z", revision "..."`.
+    Change the `tag` string to the new version number, and replace the revision string with the *full* git commit SHA corresponding to the tag you just added. You can obtain this from the output of `git log`.
+    1. In the terminal navigate to a custom directory. You now need to type `brew update` to make sure you have the latest `whatwhat` formula. If you already have `whatwhat` brew installed, you'll need to uninstall it `brew uninstall whatwhat`. Then type
+          ```sh
+          brew install --build-bottle --verbose whatwhat
+          brew bottle whatwhat --no-rebuild
+          ```
+       This will create a bottle (a prebuilt binary) in that directory and will print a new `bottle do` block to your terminal
+    1. Copy that code snippet, go to the [ruby file](https://github.com/alan-turing-institute/homebrew-hut23/blob/main/whatwhat.rb) in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) and paste it to overwrite the previous `bottle do` instructions.
+    1. Commit the changes to main
+    1. Rename the bottle file to remove one of the dashes (i.e. from `whatwhat--` to `whatwhat-`)
+    1. Going back to the [whatwhat repo](https://github.com/alan-turing-institute/whatwhat/) go to releases -> tags tab and click on the latest tag.
+    1. Click create release from tag
+    1. Upload the binary from your computer
+    1. Click 'publish release'
+    1. Copy the url of the release and paste this as the first line within `bottle do` in the [ruby file](https://github.com/alan-turing-institute/homebrew-hut23/blob/main/whatwhat.rb), in the form of `root_url "https://github.com/alan-turing-institute/whatwhat/releases/download/<VERSION>"`. Note this should be the same as the url, but with 'download' rather than 'tag'. Make sure you commit this change.
+    1. This should now work - users will now be able to `brew install` the latest version of Whatwhat.
+</details>
