@@ -225,7 +225,7 @@ It takes a few minutes to run.
 
 If it fails for any reason, fix the underlying error, then just rerun it and increment the version number one more time.
 
-The update process used to be manual, involving the following steps:
+The update process used to be manual. It involved the following steps, which are saved here for posterity:
 
 <details>
 <summary>Steps for manually updating Homebrew release</summary>
@@ -235,6 +235,7 @@ The update process used to be manual, involving the following steps:
 1. To push the tag to the repo, run `git push` followed by `git push --tags`
 1. Edit the `whatwhat.rb` file in the [homebrew-hut23](https://github.com/alan-turing-institute/homebrew-hut23/) repo. In this instance, you only need to edit the line beginning `url "...", tag "vX.Y.Z", revision "..."`.
    Change the `tag` string to the new version number, and replace the revision string with the *full* git commit SHA corresponding to the tag you just added. You can obtain this from the output of `git log`.
+    <img src="https://github.com/alan-turing-institute/whatwhat/assets/22414895/8db017b3-74d1-4644-b3d0-9aa2e1551281" alt="Commit SHA" />  
     This single step used to be done via a GitHub Action. The action yaml has since been removed from the repository, but you can see the [file in a previous commit here](https://github.com/alan-turing-institute/whatwhat/blob/68ebc36d55864baccaedab7ea928ad722493907a/.github/workflows/bump-brew-formula.yaml).
 1. In the terminal navigate to a custom directory. You now need to type `brew update` to make sure you have the latest `whatwhat` formula. If you already have `whatwhat` brew installed, you'll need to uninstall it `brew uninstall whatwhat`. Then type
       ```sh
