@@ -137,8 +137,8 @@ let pretty_print_event ~use_color (_, e) =
   let header = Printf.sprintf "%-20s" (extract_source e) in
   let error_code, error_style =
     match e.level with
-    | Error' n -> Printf.sprintf "E%d" n, [ Foreground Red ]
-    | Warning n -> Printf.sprintf "W%d" n, [ Foreground Yellow ]
+    | Error' n -> Printf.sprintf "E%04d" n, [ Foreground Red ]
+    | Warning n -> Printf.sprintf "W%04d" n, [ Foreground Yellow ]
     | Info -> "INFO ", []
     | Debug -> "DEBUG", []
   in

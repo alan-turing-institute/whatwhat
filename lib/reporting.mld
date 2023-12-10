@@ -31,7 +31,8 @@ We classify problems into {i errors} and {i warnings}:
   aren't many of these either.
   
 All of these are passed to the logging system, whose job is to then communicate
-them to the appropriate target. Errors and warnings may arise in three places:
+them to the appropriate target. Errors and warnings may arise in four places:
+  + When initialising the application;
   + When reading the data from Forecast;
   + When reading the data from GitHub;
   + When combining the data from these two sources.
@@ -40,6 +41,16 @@ The location at which these errors appear dictates the first number in the
 error code. So, for example, an issue with GitHub metadata usually has a code
 of the form E2xxx or W2xxx.
 
+{1 Initialisation}
+
+The config and secrets files are JSON files and should respectively be kept at
+[~/.config/whatwhat/config.json] and [~/.config/whatwhat/secrets.json.] If these
+files cannot be parsed correctly, or if mandatory information is missing (i.e.
+GitHub and Forecast tokens), then an error beginning with 0 will be immediately
+thrown.
+
+To fix these errors, regenerate your config or secrets files using the [whatwhat
+init] command, or follow the instructions in the GitHub repository README.
 
 {1 Reading data from Forecast}
 

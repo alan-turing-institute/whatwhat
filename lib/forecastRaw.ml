@@ -32,9 +32,19 @@ let forecast_request_async ?(query = []) endpoint =
         Utils.check_http_response r;
         Lwt.return b)
       (function
-       | Failure _ -> Lwt.fail (Failure "Forecast HTTP request failed.")
-       | Utils.HttpError e -> Lwt.fail (Failure ("Forecast HTTP request failed: " ^ e))
-       | exn -> Lwt.fail exn)
+        | Failure e ->
+          Lwt.fail
+            (Failure
+               ("Forecast HTTP request failed: "
+                ^ e
+                ^ ". Is your token (in the secrets file) valid?"))
+        | Utils.HttpError e ->
+          Lwt.fail
+            (Failure
+               ("Forecast HTTP request failed: "
+                ^ e
+                ^ ". Is your token (in the secrets file) valid?"))
+        | exn -> Lwt.fail exn)
   in
   let* body_string = Body.to_string body in
   (* Forecast returns, eg, {"clients", [...]}, so we extract the list here *)
@@ -255,11 +265,11 @@ let parse_combined_assignment_json (bs : Basic.t list) =
   in
   bs
   |> List.map (fun s ->
-       s
-       |> parse_one_assignment
-       |> List.to_seq
-       |> Seq.map (fun (a : assignment_schema) -> a.id, a)
-       |> IntMap.of_seq)
+    s
+    |> parse_one_assignment
+    |> List.to_seq
+    |> Seq.map (fun (a : assignment_schema) -> a.id, a)
+    |> IntMap.of_seq)
   |> merge_maps
   |> IntMap.to_seq
   |> Seq.map snd
@@ -271,8 +281,7 @@ let parse_combined_assignment_json (bs : Basic.t list) =
     Note that the Forecast API restricts the maximum query period to be 180
     days. Thus, if [start_date] and [end_date] differ by a longer period,
     several sub-queries must be made and the results combined. The combination
-    process is carried out in the [parse_combined_assignment_json] function.
-    *)
+    process is carried out in the [parse_combined_assignment_json] function. *)
 let get_assignments_async (start_date : Utils.date) (end_date : Utils.date) =
   let open Lwt.Syntax in
   let rec get_assignments_inner start_date end_date =

@@ -57,11 +57,21 @@ let run_github_query_async
         Utils.check_http_response r;
         Lwt.return b)
       (function
-       | Failure _ -> failwith "GitHub HTTP request failed."
-       | Utils.HttpError e -> failwith ("GitHub HTTP request failed: " ^ e)
-       | Utils.GithubRateLimitError e ->
-         failwith ("Hit GitHub rate limit. Try again at " ^ e)
-       | exn -> Lwt.fail exn)
+        | Failure e ->
+          Lwt.fail
+            (Failure
+               ("GitHub HTTP request failed: "
+                ^ e
+                ^ ". Is your token (in the secrets file) valid?"))
+        | Utils.HttpError e ->
+          Lwt.fail
+            (Failure
+               ("GitHub HTTP request failed: "
+                ^ e
+                ^ ". Is your token (in the secrets file) valid?"))
+        | Utils.GithubRateLimitError e ->
+          Lwt.fail (Failure ("Hit GitHub rate limit. Try again at " ^ e))
+        | exn -> Lwt.fail exn)
   in
   let* body_string = Cohttp_lwt.Body.to_string body in
   match accept with
@@ -85,7 +95,8 @@ let run_github_query
   ?(body = "")
   uri
   =
-  run_github_query_async ~as_bot ~http_method ~accept ~params ~headers ~body uri |> Lwt_main.run
+  run_github_query_async ~as_bot ~http_method ~accept ~params ~headers ~body uri
+  |> Lwt_main.run
 ;;
 
 (** Users -------------------------------------------- *)
@@ -111,8 +122,7 @@ let rec get_assignable_usernames_async ?(page = 1) () =
      when using the --help option. See #84. *)
   let* github_repo_owner, github_repo_name =
     try Lwt.return (Config.get_github_repo_owner (), Config.get_github_repo_name ()) with
-    | Config.MissingConfig s -> Lwt.fail (Config.MissingConfig s)
-    | Config.MissingSecret s -> Lwt.fail (Config.MissingSecret s)
+    | exc -> Lwt.fail exc
   in
   let batch_get page =
     let uri =

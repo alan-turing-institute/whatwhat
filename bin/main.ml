@@ -220,6 +220,7 @@ let ww_main version notify no_color quiet verbose codes_without codes_only proje
   | Failure msg ->
     let open ANSITerminal in
     Log.pretty_print ~use_color ~verbose ~restrict_codes ~restrict_issues:None;
+    flush stdout;
     Pretty.prerr ~use_color [ Bold; Foreground Red ] "Fatal error: ";
     Printf.eprintf "%s\n" msg;
     exit Cmd.Exit.internal_error
@@ -540,50 +541,13 @@ let ww_init () =
   let config_dir = XDGBaseDir.default.config_home ^ "/whatwhat/" in
 
   (* First check for the secrets file*)
-  let message_secret =
-    "{\n\
-    \    /* githubToken: Required for project reactions. This can generate at \
-     https://github.com/settings/tokens. The token will need to have the permissions: \
-     read:user, repo, and user:email */\n\
-    \    \"githubToken\"    : \"\", \n\n\n\
-    \    /* githubBotToken: OPTIONAL (used to post to github from whatwhat- primarily \
-     for whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk \
-     group (ask someone else on the whatwhat developer team to add you, e.g. the person \
-     who most recently committed to main) */\n\
-    \    \"githubBotToken\" : \"\", \n\n\n\
-    \    /* forecastToken : Required for project allocations. This can be obtained from \
-     https://id.getharvest.com/oauth2/access_tokens/new.  */\n\
-    \    \"forecastToken\"  : \"\", \n\n\n\
-    \    /* slackToken: OPTIONAL (used to post to slack from whatwhat - primarily for \
-     whatwhat admins). You need to be added to the hut23-1206-nowwhat@turing.ac.uk group \
-     (ask someone else on the whatwhat developer team to add you, e.g. the person who \
-     most recently committed to main) */\n\
-    \    \"slackToken\"     : \"\" \n\
-    \  }"
-  in
-
   let secrets_path = config_dir ^ "secrets.json" in
+  let _ = Config.attempt_file secrets_path Config.default_secrets_contents false in
 
   (* Now check for the config file *)
-  let message_config =
-    "{\n\
-    \    \"forecastId\": \"974183\",\n\
-    \    \"forecastIgnoredProjects\": [\"1684536\"],\n\
-    \    \"forecastUrl\": \"https://api.forecastapp.com\",\n\
-    \    \"githubProjectName\": \"Project Tracker\",\n\
-    \    \"githubProjectColumns\": [\"Finding people\", \"Awaiting start\", \"Active\"],\n\
-    \    \"githubRepoOwner\": \"alan-turing-institute\",\n\
-    \    \"githubRepoName\": \"Hut23\",\n\
-    \    \"githubUrl\": \"https://api.github.com\",\n\
-    \    \"userLookup\": \"/Users/kgoldmann/.config/nowwhat/user_lookup.csv\"\n\
-    \  }"
-  in
-
   let config_path = config_dir ^ "config.json" in
-
-  let _ = Config.attempt_file config_path message_config false in
-  let _ = Config.attempt_file secrets_path message_secret false in
-  print_endline " "
+  let _ = Config.attempt_file config_path Config.default_config_contents false in
+  ()
 ;;
 
 let ww_init_cmd : unit Cmd.t =
