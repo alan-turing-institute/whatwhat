@@ -36,6 +36,7 @@
   ounit2
   websocket-lwt-unix
   angstrom
+  dune-build-info
   )
  (tags
   (topics "REG")))
