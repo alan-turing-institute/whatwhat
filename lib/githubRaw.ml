@@ -1,4 +1,4 @@
-open Yojson
+module Y = Yojson
 open Lwt.Syntax
 
 (** HTTP requests ------------------------------------ *)
@@ -23,8 +23,9 @@ let run_github_query_async
   ?(body = "")
   uri
   =
-  let open Cohttp in
-  let open Cohttp_lwt_unix in
+  let module Header = Cohttp.Header in
+  let module Auth = Cohttp.Auth in
+  let module Client = Cohttp_lwt_unix.Client in
   let github_token =
     if as_bot then Config.get_githubbot_token () else Config.get_github_token ()
   in
@@ -79,7 +80,7 @@ let run_github_query_async
     let body_json =
       match body_string with
       | "" -> `Null
-      | _ -> Basic.from_string body_string
+      | _ -> Y.Basic.from_string body_string
     in
     Lwt.return body_json
   | Raw -> Lwt.return (`String body_string)
@@ -133,9 +134,8 @@ let rec get_assignable_usernames_async ?(page = 1) () =
     let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
     let* cards = run_github_query_async ~params uri in
     let users =
-      cards
-      |> Basic.Util.to_list
-      |> List.map (fun u -> u |> Basic.Util.member "login" |> Basic.Util.to_string)
+      let open Yojson.Basic.Util in
+      cards |> to_list |> List.map (fun u -> u |> member "login" |> to_string)
     in
     Lwt.return users
   in
@@ -266,7 +266,7 @@ let rec get_reactions_async ?(page = 1) id =
           Lwt.return (Some (p, { login = login |> to_string; name = None; email = None })))
     in
     let* reactions_opt =
-      reactions_json |> Basic.Util.to_list |> List.map parse_reaction |> Lwt.all
+      reactions_json |> to_list |> List.map parse_reaction |> Lwt.all
     in
     let reactions = List.filter_map Fun.id reactions_opt in
     Lwt.return reactions
@@ -298,9 +298,9 @@ let get_issue_r id = get_issue_r_async id |> Lwt_main.run
 (* GitHub only allows for 100 items to be read from a column in a single
    request. *)
 let rec get_issue_numbers_in_column_async ?(page = 1) col_id =
+  let open Yojson.Basic.Util in
   let batch_get page col_id =
     let get_issue_number card_json : int option =
-      let open Yojson.Basic.Util in
       match card_json |> member "content_url" |> to_string_option with
       | Some s ->
         (try
@@ -316,7 +316,7 @@ let rec get_issue_numbers_in_column_async ?(page = 1) col_id =
     in
     let params = [ "per_page", [ "100" ]; "page", [ string_of_int page ] ] in
     let* cards = run_github_query_async ~params uri in
-    let issue_numbers = cards |> Basic.Util.to_list |> List.filter_map get_issue_number in
+    let issue_numbers = cards |> to_list |> List.filter_map get_issue_number in
     Lwt.return issue_numbers
   in
   let* first_batch = batch_get page col_id in
@@ -393,12 +393,12 @@ let get_project_id project_name =
   in
   let* projects = run_github_query_async ~http_method:GET uri in
   let extract_id json =
-    if json |> Basic.Util.member "name" |> Basic.Util.to_string = project_name
-    then Some (json |> Basic.Util.member "id" |> Basic.Util.to_int)
+    if json |> Y.Basic.Util.member "name" |> Y.Basic.Util.to_string = project_name
+    then Some (json |> Y.Basic.Util.member "id" |> Y.Basic.Util.to_int)
     else None
   in
   Lwt.return
-    (match projects |> Basic.Util.to_list |> List.filter_map extract_id with
+    (match projects |> Y.Basic.Util.to_list |> List.filter_map extract_id with
      | [] -> failwith "Project not found"
      | [ x ] -> x
      | _ -> failwith "More than one project with given name found")
@@ -412,9 +412,9 @@ let get_column_names_and_ids project_id =
       [ Config.github_url; "projects"; string_of_int project_id; "columns" ]
   in
   let* resp = run_github_query_async uri in
-  let entries = resp |> Basic.Util.to_list in
-  let get_id col = col |> Basic.Util.member "id" |> Basic.Util.to_int in
-  let get_name col = col |> Basic.Util.member "name" |> Basic.Util.to_string in
+  let entries = resp |> Y.Basic.Util.to_list in
+  let get_id col = col |> Y.Basic.Util.member "id" |> Y.Basic.Util.to_int in
+  let get_name col = col |> Y.Basic.Util.member "name" |> Y.Basic.Util.to_string in
   let filtered_entries =
     match Config.get_github_project_columns () with
     | Some names -> entries |> List.filter (fun c -> List.mem (get_name c) names)

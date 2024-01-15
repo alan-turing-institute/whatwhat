@@ -1,8 +1,9 @@
-open Cohttp
-open Cohttp_lwt
-open Cohttp_lwt_unix
-open Yojson
-open Yojson.Basic.Util
+module Y = Yojson
+module YBU = Yojson.Basic.Util
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives
+module Header = Cohttp.Header
+module Body = Cohttp_lwt.Body
+module Client = Cohttp_lwt_unix.Client
 module IntMap = Map.Make (Int)
 
 (** HTTP requests --------------------------------------------- *)
@@ -48,7 +49,7 @@ let forecast_request_async ?(query = []) endpoint =
   in
   let* body_string = Body.to_string body in
   (* Forecast returns, eg, {"clients", [...]}, so we extract the list here *)
-  Lwt.return (body_string |> Yojson.Basic.from_string |> member endpoint)
+  Lwt.return (body_string |> Y.Basic.from_string |> YBU.member endpoint)
 ;;
 
 (** Clients --------------------------------------------------- *)
@@ -67,8 +68,8 @@ let get_clients_async () =
   let* clients = forecast_request_async "clients" in
   Lwt.return
     (clients
-     |> to_list
-     |> List.map (fun x -> client_of_yojson (x : Basic.t :> Safe.t))
+     |> YBU.to_list
+     |> List.map (fun x -> client_of_yojson (x : Y.Basic.t :> Y.Safe.t))
      |> make_map (fun (c : client) -> c.id))
 ;;
 
@@ -111,8 +112,8 @@ let get_people_async () =
   let* people = forecast_request_async "people" in
   Lwt.return
     (people
-     |> to_list
-     |> List.map (fun x -> person_of_yojson (x : Basic.t :> Safe.t))
+     |> YBU.to_list
+     |> List.map (fun x -> person_of_yojson (x : Y.Basic.t :> Y.Safe.t))
      |> make_map (fun (p : person) -> p.id))
 ;;
 
@@ -122,8 +123,8 @@ let get_placeholders_async () =
   let* placeholders = forecast_request_async "placeholders" in
   Lwt.return
     (placeholders
-     |> to_list
-     |> List.map (fun x -> placeholder_of_yojson (x : Basic.t :> Safe.t))
+     |> YBU.to_list
+     |> List.map (fun x -> placeholder_of_yojson (x : Y.Basic.t :> Y.Safe.t))
      |> make_map (fun (p : placeholder) -> p.id))
 ;;
 
@@ -194,8 +195,8 @@ let get_project_schemas_async () =
   let* projects = forecast_request_async "projects" in
   Lwt.return
     (projects
-     |> to_list
-     |> List.map (fun x -> project_schema_of_yojson (x : Basic.t :> Safe.t))
+     |> YBU.to_list
+     |> List.map (fun x -> project_schema_of_yojson (x : Y.Basic.t :> Y.Safe.t))
      |> make_map (fun (p : project_schema) -> p.id))
 ;;
 
@@ -249,7 +250,7 @@ type assignment =
     perform multiple queries to cover 180-day periods as necessary). This also
     performs a merge of the results from each query, discarding any duplicate
     assignments. *)
-let parse_combined_assignment_json (bs : Basic.t list) =
+let parse_combined_assignment_json (bs : Y.Basic.t list) =
   let merge_maps asns =
     List.fold_right
       (IntMap.union (fun _ x y ->
@@ -260,8 +261,8 @@ let parse_combined_assignment_json (bs : Basic.t list) =
   in
   let parse_one_assignment b =
     b
-    |> Yojson.Basic.Util.to_list
-    |> List.map (fun x -> (x : Basic.t :> Safe.t) |> assignment_schema_of_yojson)
+    |> Y.Basic.Util.to_list
+    |> List.map (fun x -> (x : Y.Basic.t :> Y.Safe.t) |> assignment_schema_of_yojson)
   in
   bs
   |> List.map (fun s ->
