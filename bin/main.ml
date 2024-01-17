@@ -462,6 +462,17 @@ let ww_person_cmd : unit Cmd.t =
 ;;
 
 (* ------------------------------- *)
+(* ----- whatwhat theboard ------ *)
+
+let ww_allocations () = print_endline "Placeholder for whatwhat allocations."
+
+let ww_allocations_cmd : unit Cmd.t =
+  Cmd.v
+    (Cmd.info "allocations" ~doc:"Show an overview of all allocations.")
+    Term.(const ww_allocations $ const ())
+
+
+(* ------------------------------- *)
 (* ----- whatwhat slack-bot ------- *)
 
 let ww_slack_bot () = Slack.run_bot ()
@@ -568,6 +579,7 @@ let cmd : unit Cmd.t =
     ; ww_open_cmd
     ; ww_project_cmd
     ; ww_person_cmd
+    ; ww_allocations_cmd
     ; ww_overview_cmd
     ; ww_test_cmd
     ; ww_init_cmd
