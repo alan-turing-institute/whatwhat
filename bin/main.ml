@@ -462,14 +462,49 @@ let ww_person_cmd : unit Cmd.t =
 ;;
 
 (* ------------------------------- *)
-(* ----- whatwhat theboard ------ *)
+(* ---- whatwhat allocations ----- *)
 
-let ww_allocations () = print_endline "Placeholder for whatwhat allocations."
+let ww_allocations no_color quiet verbose =
+  let open CalendarLib.Date in
+  let start_date = Utils.rollback_week @@ today () in
+  let end_date = Utils.rollforward_week @@ today () in
+  let people, projects, assignments = Forecast.get_the_schedule ~start_date ~end_date in
+  let use_color = Unix.isatty Unix.stdout && not no_color in
+
+  (* Print summary statistics *)
+  print_endline "Whatwhat downloaded:";
+  Printf.printf "%d people; " (Domain.IntMap.cardinal people);
+  Printf.printf "%d projects; and " (Domain.StringMap.cardinal projects);
+  Printf.printf "%d assignments\n\n" (List.length assignments);
+
+  (* Print any logged messages *)
+  if not quiet then
+    Log.pretty_print ~use_color ~verbose ~restrict_codes:Log.All ~restrict_issues:None;
+
+  (* Print the assignments *)
+  let show_entity = function
+    | Forecast.Person person -> person.full_name
+    | Forecast.Placeholder placeholder -> placeholder.name in
+  let entity_is_placeholder = function
+    | Forecast.Person _ -> false
+    | Forecast.Placeholder _ -> true in
+  let show_assignment (a : Forecast.assignment) =
+    string_of_int a.project.number
+    ^ " " ^ a.project.name
+    ^ " " ^ show_entity a.entity
+    ^ " " ^ (Domain.FTE.show_t @@
+               Domain.fte_of_week ~is_placeholder:(entity_is_placeholder a.entity)
+                 a.allocation
+                 start_date) in
+
+  List.iter (fun a -> print_endline (show_assignment a)) assignments  
+  
+
 
 let ww_allocations_cmd : unit Cmd.t =
   Cmd.v
     (Cmd.info "allocations" ~doc:"Show an overview of all allocations.")
-    Term.(const ww_allocations $ const ())
+    Term.(const ww_allocations $ no_color_arg $ quiet_arg $ verbose_arg)
 
 
 (* ------------------------------- *)
@@ -507,6 +542,7 @@ let ww_dump_users_cmd : unit Cmd.t =
 
 (* ------------------------------- *)
 (* ----- whatwhat overview ------- *)
+
 let ww_overview no_color =
   let use_color = Unix.isatty Unix.stdout && not no_color in
 

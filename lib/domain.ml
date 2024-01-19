@@ -97,6 +97,20 @@ let combine_allocations a1 a2 =
 let get_first_day a1 = DateMap.min_binding a1 |> fst
 let get_last_day a1 = DateMap.max_binding a1 |> fst
 
+(* Construct a list of seven days starting at the given date *)
+let week_from_date d =
+  List.map
+    (fun (n : int) -> CalendarLib.Date.(add d (Period.day n)))
+    [0; 1; 2; 3; 4; 5; 6]
+
+let fte_of_week  ?(is_placeholder = false) (a : allocation) date =
+  let hours = List.map
+                (fun d -> Option.value (DateMap.find_opt d a) ~default:FTE.zero)
+                (week_from_date date) in
+  FTE.sum_to_weeks ~is_placeholder hours
+
+  
+
 (** --- Entities ----------------------------- *)
 
 type person =

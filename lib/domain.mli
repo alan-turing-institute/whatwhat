@@ -109,6 +109,12 @@ val get_first_day : 'a DateMap.t -> CalendarLib.Date.t
 (** Get the day an allocation ends. *)
 val get_last_day : 'a DateMap.t -> CalendarLib.Date.t
 
+(** Given a date (intended to be a Monday) and an allocation, return
+    the total FTE-weeks in that allocation for the 7 days starting on
+    the given date. *)
+val fte_of_week :  ?is_placeholder:bool -> allocation -> CalendarLib.Date.t -> FTE.t 
+
+
 (** {1 Entities relevant to scheduling and planning} *)
 
 (** A person *)
