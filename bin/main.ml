@@ -462,19 +462,19 @@ let ww_person_cmd : unit Cmd.t =
 ;;
 
 (* ------------------------------- *)
-(* ---- whatwhat allocations ----- *)
+(* ---- whatwhat assignments ----- *)
 
-let ww_allocations no_color quiet verbose =
-  let open CalendarLib.Date in
-  let start_date = Utils.rollback_week @@ today () in
-  let end_date = Utils.rollforward_week @@ today () in
-  let people, projects, assignments = Forecast.get_the_schedule ~start_date ~end_date in
+let ww_assignments no_color quiet verbose =
+  let open CalendarLib in
+  let start_date = Whatwhat.Utils.rollback_week @@ Date.today () in
+  let end_date = Date.add start_date (Date.Period.week 26) in
+  let projects, people, assignments = Forecast.get_the_schedule ~start_date ~end_date in
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
   (* Print summary statistics *)
-  print_endline "Whatwhat downloaded:";
-  Printf.printf "%d people; " (Domain.IntMap.cardinal people);
-  Printf.printf "%d projects; and " (Domain.StringMap.cardinal projects);
+  print_string "Whatwhat downloaded: ";
+  Printf.printf "%d people; " (Forecast.StringMap.cardinal people);
+  Printf.printf "%d projects; and " (Forecast.IntMap.cardinal projects);
   Printf.printf "%d assignments\n\n" (List.length assignments);
 
   (* Print any logged messages *)
@@ -482,29 +482,26 @@ let ww_allocations no_color quiet verbose =
     Log.pretty_print ~use_color ~verbose ~restrict_codes:Log.All ~restrict_issues:None;
 
   (* Print the assignments *)
-  let show_entity = function
-    | Forecast.Person person -> person.full_name
-    | Forecast.Placeholder placeholder -> placeholder.name in
-  let entity_is_placeholder = function
-    | Forecast.Person _ -> false
-    | Forecast.Placeholder _ -> true in
-  let show_assignment (a : Forecast.assignment) =
-    string_of_int a.project.number
-    ^ " " ^ a.project.name
-    ^ " " ^ show_entity a.entity
-    ^ " " ^ (Domain.FTE.show_t @@
-               Domain.fte_of_week ~is_placeholder:(entity_is_placeholder a.entity)
-                 a.allocation
-                 start_date) in
-
-  List.iter (fun a -> print_endline (show_assignment a)) assignments  
+  let open TabularReport in 
+  let trim_to_length (s : string) (n : int) =
+    if (String.length s) > n then String.sub s 0 n else s
+  in
+  let show_allocation (p, ftes) =
+    Printf.sprintf "%12s %s"
+      (trim_to_length p.Forecast.full_name 12)
+      (String.of_seq (Seq.map char_of_fte_week (List.to_seq ftes)))
+  in
+  let weeks = weeks_in_period start_date end_date in
+  let allocations = summarise_allocations weeks assignments in
+  
+  List.iter (fun a -> print_endline (show_allocation a)) (fst allocations)  
   
 
 
-let ww_allocations_cmd : unit Cmd.t =
+let ww_assignments_cmd : unit Cmd.t =
   Cmd.v
-    (Cmd.info "allocations" ~doc:"Show an overview of all allocations.")
-    Term.(const ww_allocations $ no_color_arg $ quiet_arg $ verbose_arg)
+    (Cmd.info "assignments" ~doc:"Show an overview of all assignments.")
+    Term.(const ww_assignments $ no_color_arg $ quiet_arg $ verbose_arg)
 
 
 (* ------------------------------- *)
@@ -615,7 +612,7 @@ let cmd : unit Cmd.t =
     ; ww_open_cmd
     ; ww_project_cmd
     ; ww_person_cmd
-    ; ww_allocations_cmd
+    ; ww_assignments_cmd
     ; ww_overview_cmd
     ; ww_test_cmd
     ; ww_init_cmd

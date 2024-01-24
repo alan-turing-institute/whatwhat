@@ -45,6 +45,7 @@ to accomplish, along with complete explanation of the error codes and how to fix
     Whatwhat.ForecastExport
     Whatwhat.Log
     Whatwhat.QueryReports
+    WhatWhat.TabularReport
     Whatwhat.Notify
     Whatwhat.Slack
     }

@@ -289,6 +289,14 @@ let get_entity_name e =
   | Placeholder p -> "Placeholder: " ^ p.name
 ;;
 
+(** Equality of entities *)
+let entity_equal_P e1 e2 =
+  match (e1, e2) with
+  | (Person _, Placeholder _)
+    | (Placeholder _, Person _)      -> false
+  | (Person p1, Person p2)           -> p1.email = p2.email
+  | (Placeholder p1, Placeholder p2) -> String.equal p1.name p2.name
+
 (** [validate_entity p] ensures that the entity [e]:
     1. has not been archived; and
     2. if it is a person, has the 'REG' tag; and

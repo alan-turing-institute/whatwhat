@@ -73,6 +73,9 @@ let forecast_url = "https://api.forecastapp.com"
 (* 'Time off' Forecast project which doesn't have a client *)
 let forecast_ignored_projects = [ 1684536 ]
 
+(* 'UNAVAILABLE' allocation that is not available for staffing *)
+let forecast_unavailable_project_num = 787
+
 (* List of issue numbers for which it's okay to have duplicate projects in Forecast *)
 let forecast_duplicates_okay = []
 

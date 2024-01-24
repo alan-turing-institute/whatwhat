@@ -18,12 +18,14 @@ let is_hex_digit c =
 
 let range i j = List.init (j - i) (( + ) i)
 
+(* This is not a great implementation ... *) 
 let group_by (p : 'a -> 'a -> bool) (xs : 'a list) : 'a list list =
-  let acc x grps =
+  let rec acc x grps =
     match grps with
     | [] -> [ [ x ] ]
     | grp :: rest ->
-      if p x (List.hd grp) then (x :: grp) :: rest else [ x ] :: grp :: rest
+       if p x (List.hd grp) then
+         (x :: grp) :: rest else grp :: (acc x rest)
   in
   List.fold_right acc xs []
 ;;

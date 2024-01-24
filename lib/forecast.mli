@@ -23,6 +23,9 @@ type entity =
   | Person of person
   | Placeholder of Domain.placeholder
 
+(** Equality of entities *)
+val entity_equal_P : entity -> entity -> bool 
+
 (** Get the name of an entity. *)
 val get_entity_name : entity -> string
 
