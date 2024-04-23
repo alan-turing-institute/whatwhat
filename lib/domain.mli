@@ -144,6 +144,8 @@ type project_plan =
   ; min_fte_percent : float
   }
 
+val show_project_plan : project_plan -> unit
+
 (** The project status on the Project Tracker, shown by the column the project
     issue is in.
  *)

@@ -187,7 +187,7 @@ let read_string_list_field ?(compulsory = true) n yaml key =
 (* Get a [Yaml.value] that is expected to be of type [`String] representing a date in the
    YYYY-MM-DD format. Return value is as with [read_string_field], except the string is
    parsed into a [CalendarLib.Date] object, or failing this, [Error ()] is returned.
- 
+
    The [yaml] block is assumed to be of dictionary type. *)
 let read_date_field ?(compulsory = true) n yaml key =
   let* value_result = read_metadata_value ~compulsory n yaml key in
@@ -298,7 +298,7 @@ let metadata_of_yaml_string issue (y : string) =
   match mdata_result with
   | Ok yaml ->
     (* Check that this yaml block is of the dictionary type, rather than a single value
-     or a list. *)
+       or a list. *)
     (match yaml with
      | `O pairs -> metadata_of_yaml issue pairs
      | _ ->
@@ -315,7 +315,9 @@ let parse_metadata (issue : Raw.issue) =
   | [ top; _ ] ->
     let mdata_res = metadata_of_yaml_string issue top in
     (match mdata_res with
-     | Ok mdata -> Some mdata
+     | Ok mdata ->
+       (*Domain.show_project_plan mdata;*)
+       Some mdata
      | Error () -> None)
   | _ ->
     log_event (NoMetadataError issue);

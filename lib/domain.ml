@@ -124,13 +124,37 @@ type project_plan =
   ; finance_codes : string list
   ; latest_start_date : CalendarLib.Date.t
   ; earliest_start_date : CalendarLib.Date.t option
-      (** [earliest_start_date = None] means "can start as soon as you like" *)
+  (** [earliest_start_date = None] means "can start as soon as you like" *)
   ; latest_end_date : CalendarLib.Date.t option
-      (** [latest_end_date = None] means "can end whenever you like" *)
+  (** [latest_end_date = None] means "can end whenever you like" *)
   ; nominal_fte_percent : float
   ; max_fte_percent : float
   ; min_fte_percent : float
   }
+
+let show_project_plan plan =
+  Printf.printf
+    "Budget: %s\n\
+     Finance codes: %s\n\
+     Latest start date: %s\n\
+     Earliest start date: %s\n\
+     Latest end date: %s\n\
+     Nominal FTE: %.2f%%\n\
+     Max FTE: %.2f%%\n\
+     Min FTE: %.2f%%"
+    (FTE.show_t plan.budget)
+    (String.concat ", " plan.finance_codes)
+    (CalendarLib.Printer.Date.sprint "%Y-%m-%d" plan.latest_start_date)
+    (match plan.earliest_start_date with
+     | None -> "None"
+     | Some d -> CalendarLib.Printer.Date.sprint "%Y-%m-%d" d)
+    (match plan.latest_end_date with
+     | None -> "None"
+     | Some d -> CalendarLib.Printer.Date.sprint "%Y-%m-%d" d)
+    plan.nominal_fte_percent
+    plan.max_fte_percent
+    plan.min_fte_percent
+;;
 
 module State = struct
   type t =
