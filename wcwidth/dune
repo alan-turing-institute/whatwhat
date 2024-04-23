@@ -1,6 +1,0 @@
-(library
- (name wcwidth)
- (public_name wcwidth))
-
-(documentation
- (package wcwidth))

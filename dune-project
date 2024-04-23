@@ -13,7 +13,7 @@
 
 (license MIT)
 
-; (documentation https://url/to/documentation)
+(documentation https://alan-turing-institute.github.io/whatwhat/whatwhat/index.html)
 
 (package
  (name whatwhat)
@@ -37,13 +37,9 @@
   websocket-lwt-unix
   angstrom
   dune-build-info
+  wcwidth
   )
  (tags
   (topics "REG")))
-
-(package
-  (name wcwidth)
-  (synopsis "Get terminal display width of a string")
-  )
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
