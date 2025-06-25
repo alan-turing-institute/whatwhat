@@ -67,13 +67,15 @@ let print_assignments ~(use_color : bool) (asns : assignment list) =
   | this_asns ->
     (* The assignments themselves *)
     let project_names = List.map make_name this_asns in
-    let name_fieldwidth = Utils.max_by ~default:0 wcswidth project_names in
+    let max_length = 50 in
+    let elided_project_names = List.map (Utils.elide ~max_length) project_names in
+    let name_fieldwidth = Utils.max_by ~default:0 wcswidth elided_project_names in
     let print_asn asn =
       let string =
         Printf.sprintf
-          "%9s %s  %18s, %s to %s"
+          "%9s %s %17s, %s to %s"
           ("(" ^ Assignment.show_time_status asn ^ ")")
-          (pad name_fieldwidth (make_name asn))
+          (asn |> make_name |> Utils.elide ~max_length |> pad name_fieldwidth)
           (FTE.show_t (Assignment.to_fte_weeks asn))
           (CL.Printer.Date.to_string (get_first_day asn.allocation))
           (CL.Printer.Date.to_string (get_last_day asn.allocation))
@@ -136,11 +138,12 @@ let print_reactions ~(use_color : bool) (psn : person) (prjs : project Domain.In
       |> List.stable_sort (fun (_, e1) (_, e2) -> compare e1 e2)
       |> List.filter (fun (_, e) -> e <> Other)
       |> List.map (fun (p, e) ->
+           let open Utils in
            match e with
-           | Laugh -> [ string_of_int p.number; p.name; "x"; ""; "" ]
-           | ThumbsUp -> [ string_of_int p.number; p.name; ""; "x"; "" ]
-           | ThumbsDown -> [ string_of_int p.number; p.name; ""; ""; "x" ]
-           | Other -> [ string_of_int p.number; p.name; ""; ""; "" ])
+           | Laugh -> [ string_of_int p.number; elide p.name; "x"; ""; "" ]
+           | ThumbsUp -> [ string_of_int p.number; elide p.name; ""; "x"; "" ]
+           | ThumbsDown -> [ string_of_int p.number; elide p.name; ""; ""; "x" ]
+           | Other -> [ string_of_int p.number; elide p.name; ""; ""; "" ])
     in
     print_heading ~use_color "Reactions";
     print_endline (make_table ~header_rows:1 ~column_padding:1 (header :: table_rows))

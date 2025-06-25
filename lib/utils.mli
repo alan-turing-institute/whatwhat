@@ -6,8 +6,7 @@ open CalendarLib
 
     Many of the functions in this module are simple functions which should
     arguably be in the OCaml standard library, but aren't, because the standard
-    library is so barebones.
-    *)
+    library is so barebones. *)
 
 (** Check whether a character is [0-9]. *)
 val is_digit : char -> bool
@@ -132,3 +131,7 @@ val gfm_escape : string -> string
 
 (** Remove double quotes around a string (if present. *)
 val dequote : string -> string
+
+(** Truncate a string to a maximum length, adding an ellipsis if it was
+    truncated. *)
+val elide : ?max_length:int -> string -> string

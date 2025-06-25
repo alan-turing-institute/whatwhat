@@ -37,9 +37,9 @@ let sort_and_group_by (f : 'a -> 'key) (xs : 'a list) : ('key * 'a list) list =
     |> List.sort (fun x1 x2 -> compare (fst x1) (fst x2))
     |> group_by (fun x1 x2 -> fst x1 = fst x2)
     |> List.map (fun ps ->
-         match ps with
-         | p :: _ -> fst p, List.map snd ps
-         | _ -> failwith "group_by on nonempty input should not give empty lists")
+      match ps with
+      | p :: _ -> fst p, List.map snd ps
+      | _ -> failwith "group_by on nonempty input should not give empty lists")
 ;;
 
 let rec take n xs =
@@ -310,4 +310,15 @@ let dequote (s : string) : string =
   else if s.[0] = '"' && s.[len - 1] = '"'
   then String.sub s 1 (len - 2)
   else s
+;;
+
+let elide ?(max_length : int = 65) (s : string) : string =
+  if max_length <= 3 then failwith "elide: max_len must be greater than 3";
+  let len = String.length s in
+  if len <= max_length
+  then s
+  else (
+    let ellipsis = "..." in
+    let max_content_len = max_length - 3 in
+    String.sub s 0 max_content_len ^ ellipsis)
 ;;
