@@ -7,6 +7,20 @@ module ANSI = ANSITerminal
 let wcwidth = Wcwidth.wcwidth
 let wcswidth = Wcwidth.wcswidth
 
+(** ----- Box drawing characters ------- *)
+let horizontal = "─"
+
+let vertical = "│"
+let topleft = "┌"
+let topmiddle = "┬"
+let topright = "┐"
+let middleleft = "├"
+let middlemiddle = "┼"
+let middleright = "┤"
+let bottomleft = "└"
+let bottommiddle = "┴"
+let bottomright = "┘"
+
 (** ----- String manipulation ---------- *)
 
 type alignment =
@@ -49,13 +63,20 @@ let pad ?(fill_char = ' ') ?(alignment = ALeft) (n : int) (s : string) : string 
   | ARight -> pad_left ~fill_char n s
 ;;
 
+let replicate (n : int) (s : string) : string =
+  if n <= 0 then "" else String.concat "" (List.init n (fun _ -> s))
+;;
+
 (** Encase a string in a box *)
 let make_box ?(alignment = ALeft) (s : string) : string =
   let lines = String.split_on_char '\n' s in
   let width = Utils.max_by ~default:0 wcswidth lines in
-  let top_and_bottom_row = "+" ^ String.make (width + 2) '-' ^ "+" in
-  let middle_rows = List.map (fun s -> "| " ^ pad ~alignment width s ^ " |") lines in
-  String.concat "\n" ([ top_and_bottom_row ] @ middle_rows @ [ top_and_bottom_row ])
+  let top_row = topleft ^ replicate (width + 2) horizontal ^ topright in
+  let bottom_row = bottomleft ^ replicate (width + 2) horizontal ^ bottomright in
+  let middle_rows =
+    List.map (fun s -> vertical ^ " " ^ pad ~alignment width s ^ " " ^ vertical) lines
+  in
+  String.concat "\n" ([ top_row ] @ middle_rows @ [ bottom_row ])
 ;;
 
 (** Construct a table from a list of lists. Each nested list is one row of the
@@ -85,13 +106,15 @@ let make_table
   let padded_widths = List.map (fun w -> w + (2 * column_padding)) widths in
 
   (* Finally, construct the table *)
-  let horizontal_border =
-    "+" ^ String.concat "+" (List.map (fun w -> String.make w '-') padded_widths) ^ "+"
+  let make_horizontal_border left middle right =
+    left
+    ^ String.concat middle (List.map (fun w -> replicate w horizontal) padded_widths)
+    ^ right
   in
   let make_row row =
-    "|"
+    vertical
     ^ String.concat
-        "|"
+        vertical
         (List.map2
            (fun w s ->
              String.make column_padding ' '
@@ -99,16 +122,16 @@ let make_table
              ^ String.make column_padding ' ')
            widths
            row)
-    ^ "|"
+    ^ vertical
   in
   let headers, remainder = Utils.split_at header_rows padded_rows in
   String.concat
     "\n"
-    ([ horizontal_border ]
+    ([ make_horizontal_border topleft topmiddle topright ]
      @ List.map make_row headers
-     @ [ horizontal_border ]
+     @ [ make_horizontal_border middleleft middlemiddle middleright ]
      @ List.map make_row remainder
-     @ [ horizontal_border ])
+     @ [ make_horizontal_border bottomleft bottommiddle bottomright ])
 ;;
 
 (** ----- Printing --------------------- *)
@@ -131,5 +154,5 @@ let prerr ~(use_color : bool) (styles : ANSI.style list) (string : string) : uni
 let print_heading ~(use_color : bool) (heading : string) : unit =
   let n = wcswidth heading in
   prout ~use_color [ ANSI.Bold ] (heading ^ "\n");
-  prout ~use_color [ ANSI.Bold ] (String.make n '-' ^ "\n")
+  prout ~use_color [ ANSI.Bold ] (replicate n horizontal ^ "\n")
 ;;
