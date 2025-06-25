@@ -244,7 +244,7 @@ let extract_finance_codes (rp : Raw.project) =
     end are interpreted as the GitHub issue number, although this is not
     verified at this stage. Note that this is the {i Forecast} project code,
     which is not the same as the finance code (which, on Forecast, is stored
-    in the [tags]; see [extract_finance_code].)
+    in the [tags]; see [extract_finance_codes].)
     4. It has a valid client. *)
 let validate_project _ (p : Raw.project) =
   (* silently remove *)
