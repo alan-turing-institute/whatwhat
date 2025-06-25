@@ -384,7 +384,7 @@ let merge_projects
       let finance_codes_match =
         match fc_p.old_finance_code, gh_p.plan with
         | Some cd, Some plan -> List.mem cd plan.finance_codes
-        | None, None -> true
+        | _, None -> true
         | _ -> false
       in
       if not finance_codes_match then log_event (FinanceCodeNotMatchingError gh_p);
