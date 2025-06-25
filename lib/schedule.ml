@@ -7,8 +7,8 @@ open Domain
 
 type schedule_event =
   | MissingGithubProjectError of Forecast.project (* E3001 *)
-  | FinanceCodeNotMatchingError of project (* E3002 *)
-  | MissingForecastProjectWarning of project (* W3001 *)
+  | FinanceCodeNotMatchingError of Github.issue (* E3002 *)
+  | MissingForecastProjectWarning of Github.issue (* W3001 *)
   | AllocationEndsTooLateWarning of assignment (* W3002 *)
   | AllocationStartsTooEarlyWarning of assignment (* W3003 *)
   | FTEDiscrepancyWarning of project (* W3004 *)
@@ -19,8 +19,8 @@ type schedule_event =
   (* | AssignmentsToInactiveProjectWarning of project (* W3008 *) *)
   (* | ProjectStartOverdueWarning of project (* W3009 *) *)
   | NoMatchingGithubUserWarning of Forecast.person (* W3010 *)
-  | DifferentClientWarning of project * string * string option (* W3011 *)
-  | DifferentNameWarning of project * string * string (* W3012 *)
+  | DifferentClientWarning of Github.issue * string * string option (* W3011 *)
+  | DifferentNameWarning of Github.issue * string * string (* W3012 *)
   | MultipleMatchingGithubUsersWarning of Forecast.person * string list (* W3013 *)
   | AssignmentWithoutProjectDebug of Forecast.assignment
   | AssignmentWithoutPersonDebug of Forecast.person
@@ -38,16 +38,16 @@ let log_event (error : schedule_event) =
             "No matching GitHub issue for Forecast project <%s>."
             fc_proj.name
       }
-  | FinanceCodeNotMatchingError proj ->
+  | FinanceCodeNotMatchingError issue ->
     Log.log'
       { level = Log.Error' 3002
-      ; entity = Log.Project proj.number
+      ; entity = Log.Project issue.number
       ; message = "Finance codes on Forecast and GitHub do not match."
       }
-  | MissingForecastProjectWarning proj ->
+  | MissingForecastProjectWarning issue ->
     Log.log'
       { level = Log.Warning 3001
-      ; entity = Log.Project proj.number
+      ; entity = Log.Project issue.number
       ; message = "No matching Forecast project found."
       }
   | AllocationEndsTooLateWarning asn ->
@@ -102,10 +102,10 @@ let log_event (error : schedule_event) =
       ; message =
           Printf.sprintf "Could not find matching GitHub user for <%s>." person.full_name
       }
-  | DifferentClientWarning (proj, fc_name, gh_name) ->
+  | DifferentClientWarning (issue, fc_name, gh_name) ->
     Log.log'
       { level = Log.Warning 3011
-      ; entity = Log.Project proj.number
+      ; entity = Log.Project issue.number
       ; message =
           Printf.sprintf
             "Project programmes on Forecast (%s) and GitHub (%s) do not match."
@@ -114,10 +114,10 @@ let log_event (error : schedule_event) =
              | Some s -> s
              | None -> "absent")
       }
-  | DifferentNameWarning (proj, fc_name, gh_name) ->
+  | DifferentNameWarning (issue, fc_name, gh_name) ->
     Log.log'
       { level = Log.Warning 3012
-      ; entity = Log.Project proj.number
+      ; entity = Log.Project issue.number
       ; message =
           Printf.sprintf
             "Project names on Forecast (%s) and GitHub (%s) do not match."
@@ -321,7 +321,19 @@ let merge_people
 (* ---------------------------------------------------------------------- *)
 (* MERGE PROJECTS FROM FORECAST AND GITHUB *)
 
-type project_pair = Pair of (Forecast.project option * project option)
+type project_pair = Pair of (Forecast.project option * Github.issue option)
+
+(* Convert a Forecast.project to a Domain.project without using any info from
+   GitHub. *)
+let upconvert (prj : Forecast.project) : project =
+  { number = prj.number
+  ; name = prj.name
+  ; programme = Some prj.programme
+  ; plan = None
+  ; assignees = []
+  ; erpx_finance_code = prj.erpx_finance_code
+  }
+;;
 
 (* Check that each Forecast project has a hut23 code which matches that of a
    GitHub project. Additionally, check that the programmes and names of the
@@ -332,56 +344,66 @@ let merge_projects
   (gh_issues : Github.issue IntMap.t)
   (people : person list)
   =
-  (* First, add in the assignees from Forecast *)
-  let map_assignees (gh_p : Github.issue) : project =
-    let new_assignees =
-      List.filter_map
-        (fun a -> List.find_opt (fun p -> p.github_handle = Some a) people)
-        gh_p.assignees
-    in
-    { number = gh_p.number
-    ; name = gh_p.name
-    ; programme = gh_p.programme
-    ; plan = gh_p.plan
-    ; assignees = new_assignees
-    }
-  in
-  let gh_projects = IntMap.map map_assignees gh_issues in
-
   (* Pair the Forecast and GitHub projects *)
   let pair_projects _ fc_opt gh_opt =
     match fc_opt, gh_opt with
     | None, None -> None
     | x, y -> Some (Pair (x, y))
   in
-  let combined_map = IntMap.merge pair_projects fc_projects gh_projects in
+  let combined_map = IntMap.merge pair_projects fc_projects gh_issues in
 
-  (* Check the pairs for any inconsistencies and log events as necessary *)
-  let check_projects _ (pair : project_pair) : unit =
+  (* Iterate over the combined map, checking for inconsistencies, and merging
+     metadata when both are present. *)
+  let combine_projects _key (pair : project_pair) =
     (* Check that they both exist *)
     match pair with
-    | Pair (None, None) -> ()
-    | Pair (Some fc_p, None) -> log_event (MissingGithubProjectError fc_p)
-    | Pair (None, Some gh_p) -> log_event (MissingForecastProjectWarning gh_p)
+    | Pair (None, None) -> None
+    | Pair (Some fc_p, None) ->
+      log_event (MissingGithubProjectError fc_p);
+      Some (upconvert fc_p)
+    | Pair (None, Some gh_p) ->
+      log_event (MissingForecastProjectWarning gh_p);
+      (* This shouldn't happen, because the list of projects is obtained
+         from Forecast to begin with. *)
+      None
     | Pair (Some fc_p, Some gh_p) ->
       (* Check that their client/programme match *)
       if Some fc_p.programme <> gh_p.programme
       then log_event (DifferentClientWarning (gh_p, fc_p.programme, gh_p.programme));
+      (* If the programme is not set on GitHub, we can use the one from Forecast
+      *)
+      let programme =
+        match gh_p.programme with
+        | Some p -> Some p
+        | None -> Some fc_p.programme
+      in
       (* Check that their names match *)
       if fc_p.name <> gh_p.name
       then log_event (DifferentNameWarning (gh_p, fc_p.name, gh_p.name));
       (* Check that their project codes match *)
       let finance_codes_match =
-        match fc_p.finance_code, gh_p.plan with
+        match fc_p.old_finance_code, gh_p.plan with
         | Some cd, Some plan -> List.mem cd plan.finance_codes
+        | None, None -> true
         | _ -> false
       in
-      if not finance_codes_match then log_event (FinanceCodeNotMatchingError gh_p)
+      if not finance_codes_match then log_event (FinanceCodeNotMatchingError gh_p);
+      (* Create a new project with the merged data *)
+      let assignees =
+        List.filter_map
+          (fun p -> List.find_opt (fun psn -> psn.github_handle = Some p) people)
+          gh_p.assignees
+      in
+      Some
+        { number = gh_p.number
+        ; name = gh_p.name
+        ; programme
+        ; plan = gh_p.plan
+        ; assignees
+        ; erpx_finance_code = fc_p.erpx_finance_code
+        }
   in
-  IntMap.iter check_projects combined_map;
-
-  (* Return only the GitHub issues *)
-  gh_projects
+  IntMap.filter_map combine_projects combined_map
 ;;
 
 (* ---------------------------------------------------------------------- *)
@@ -413,17 +435,6 @@ let check_start_date (prj : project) (asg : assignment) =
         | Some earliest_start_date ->
           if get_first_day asg.allocation < earliest_start_date
           then log_event (AllocationStartsTooEarlyWarning asg)))
-;;
-
-(* Convert a Forecast.project to a Domain.project without using any info from
-   GitHub. *)
-let upconvert (prj : Forecast.project) : project =
-  { number = prj.number
-  ; name = prj.name
-  ; programme = Some prj.programme
-  ; plan = None
-  ; assignees = []
-  }
 ;;
 
 let merge_assignment people projects (asn : Forecast.assignment) : assignment option =

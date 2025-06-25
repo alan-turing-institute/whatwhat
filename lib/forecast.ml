@@ -2,14 +2,14 @@
 
    Returns a valid schedule from Forecast. A valid schedule is one such that:
    - Every project is identified by a conformant project number (like 999). This
-   project number refers to a GitHub issue number, not the Forecast ID.
+     project number refers to a GitHub issue number, not the Forecast ID.
    - Every person is identified by an email (which is not checked)
-   
+
    All other projects, persons, AND related assignments are removed
 
    "Errors" are emitted when an entity is invalid and is removed;
    "Warnings" are emitted when an entity is not removed but there is some issue.
- *)
+*)
 
 module Raw = ForecastRaw
 module IntMap = Map.Make (Int) (* Issue number => project *)
@@ -19,7 +19,8 @@ type project =
   { number : int (* Ought to be a GitHub issue number *)
   ; name : string
   ; programme : string
-  ; finance_code : string option
+  ; old_finance_code : string option
+  ; erpx_finance_code : string option
   }
 
 (* ------------------------------------------------------------ *)
@@ -39,7 +40,6 @@ type forecast_event =
   | NonREGPersonInfo of Raw.person
   | ArchivedPersonDebug of Raw.person
   | ArchivedPlaceholderDebug of Raw.placeholder
-  | ChoseOneFinanceCodeInfo of (Raw.project, project) Either.t * string list * string
 
 let log_event (fc_event : forecast_event) : unit =
   let make_log_raw_project (raw_proj : Raw.project) =
@@ -164,19 +164,6 @@ let log_event (fc_event : forecast_event) : unit =
       ; entity = Log.RawForecastPlaceholder name
       ; message = Printf.sprintf "Ignoring archived person <%s>." name
       }
-  | ChoseOneFinanceCodeInfo (rp_or_p, fcs, chosen_fc) ->
-    Log.log'
-      { level = Log.Info
-      ; entity =
-          (match rp_or_p with
-           | Left rp -> make_log_raw_project rp
-           | Right p -> Log.Project p.number)
-      ; message =
-          Printf.sprintf
-            "From multiple finance codes <%s>, the following was chosen: <%s>"
-            (fcs |> List.map (fun s -> "'" ^ s ^ "'") |> String.concat ", ")
-            chosen_fc
-      }
 ;;
 
 (* ------------------------------------------------------------  *)
@@ -201,46 +188,64 @@ let extract_project_number (p : Raw.project) =
 ;;
 
 (** [extract_finance_code p] checks the tags of the project [p] to find the
-    Turing finance code. *)
-let extract_finance_code (rp : Raw.project) =
-  (* [rp_or_p] is either the raw project, or the project itself if it was found
-     inside the [projects] map. *)
-  (* let rp_or_p = *)
-  (*   match IntMap.find_opt rp.id projects with *)
-  (*   | None -> Either.Left rp *)
-  (*   | Some p -> Either.Right p *)
-  (* in *)
+    old finance code (X-ABC-NNN), and the new ERPx finance code (a five-digit
+    number). *)
+let extract_finance_codes (rp : Raw.project) =
+  let is_digit = function
+    | '0' .. '9' -> true
+    | _ -> false
+  in
+  let is_old_finance_code s =
+    match String.split_on_char '-' s with
+    | [ char; _; _ ] -> String.length char = 1
+    | _ -> false
+  in
+  let is_erpx_finance_code s = String.length s = 5 && String.for_all is_digit s in
   match rp.tags with
-  | [ fc ] -> Some fc
+  (* No codes *)
   | [] ->
     log_event (NoFinanceCodeWarning (Left rp));
-    None
+    None, None
+  (* Only one *)
+  | [ fc ] ->
+    (match is_old_finance_code fc, is_erpx_finance_code fc with
+     | true, false -> Some fc, None
+     | false, true -> None, Some fc
+     (* If it can't be parsed, we assume it's an old finance code *)
+     | false, false -> Some fc, None
+     | true, true ->
+       failwith @@ "finance code " ^ fc ^ " was ambiguous; this should not happen")
+  (* Multiple codes *)
   | _ ->
-    log_event (MultipleFinanceCodesWarning (Left rp));
-    (* Try to find the one with the form <char>-<str>-<str>. *)
-    let looks_like_finance_code s =
-      match String.split_on_char '-' s with
-      | [ char; _; _ ] -> String.length char = 1
-      | _ -> false
+    let old_fc =
+      match List.filter is_old_finance_code rp.tags with
+      | [] -> None
+      | [ old_fc ] -> Some old_fc
+      | old_fcs ->
+        log_event (MultipleFinanceCodesWarning (Left rp));
+        Some (List.hd old_fcs)
     in
-    (match List.filter looks_like_finance_code rp.tags with
-     | [ fc ] ->
-       log_event (ChoseOneFinanceCodeInfo (Left rp, rp.tags, fc));
-       Some fc
-     | _ -> None)
+    let erpx_fc =
+      match List.filter is_erpx_finance_code rp.tags with
+      | [] -> None
+      | [ erpx_fc ] -> Some erpx_fc
+      | erpx_fcs ->
+        log_event (MultipleFinanceCodesWarning (Left rp));
+        Some (List.hd erpx_fcs)
+    in
+    old_fc, erpx_fc
 ;;
 
 (** [validate_project _ p] checks that a Forecast project [p] is valid, in that:
     1. It is not archived.
     2. It is not one of the ignored projects in the [whatwhat] configuration
-       file.
+    file.
     3. It has a 'project code' matching the regex 'hut23-\d+'. The digits at the
-       end are interpreted as the GitHub issue number, although this is not
-       verified at this stage. Note that this is the {i Forecast} project code,
-       which is not the same as the finance code (which, on Forecast, is stored
-       in the [tags]; see [extract_finance_code].)
-    4. It has a valid client.
-    *)
+    end are interpreted as the GitHub issue number, although this is not
+    verified at this stage. Note that this is the {i Forecast} project code,
+    which is not the same as the finance code (which, on Forecast, is stored
+    in the [tags]; see [extract_finance_code].)
+    4. It has a valid client. *)
 let validate_project _ (p : Raw.project) =
   (* silently remove *)
   if p.archived || List.mem p.id Config.forecast_ignored_projects
@@ -253,11 +258,13 @@ let validate_project _ (p : Raw.project) =
     | Some c ->
       (match extract_project_number p with
        | Some n ->
+         let old_fc, erpx_fc = extract_finance_codes p in
          Some
            { number = n
            ; name = p.name
            ; programme = c.name
-           ; finance_code = extract_finance_code p
+           ; old_finance_code = old_fc
+           ; erpx_finance_code = erpx_fc
            }
        | None -> None))
 ;;
@@ -266,8 +273,7 @@ let validate_project _ (p : Raw.project) =
 
 (** This type represents all the useful information we can obtain from a Forecast
     person. It is not the same as Domain.person; that represents a complete
-    overview of a person after the GitHub data has been merged in.
-    *)
+    overview of a person after the GitHub data has been merged in. *)
 type person =
   { full_name : string
   ; email : string
@@ -292,8 +298,7 @@ let get_entity_name e =
 (** [validate_entity p] ensures that the entity [e]:
     1. has not been archived; and
     2. if it is a person, has the 'REG' tag; and
-    3. if it is a person, has a valid email address.
-    *)
+    3. if it is a person, has a valid email address. *)
 let validate_person (p : Raw.person) : person option =
   let email_re =
     Tyre.compile (Tyre.pcre {|^[A-Za-z0-9._%+-]+@[A-Za-z0-9.+-]+\.[A-Za-z]{2,}$|})
@@ -324,7 +329,7 @@ let validate_person (p : Raw.person) : person option =
 (* This type represents all the useful information we can obtain from a Forecast
    assignment. It is not the same as Domain.assignment, that represents a
    complete overview of an assignment after the GitHub data has been merged in.
-   *)
+*)
 type assignment =
   { project : project
   ; entity : entity
@@ -336,7 +341,7 @@ type assignment =
    At this stage we ignore the fact that many assignments may actually concern the same
    person, project, finance code combination, and just create a single assignment for each Raw.assignment, each with a single allocation. We will later merge these, collating the
    allocations.
-   *)
+*)
 let validate_assignment people projects (a : Raw.assignment) =
   (* First check that the project wasn't deleted *)
   match IntMap.find_opt a.project.id projects with
@@ -396,12 +401,12 @@ module DateMap = Map.Make (CalendarLib.Date)
    together, and join their allocations. *)
 let collate_allocations assignments =
   let f (m : assignment AssignmentMap.t) (a : assignment) =
-    let pnf = a.project.number, get_entity_name a.entity, a.project.finance_code in
+    let pnf = a.project.number, get_entity_name a.entity, a.project.old_finance_code in
     let existing_assignment_opt = AssignmentMap.find_opt pnf m in
     let assignment_to_add =
       match existing_assignment_opt with
       (* If there is already an assignment in the map m with this ppf value, add a new
-       allocation to it. *)
+         allocation to it. *)
       | Some existing_assignment ->
         { project = a.project
         ; entity = a.entity

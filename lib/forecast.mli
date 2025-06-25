@@ -33,7 +33,8 @@ type project =
   { number : int (** The issue number on GitHub. *)
   ; name : string
   ; programme : string
-  ; finance_code : string option
+  ; old_finance_code : string option
+  ; erpx_finance_code : string option
   }
 
 type assignment =

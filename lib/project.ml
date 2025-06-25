@@ -27,8 +27,11 @@ let print_metadata ~(use_color : bool) (prj : project) =
   (match prj.programme with
    | None -> prout ~use_color [ ANSI.red ] "Programme           : Not found\n"
    | Some s -> printf "Programme           : %s\n" s);
+  (match prj.erpx_finance_code with
+   | None -> prout ~use_color [ ANSI.red ] "ERPx finance codes : Not found\n"
+   | Some xs -> printf "ERPx finance codes  : %s\n" xs);
   (match prj.plan with
-   | None -> print_endline "Remaining metadata could not be parsed from GitHub."
+   | None -> ()
    | Some plan ->
      let earliest_start_date_string =
        match plan.earliest_start_date with
@@ -40,9 +43,6 @@ let print_metadata ~(use_color : bool) (prj : project) =
        | None -> "None"
        | Some d -> CalendarLib.Printer.Date.to_string d
      in
-     (match plan.finance_codes with
-      | [] -> prout ~use_color [ ANSI.red ] "Finance codes       : Not found\n"
-      | xs -> printf "Finance codes       : %s\n" (String.concat ", " xs));
      printf "Earliest start date : %s\n" earliest_start_date_string;
      printf
        "Latest start date   : %s\n"

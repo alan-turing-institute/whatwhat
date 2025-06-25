@@ -162,6 +162,7 @@ type project =
   ; programme : string option
   ; plan : project_plan option
   ; assignees : person list
+  ; erpx_finance_code : string option
   }
 
 (** --- Emoji reactions ---------------------- *)
