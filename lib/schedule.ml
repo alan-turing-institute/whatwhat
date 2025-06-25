@@ -570,5 +570,8 @@ let get_the_schedule_async ~start_date ~end_date =
 ;;
 
 let get_the_schedule ~start_date ~end_date =
-  Lwt_main.run (get_the_schedule_async ~start_date ~end_date)
+  ignore start_date;
+  ignore end_date;
+  failwith "whatwhat's GitHub functionality is not available due to changes in the GitHub API. See: https://github.com/alan-turing-institute/whatwhat/issues/113 for further details."
+  (* Lwt_main.run (get_the_schedule_async ~start_date ~end_date) *)
 ;;
