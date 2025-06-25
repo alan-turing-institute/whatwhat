@@ -156,61 +156,9 @@ let show_project_plan plan =
     plan.min_fte_percent
 ;;
 
-module State = struct
-  type t =
-    | Suggested
-    | Proposal
-    | ExtraInfoNeeded
-    | ProjectAppraisal
-    | AwaitingGoNogo
-    | FindingPeople
-    | AwaitingStart
-    | Active
-    | CompletionReview
-    | Done
-    | Cancelled
-    | Rejected
-    | Other
-
-  let show_t t =
-    match t with
-    | Suggested -> "Suggested"
-    | Proposal -> "Proposal"
-    | ExtraInfoNeeded -> "Extra info needed"
-    | ProjectAppraisal -> "Project appraisal"
-    | AwaitingGoNogo -> "Awaiting go/no-go"
-    | FindingPeople -> "Finding people"
-    | AwaitingStart -> "Awaiting start"
-    | Active -> "Active"
-    | CompletionReview -> "Completion review"
-    | Done -> "Done"
-    | Cancelled -> "Cancelled"
-    | Rejected -> "Rejected"
-    | Other -> "Other"
-  ;;
-end
-
-let state_of_column col =
-  match col with
-  | "Suggested" -> State.Suggested
-  | "Proposal" -> State.Proposal
-  | "Extra info needed" -> State.ExtraInfoNeeded
-  | "Project appraisal" -> State.ProjectAppraisal
-  | "Awaiting go/no-go" -> State.AwaitingGoNogo
-  | "Finding people" -> State.FindingPeople
-  | "Awaiting start" -> State.AwaitingStart
-  | "Active" -> State.Active
-  | "Completion review" -> State.CompletionReview
-  | "Done" -> State.Done
-  | "Cancelled" -> State.Cancelled
-  | "Rejected" -> State.Rejected
-  | _ -> failwith ("Unknown GitHub column: " ^ col)
-;;
-
 type project =
   { number : int (** The issue number from GitHub *)
   ; name : string
-  ; state : State.t
   ; programme : string option
   ; plan : project_plan option
   ; assignees : person list

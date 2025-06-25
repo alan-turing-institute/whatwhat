@@ -91,7 +91,6 @@ type person = GithubRaw.person =
 type issue =
   { number : int (** The issue number from GitHub *)
   ; name : string
-  ; state : Domain.State.t
   ; programme : string option
   ; plan : Domain.project_plan option
   ; assignees : string list
@@ -336,32 +335,19 @@ let find_programme (issue : Raw.issue) =
   List.find_map parse_label issue.labels
 ;;
 
-let make_issue (col_name : string) (issue : Raw.issue) : issue =
-  let plan =
-    match parse_metadata issue with
-    | None -> None
-    | Some plan ->
-      let state = state_of_column col_name in
-      if state >= State.FindingPeople && List.length plan.finance_codes = 0
-      then log_event (NoFinanceCodesError issue);
-      Some plan
+let make_issue (issue : Raw.issue) : issue =
+  let plan = parse_metadata issue
   in
   { number = issue.number
   ; name = issue.title
-  ; state = state_of_column col_name
   ; programme = find_programme issue
   ; plan
   ; assignees = issue.assignees
   }
 ;;
 
-let get_project_issues_async () =
+let get_issues_async ids =
   let open Lwt.Syntax in
-  let* project_board = Raw.get_project_async () in
-  let pair_issues (col : Raw.column) = List.map (fun i -> col.name, i) col.issues in
-  let pairs = project_board.columns |> List.concat_map pair_issues in
-  let projects = pairs |> List.map (fun (c, i) -> make_issue c i) in
-  Lwt.return projects
+  let* issues = Raw.get_issues_async ids in
+  Lwt.return (List.map make_issue issues)
 ;;
-
-let get_project_issues () = Lwt_main.run (get_project_issues_async ())

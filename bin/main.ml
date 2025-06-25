@@ -518,7 +518,9 @@ let ww_overview_cmd : unit Cmd.t =
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
-let ww_test () = print_endline "Testing."
+let ww_test () =
+  let _ = Github.get_issues_async [ 631] |> Lwt_main.run in
+  print_endline "Testing."
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v

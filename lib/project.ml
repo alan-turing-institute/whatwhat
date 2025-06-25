@@ -24,7 +24,6 @@ let print_title ~(use_color : bool) (prj : project) =
 let print_metadata ~(use_color : bool) (prj : project) =
   print_heading ~use_color "Details";
   let open Printf in
-  printf "State               : %s\n" (State.show_t prj.state);
   (match prj.programme with
    | None -> prout ~use_color [ ANSI.red ] "Programme           : Not found\n"
    | Some s -> printf "Programme           : %s\n" s);

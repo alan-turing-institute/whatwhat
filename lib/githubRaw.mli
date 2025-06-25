@@ -120,6 +120,12 @@ val get_issue : int -> issue
 (** Fetch a numbered issue from GitHub, together with its reactions. *)
 val get_issue_r : int -> issue_r
 
+(** Fetch a numbered issue from GitHub asynchronously. *)
+val get_issues_async : int list -> issue list Lwt.t
+
+(** Fetch a numbered issue from GitHub synchronously. *)
+val get_issues : int list -> issue list
+
 (** {1 Columns}
 
     A [column] refers to a column within a project board on GitHub.

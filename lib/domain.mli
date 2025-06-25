@@ -146,40 +146,14 @@ type project_plan =
 
 val show_project_plan : project_plan -> unit
 
-(** The project status on the Project Tracker, shown by the column the project
-    issue is in.
- *)
-module State : sig
-  type t =
-    | Suggested
-    | Proposal
-    | ExtraInfoNeeded
-    | ProjectAppraisal
-    | AwaitingGoNogo
-    | FindingPeople
-    | AwaitingStart
-    | Active
-    | CompletionReview
-    | Done
-    | Cancelled
-    | Rejected
-    | Other
-
-  val show_t : t -> string
-end
-
 (** A project, combining both a Github issue and a matching Forecast project. *)
 type project =
   { number : int (** The issue number from GitHub *)
   ; name : string
-  ; state : State.t
   ; programme : string option
   ; plan : project_plan option
   ; assignees : person list
   }
-
-(** Convert the column name in GitHub to a variant type. May raise UnknownColumn *)
-val state_of_column : string -> State.t
 
 (** The types of emoji reactions we care about. *)
 type emoji =

@@ -61,7 +61,6 @@ type person = GithubRaw.person =
 type issue =
   { number : int (** The issue number from GitHub *)
   ; name : string
-  ; state : Domain.State.t
   ; programme : string option
   ; plan : Domain.project_plan option
   ; assignees : string list
@@ -72,14 +71,9 @@ val show_person : person -> string
 
 val compare_person : person -> person -> int
 
-(** A type for Github issues. *)
-
-(** Given a project board name, return a list of projects, one for each issue on the
-    board. *)
-val get_project_issues : unit -> issue list
-
-val get_project_issues_async : unit -> issue list Lwt.t
-
 (** This is re-exported from [GithubRaw] for convenience. See
     {!GithubRaw.get_all_users_async}. *)
 val get_all_users_async : person list Lwt.t
+
+(** Fetch a list of issues from GitHub, given a list of issue numbers. *)
+val get_issues_async : int list -> issue list Lwt.t

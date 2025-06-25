@@ -12,9 +12,12 @@ type schedule_event =
   | AllocationEndsTooLateWarning of assignment (* W3002 *)
   | AllocationStartsTooEarlyWarning of assignment (* W3003 *)
   | FTEDiscrepancyWarning of project (* W3004 *)
-  | ActiveProjectWithoutAssignmentWarning of project (* W3007 *)
-  | AssignmentsToInactiveProjectWarning of project (* W3008 *)
-  | ProjectStartOverdueWarning of project (* W3009 *)
+  (* We cannot detect these without knowing the state of the project, i.e.
+     which column of the GitHub project tracker it is on.
+     See https://github.com/alan-turing-institute/whatwhat/issues/114 *)
+  (* | ActiveProjectWithoutAssignmentWarning of project (* W3007 *) *)
+  (* | AssignmentsToInactiveProjectWarning of project (* W3008 *) *)
+  (* | ProjectStartOverdueWarning of project (* W3009 *) *)
   | NoMatchingGithubUserWarning of Forecast.person (* W3010 *)
   | DifferentClientWarning of project * string * string option (* W3011 *)
   | DifferentNameWarning of project * string * string (* W3012 *)
@@ -71,24 +74,27 @@ let log_event (error : schedule_event) =
       ; entity = Log.Project proj.number
       ; message = "Total allocations in Forecast differ from GitHub metadata."
       }
-  | ActiveProjectWithoutAssignmentWarning proj ->
-    Log.log'
-      { level = Log.Warning 3007
-      ; entity = Log.Project proj.number
-      ; message = "Project is Active but has no current assignments."
-      }
-  | AssignmentsToInactiveProjectWarning proj ->
-    Log.log'
-      { level = Log.Warning 3008
-      ; entity = Log.Project proj.number
-      ; message = "Project is not Active but has current assignments."
-      }
-  | ProjectStartOverdueWarning proj ->
-    Log.log'
-      { level = Log.Warning 3009
-      ; entity = Log.Project proj.number
-      ; message = "Project is past latest start date but not yet Active."
-      }
+  (* We cannot detect these without knowing the state of the project, i.e.
+     which column of the GitHub project tracker it is on.
+     See https://github.com/alan-turing-institute/whatwhat/issues/114 *)
+  (* | ActiveProjectWithoutAssignmentWarning proj -> *)
+  (*   Log.log' *)
+  (*     { level = Log.Warning 3007 *)
+  (*     ; entity = Log.Project proj.number *)
+  (*     ; message = "Project is Active but has no current assignments." *)
+  (*     } *)
+  (* | AssignmentsToInactiveProjectWarning proj -> *)
+  (*   Log.log' *)
+  (*     { level = Log.Warning 3008 *)
+  (*     ; entity = Log.Project proj.number *)
+  (*     ; message = "Project is not Active but has current assignments." *)
+  (*     } *)
+  (* | ProjectStartOverdueWarning proj -> *)
+  (*   Log.log' *)
+  (*     { level = Log.Warning 3009 *)
+  (*     ; entity = Log.Project proj.number *)
+  (*     ; message = "Project is past latest start date but not yet Active." *)
+  (*     } *)
   | NoMatchingGithubUserWarning person ->
     Log.log'
       { level = Log.Warning 3010
@@ -335,7 +341,6 @@ let merge_projects
     in
     { number = gh_p.number
     ; name = gh_p.name
-    ; state = gh_p.state
     ; programme = gh_p.programme
     ; plan = gh_p.plan
     ; assignees = new_assignees
@@ -415,7 +420,6 @@ let check_start_date (prj : project) (asg : assignment) =
 let upconvert (prj : Forecast.project) : project =
   { number = prj.number
   ; name = prj.name
-  ; state = Other
   ; programme = Some prj.programme
   ; plan = None
   ; assignees = []
@@ -472,33 +476,6 @@ let merge_assignment people projects (asn : Forecast.assignment) : assignment op
 
 module IntMap = Map.Make (Int)
 
-let today = CalendarLib.Date.today ()
-
-(* Checks that projects that have been scheduled to start (as per
-   earliest-start-date) are active or later *)
-let check_is_overdue prj =
-  match prj.plan with
-  | None -> ()
-  | Some plan ->
-    if plan.latest_start_date < today && prj.state < Active
-    then log_event (ProjectStartOverdueWarning prj)
-;;
-
-(* Checks that active (or later) projects have assignments currently scheduled
-   on Forecast, and vice versa *)
-let check_projects_active asns prj =
-  let today = CalendarLib.Date.today () in
-  let has_active_assignments =
-    List.exists
-      (fun a -> get_first_day a.allocation <= today && get_last_day a.allocation >= today)
-      asns
-  in
-  match prj.state = Active, has_active_assignments with
-  | true, false -> log_event (ActiveProjectWithoutAssignmentWarning prj)
-  | false, true -> log_event (AssignmentsToInactiveProjectWarning prj)
-  | _ -> ()
-;;
-
 (* Checks that the sum of FTEs assigned on Forecast matches the number of
    FTE-weeks or FTE-months specified on GitHub metadata *)
 let check_assignment_sum asns prj =
@@ -535,8 +512,6 @@ let check_projects projects assignments =
       | Some asns -> asns
       | None -> []
     in
-    check_is_overdue p;
-    check_projects_active this_proj_asns p;
     check_assignment_sum this_proj_asns p;
     check_people_required this_proj_asns p
   in
@@ -553,7 +528,8 @@ let get_the_schedule_async ~start_date ~end_date =
     Forecast.get_the_schedule_async ~start_date ~end_date
   in
   let fc_people = fc_people' |> Forecast.StringMap.bindings |> List.map snd in
-  let* gh_issues = Github.get_project_issues_async () in
+  let issue_numbers = fc_projects |> IntMap.bindings |> List.map fst in
+  let* gh_issues = Github.get_issues_async issue_numbers in
   let gh_issues_map =
     gh_issues
     |> List.map (fun (i : Github.issue) -> i.number, i)
@@ -570,8 +546,5 @@ let get_the_schedule_async ~start_date ~end_date =
 ;;
 
 let get_the_schedule ~start_date ~end_date =
-  ignore start_date;
-  ignore end_date;
-  failwith "whatwhat's GitHub functionality is not available due to changes in the GitHub API. See: https://github.com/alan-turing-institute/whatwhat/issues/113 for further details."
-  (* Lwt_main.run (get_the_schedule_async ~start_date ~end_date) *)
+  Lwt_main.run (get_the_schedule_async ~start_date ~end_date)
 ;;

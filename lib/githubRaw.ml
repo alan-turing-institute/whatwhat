@@ -209,7 +209,11 @@ let get_issue_async id =
   Lwt.return
     { number = id
     ; title = issue_json |> member "title" |> to_string
-    ; body = issue_json |> member "body" |> to_string
+    ; body =
+        (match issue_json |> member "body" with
+         | `String s -> s
+         | `Null -> ""
+         | _ -> failwith "Invalid JSON for body")
     ; state = issue_json |> member "state" |> to_string |> state_of_string
     ; assignees = assignee_usernames
     ; labels =
@@ -221,6 +225,8 @@ let get_issue_async id =
 ;;
 
 let get_issue id = get_issue_async id |> Lwt_main.run
+let get_issues_async ids = List.map get_issue_async ids |> Utils.all_throttled
+let get_issues ids = get_issues_async ids |> Lwt_main.run
 
 (** Issues with reactions ---------------------------- *)
 
