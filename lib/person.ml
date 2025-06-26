@@ -270,13 +270,18 @@ let print
     |> IntMap.bindings
     |> List.map snd
   in
-  let timesheets =
-    get_timesheets
-      this_asns
-      (CL.Date.make_year_month
-         (CL.Date.year (CL.Date.today ()))
-         (CL.Date.int_of_month (CL.Date.month (CL.Date.today ()))))
+  (* For timesheets, we get the previous month if today is in the first 7 days of the month,
+     otherwise we get the current month. *)
+  let today = CL.Date.today () in
+  let year, month =
+    if CL.Date.day_of_month today > 7
+    then CL.Date.year today, CL.Date.month today |> CL.Date.int_of_month
+    else (
+      match CL.Date.month today with
+      | Jan -> CL.Date.year today - 1, 12
+      | m -> CL.Date.year today, CL.Date.int_of_month m - 1)
   in
+  let timesheets = get_timesheets this_asns (CL.Date.make_year_month year month) in
   print_info ~use_color psn;
   print_endline "";
   print_endline "";
