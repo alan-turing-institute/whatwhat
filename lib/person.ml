@@ -234,13 +234,13 @@ let print_timesheets
     let project_rows =
       List.map
         (fun (name, code) ->
-          Utils.elide ~max_length:40 name
+          Utils.elide ~max_length:45 name
           :: code
           :: List.map
                (fun (_, _, ts) ->
                  match List.filter (fun t -> t.project_name = name) ts with
                  | [] -> "-"
-                 | [ x ] -> FTE.show_hour x.fte_hour
+                 | [ x ] -> FTE.show_hour_adjusted_for_lunch x.fte_hour
                  | _ ->
                    failwith "Multiple timesheet entries for the same project in one day")
                timesheets)

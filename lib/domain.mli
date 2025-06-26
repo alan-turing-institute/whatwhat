@@ -23,6 +23,10 @@ module FTE : sig
   (** Print an [FTE.hour]. *)
   val show_hour : hour -> string
 
+  (** Print an [FTE.hour] but scaled by 0.9 (because there are only 7.2 working
+      hours per day). *)
+  val show_hour_adjusted_for_lunch : hour -> string
+
   (** Unsurprisingly, [FTE.hour] is really just an [Hour of float] wrapper;
       however, we don't export the [Hour] constructor in order to restrict the
       creation of [FTE.hour] values. The only way to create a new value with

@@ -12,6 +12,9 @@ module FTE = struct
   let show_hour (Hour h) =
     Printf.sprintf "%.2f h/day" h
 
+  let show_hour_adjusted_for_lunch (Hour h) =
+    Printf.sprintf "%.2f h/day" (h *. 7.2 /. 8.0)
+
   let zero = Hour 0.
   let get (Hour h) = h
   let add_hours (Hour h1) (Hour h2) = Hour (h1 +. h2)
