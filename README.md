@@ -61,7 +61,7 @@ For extensive usage options, you can run `whatwhat --help`, or `whatwhat <subcom
 | Command | Description |
 | ------  | ----------- |
 | `whatwhat` | Fetch all projects, detecting inconsistencies and errors |
-| `whatwhat project [NUM|NAME]` | Print information about a project, as specified by its GitHub issue number, or (a substring of) its title |
+| `whatwhat project [NUM\|NAME]` | Print information about a project, as specified by its GitHub issue number, or (a substring of) its title |
 | `whatwhat person [NAME]` | Print information about a person, as specified by their name, Turing email username, or GitHub username (a substring is fine) |
 | `whatwhat overview` | Print a TL;DR of what's happening in REG |
 | `whatwhat export-project` | Create a Forecast project export CSV file (useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354)) |
