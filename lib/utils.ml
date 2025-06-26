@@ -173,7 +173,7 @@ let date_of_string ?(lax = false) (str : string) : (date, [> `Msg of string ]) r
     | _ -> Error (`Msg ("Unrecognised date: " ^ str)))
 ;;
 
-let default_start_date ?relative_to () =
+let default_export_start_date ?relative_to () =
   let open Date in
   let d =
     match relative_to with
@@ -185,7 +185,7 @@ let default_start_date ?relative_to () =
   | n -> make (year d) (n - 1) 1
 ;;
 
-let default_end_date ?relative_to () =
+let default_export_end_date ?relative_to () =
   let open Date in
   let d =
     match relative_to with

@@ -11,20 +11,32 @@ let test_date_of_string _ =
   assert_equal (Ok this_march_13) (Utils.date_of_string ~lax:true "2023.03.13")
 ;;
 
-let test_default_start_date _ =
-  assert_equal (make 2023 2 1) (Utils.default_start_date ~relative_to:(make 2023 3 13) ());
-  assert_equal (make 2022 12 1) (Utils.default_start_date ~relative_to:(make 2023 1 1) ());
+let test_default_export_start_date _ =
+  assert_equal
+    (make 2023 2 1)
+    (Utils.default_export_start_date ~relative_to:(make 2023 3 13) ());
+  assert_equal
+    (make 2022 12 1)
+    (Utils.default_export_start_date ~relative_to:(make 2023 1 1) ());
   assert_equal
     (make 2022 11 1)
-    (Utils.default_start_date ~relative_to:(make 2022 12 31) ())
+    (Utils.default_export_start_date ~relative_to:(make 2022 12 31) ())
 ;;
 
-let test_default_end_date _ =
-  assert_equal (make 2023 4 30) (Utils.default_end_date ~relative_to:(make 2023 3 13) ());
-  assert_equal (make 2023 2 28) (Utils.default_end_date ~relative_to:(make 2023 1 1) ());
-  assert_equal (make 2023 1 31) (Utils.default_end_date ~relative_to:(make 2022 12 31) ());
+let test_default_export_end_date _ =
+  assert_equal
+    (make 2023 4 30)
+    (Utils.default_export_end_date ~relative_to:(make 2023 3 13) ());
+  assert_equal
+    (make 2023 2 28)
+    (Utils.default_export_end_date ~relative_to:(make 2023 1 1) ());
+  assert_equal
+    (make 2023 1 31)
+    (Utils.default_export_end_date ~relative_to:(make 2022 12 31) ());
   (* Check leap year *)
-  assert_equal (make 2024 2 29) (Utils.default_end_date ~relative_to:(make 2024 1 1) ())
+  assert_equal
+    (make 2024 2 29)
+    (Utils.default_export_end_date ~relative_to:(make 2024 1 1) ())
 ;;
 
 let test_get_turing_weeks_in_month _ =
@@ -42,8 +54,8 @@ let test_get_turing_weeks_in_month _ =
 let suite =
   "Utils"
   >::: [ "date_of_string" >:: test_date_of_string
-       ; "default_start_date" >:: test_default_start_date
-       ; "default_end_date" >:: test_default_end_date
+       ; "default_start_date" >:: test_default_export_start_date
+       ; "default_end_date" >:: test_default_export_end_date
        ; "get_turing_weeks_in_month" >:: test_get_turing_weeks_in_month
        ]
 ;;

@@ -101,7 +101,7 @@ let ww_export
 ;;
 
 let start_date_arg : CalendarLib.Date.t Term.t =
-  let default_start_date = Utils.default_start_date () in
+  let default_start_date = Utils.default_export_start_date () in
   let parser s =
     match s with
     | "" -> Ok default_start_date
@@ -122,7 +122,7 @@ let start_date_arg : CalendarLib.Date.t Term.t =
 ;;
 
 let end_date_arg : CalendarLib.Date.t Term.t =
-  let default_end_date = Utils.default_end_date () in
+  let default_end_date = Utils.default_export_end_date () in
   let parser s =
     match s with
     | "" -> Ok default_end_date
@@ -164,12 +164,29 @@ let ww_export_team_cmd : unit Cmd.t =
 (* ------------------------------- *)
 (* ---------- whatwhat ----------- *)
 
+let get_start_and_end_dates (n_months : int) =
+  let open CalendarLib.Date in
+  let start_date = rem (today ()) (Period.month n_months) in
+  let end_date = add start_date (Period.month n_months) in
+  start_date, end_date
+;;
+
 type project_subset =
   | AllProjects
   | SelectedColumnsOnly
   | Specific of int list
 
-let ww_main version notify no_color quiet verbose codes_without codes_only project_subset =
+let ww_main
+  version
+  notify
+  no_color
+  quiet
+  verbose
+  codes_without
+  codes_only
+  project_subset
+  months_around
+  =
   if version
   then (
     (match Build_info.V1.version () with
@@ -189,9 +206,7 @@ let ww_main version notify no_color quiet verbose codes_without codes_only proje
   in
 
   try
-    let open CalendarLib.Date in
-    let start_date = make 2016 1 1 in
-    let end_date = add (today ()) (Period.year 1) in
+    let start_date, end_date = get_start_and_end_dates months_around in
     let people, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
     let github_project_numbers = Domain.IntMap.bindings projects |> List.map fst in
     print_endline "Whatwhat downloaded:";
@@ -342,6 +357,11 @@ let projects_arg =
         ~docv:"PROJECTS")
 ;;
 
+let months_lookahead_behind_arg : int Term.t =
+  let doc = "Number of months to look ahead and behind when fetching the schedule." in
+  Arg.(value & opt int 6 & info [ "m"; "months" ] ~docv:"MONTHS" ~doc)
+;;
+
 let ww_main_term : unit Term.t =
   Term.(
     const ww_main
@@ -352,20 +372,19 @@ let ww_main_term : unit Term.t =
     $ verbose_arg
     $ codes_without_arg
     $ codes_only_arg
-    $ projects_arg)
+    $ projects_arg
+    $ months_lookahead_behind_arg)
 ;;
 
 (* ------------------------------- *)
 (* ------ whatwhat project ------- *)
 
-let ww_project project_name_or_number no_color =
+let ww_project project_name_or_number no_color months_around =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
   ignore use_color;
 
-  let open CalendarLib.Date in
-  let start_date = make 2016 1 1 in
-  let end_date = add (today ()) (Period.year 1) in
+  let start_date, end_date = get_start_and_end_dates months_around in
   let people, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
 
   match project_name_or_number with
@@ -410,20 +429,18 @@ let project_arg =
 let ww_project_cmd : unit Cmd.t =
   Cmd.v
     (Cmd.info "project" ~doc:"Provide an overview of a project.")
-    Term.(const ww_project $ project_arg $ no_color_arg)
+    Term.(const ww_project $ project_arg $ no_color_arg $ months_lookahead_behind_arg)
 ;;
 
 (* ------------------------------- *)
 (* ------ whatwhat person -------- *)
 
-let ww_person person no_color =
+let ww_person person no_color months_around =
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
   ignore use_color;
 
-  let open CalendarLib.Date in
-  let start_date = make 2016 1 1 in
-  let end_date = add (today ()) (Period.year 1) in
+  let start_date, end_date = get_start_and_end_dates months_around in
   let people, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
 
   let matched_people =
@@ -458,7 +475,7 @@ let person_arg =
 let ww_person_cmd : unit Cmd.t =
   Cmd.v
     (Cmd.info "person" ~doc:"Provide an overview of a person.")
-    Term.(const ww_person $ person_arg $ no_color_arg)
+    Term.(const ww_person $ person_arg $ no_color_arg $ months_lookahead_behind_arg)
 ;;
 
 (* ------------------------------- *)
@@ -476,9 +493,8 @@ let ww_slack_bot_cmd : unit Cmd.t =
 (*----- whatwhat dump-users ------- *)
 
 let ww_dump_users () =
-  let open CalendarLib.Date in
-  let start_date = make 2016 1 1 in
-  let end_date = add (today ()) (Period.year 1) in
+  (* Configuring the number of months seems overkill for this *)
+  let start_date, end_date = get_start_and_end_dates 6 in
   let people, _, _ = Schedule.get_the_schedule ~start_date ~end_date in
   let print_person (p : Domain.person) =
     match p.github_handle with
@@ -499,9 +515,9 @@ let ww_dump_users_cmd : unit Cmd.t =
 let ww_overview no_color =
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
-  let open CalendarLib.Date in
-  let start_date = rem (today ()) (Period.month 1) in
-  let end_date = add (today ()) (Period.month 1) in
+  (* since whatwhat overview only prints current assignments, we don't need to
+     fetch anything more than 1 month *)
+  let start_date, end_date = get_start_and_end_dates 1 in
   let _, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
   Domain.IntMap.iter
     (fun _ (p : Domain.project) -> Project.print_current_people ~use_color p assignments)
@@ -518,10 +534,7 @@ let ww_overview_cmd : unit Cmd.t =
 (* ------- whatwhat test --------- *)
 (* - Use this for experimenting! - *)
 
-let ww_test () =
-  let _ = Github.get_issues_async [ 631 ] |> Lwt_main.run in
-  print_endline "Testing."
-;;
+let ww_test () = print_endline "Testing."
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v

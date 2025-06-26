@@ -84,12 +84,12 @@ val date_of_string : ?lax:bool -> string -> (Date.t, [> `Msg of string ]) result
 (** Calculate the default start date for Forecast export, which is the 1st of the
     previous month (relative to today's date). The [relative_to] argument can be
     specified to allow for unit testing. *)
-val default_start_date : ?relative_to:Date.t -> unit -> Date.t
+val default_export_start_date : ?relative_to:Date.t -> unit -> Date.t
 
 (** Calculate the default end date for Forecast export, which is the last day of
     the next month (relative to today's date). The [relative_to] argument can be
     specified to allow for unit testing. *)
-val default_end_date : ?relative_to:Date.t -> unit -> Date.field Date.date
+val default_export_end_date : ?relative_to:Date.t -> unit -> Date.field Date.date
 
 (** Roll a date back to a Monday. Leaves Mondays untouched. *)
 val rollback_week : Date.t -> Date.t

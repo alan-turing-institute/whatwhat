@@ -371,6 +371,11 @@ let get_the_schedule_async ~start_date ~end_date =
       (populate_assignment_subfields people placeholders projects)
       assignment_schemas
   in
+  (* filter to include only projects that have assignments *)
+  let assigned_project_ids = List.map (fun a -> a.project.id) assignments in
+  let projects =
+    IntMap.filter (fun _ (prj : project) -> List.mem prj.id assigned_project_ids) projects
+  in
   Lwt.return (clients, people, placeholders, projects, assignments)
 ;;
 
