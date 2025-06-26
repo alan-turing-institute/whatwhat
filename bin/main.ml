@@ -173,11 +173,9 @@ let get_start_and_end_dates (n_months : int) =
 
 type project_subset =
   | AllProjects
-  | SelectedColumnsOnly
   | Specific of int list
 
 let ww_main
-  version
   notify
   no_color
   quiet
@@ -187,13 +185,6 @@ let ww_main
   project_subset
   months_around
   =
-  if version
-  then (
-    (match Build_info.V1.version () with
-     | None -> print_endline "whatwhat-dev"
-     | Some v -> print_endline @@ "whatwhat " ^ Build_info.V1.Version.to_string v);
-    exit 0);
-
   (* Use color if output is to a terminal and --no-color flag was absent. *)
   let use_color = Unix.isatty Unix.stdout && not no_color in
 
@@ -208,7 +199,6 @@ let ww_main
   try
     let start_date, end_date = get_start_and_end_dates months_around in
     let people, projects, assignments = Schedule.get_the_schedule ~start_date ~end_date in
-    let github_project_numbers = Domain.IntMap.bindings projects |> List.map fst in
     print_endline "Whatwhat downloaded:";
     Printf.printf "%d people; " (List.length people);
     Printf.printf "%d projects; and " (Domain.IntMap.cardinal projects);
@@ -217,7 +207,6 @@ let ww_main
     let restrict_issues =
       match project_subset with
       | AllProjects -> None
-      | SelectedColumnsOnly -> Some github_project_numbers
       | Specific ps -> Some ps
     in
 
@@ -275,8 +264,6 @@ let quiet_arg =
   Arg.(value & flag & info [ "q"; "quiet" ] ~doc:"Turn off all notifications.")
 ;;
 
-let version_arg = Arg.(value & flag & info [ "version" ] ~doc:"Display version number.")
-
 let verbose_arg =
   Term.app
     (Term.const List.length)
@@ -331,7 +318,6 @@ let projects_arg =
   let parser s =
     match String.lowercase_ascii s with
     | "all" -> Ok AllProjects
-    | "github" -> Ok SelectedColumnsOnly
     | s ->
       let reg = Tyre.(compile (int <&> rep (char ',' *> int))) in
       (match Tyre.exec reg s with
@@ -340,32 +326,34 @@ let projects_arg =
   in
   let show_selected_project_arg = function
     | AllProjects -> "all"
-    | SelectedColumnsOnly -> "github"
     | Specific issues -> String.concat "," (List.map string_of_int issues)
   in
   let printer f i = Format.pp_print_string f (show_selected_project_arg i) in
   Arg.(
     value
-    & opt (conv (parser, printer)) SelectedColumnsOnly
+    & opt (conv (parser, printer)) AllProjects
     & info
         [ "projects" ]
         ~doc:
           "Decide which projects to display errors for in the output, and notify for (if \
            requested). Permitted values are: $(b,all) (runs over all projects in \
-           Forecast), $(b,github) (default; runs over all issues in the specified GitHub \
-           columns), or a comma-separated list of issue numbers."
+           Forecast with assignments within the given time period), or a\n\
+          \           comma-separated list of issue numbers."
         ~docv:"PROJECTS")
 ;;
 
 let months_lookahead_behind_arg : int Term.t =
-  let doc = "Number of months to look ahead and behind when fetching the schedule." in
+  let doc =
+    "Number of months to look ahead and behind when fetching the schedule. Only projects \
+     with assignments within this time period will be shown. Increase this if you are \
+     particularly interested in projects from a long time ago."
+  in
   Arg.(value & opt int 6 & info [ "m"; "months" ] ~docv:"MONTHS" ~doc)
 ;;
 
 let ww_main_term : unit Term.t =
   Term.(
     const ww_main
-    $ version_arg
     $ notify_arg
     $ no_color_arg
     $ quiet_arg
@@ -582,7 +570,13 @@ let ww_init_cmd : unit Cmd.t =
 let cmd : unit Cmd.t =
   Cmd.group
     ~default:ww_main_term
-    (Cmd.info "whatwhat" ~doc:"Report current project status")
+    (Cmd.info
+       "whatwhat"
+       ~doc:"inform about REG projects and people"
+       ~version:
+         (match Build_info.V1.version () with
+          | None -> "unknown version"
+          | Some v -> "whatwhat " ^ Build_info.V1.Version.to_string v))
     [ ww_export_project_cmd
     ; ww_export_team_cmd
     ; ww_open_cmd
