@@ -114,6 +114,9 @@ val get_turing_weeks_in_month : [> `Year | `Month ] Date.date -> Date.t list
     week in question. *)
 val get_weekdays_in_week : Date.t -> Date.t list
 
+(** Get a list of the weekdays in a month. *)
+val get_weekdays_in_month : [> `Year | `Month ] Date.date -> Date.t list
+
 (** Maps ints from 1-12 to month names Jan-Dec. *)
 val show_month : int -> string
 

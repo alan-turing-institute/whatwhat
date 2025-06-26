@@ -20,6 +20,9 @@ module FTE : sig
       *)
   type hour
 
+  (** Print an [FTE.hour]. *)
+  val show_hour : hour -> string
+
   (** Unsurprisingly, [FTE.hour] is really just an [Hour of float] wrapper;
       however, we don't export the [Hour] constructor in order to restrict the
       creation of [FTE.hour] values. The only way to create a new value with

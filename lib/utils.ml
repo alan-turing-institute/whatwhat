@@ -256,6 +256,20 @@ let get_weekdays_in_week (d : Date.t) : Date.t list =
   List.init 5 (fun i -> Date.add monday (Date.Period.day i))
 ;;
 
+let get_weekdays_in_month (month : [> `Year | `Month ] Date.date) : Date.t list =
+  let number_of_days = Date.days_in_month month in
+  let all_days =
+    List.init number_of_days (fun i ->
+      let d =
+        Date.make (Date.year month) (Date.month month |> Date.int_of_month) (i + 1)
+      in
+      if Date.day_of_week d = Date.Mon || Date.day_of_week d = Date.Fri
+      then Some d
+      else None)
+  in
+  List.filter_map Fun.id all_days
+;;
+
 let show_month = function
   | 1 -> "Jan"
   | 2 -> "Feb"

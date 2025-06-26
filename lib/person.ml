@@ -39,6 +39,53 @@ let calculate_allocation_percentage
   FTE.div fte_weeks expected_fte_weeks
 ;;
 
+module TimesheetProject = struct
+  type t =
+    { code : string
+    ; fte_hour : FTE.hour
+    ; project_name : string
+    }
+
+  let compare t1 t2 =
+    match compare t1.fte_hour t2.fte_hour with
+    | 0 -> String.compare t1.code t2.code
+    | c -> c
+  ;;
+end
+
+let get_timesheets (asns : assignment list) (month : [> `Year | `Month ] CL.Date.date) =
+  let weekdays = Utils.get_weekdays_in_month month in
+  let find_relevant_allocations d =
+    List.filter_map
+      (fun asn ->
+        match DateMap.find_opt d asn.allocation with
+        | None -> None
+        | Some fte_hour ->
+          Some
+            { TimesheetProject.code =
+                (match asn.project.erpx_finance_code with
+                 | None -> "unknown"
+                 | Some code -> code)
+            ; TimesheetProject.fte_hour
+            ; TimesheetProject.project_name = asn.project.name
+            })
+      asns
+    |> List.sort TimesheetProject.compare
+  in
+  weekdays
+  |> List.map (fun day -> day, find_relevant_allocations day)
+  |> List.to_seq
+  |> Seq.group (fun t1 t2 -> snd t1 = snd t2)
+  |> Seq.map (fun group ->
+    let lst = List.of_seq group in
+    let allocations = snd (List.hd lst) in
+    let dates = List.map fst lst in
+    let first_day = List.hd dates in
+    let last_day = List.hd (List.rev dates) in
+    first_day, last_day, allocations)
+  |> List.of_seq
+;;
+
 let print_info ~(use_color : bool) (psn : person) =
   let s =
     String.concat
@@ -138,15 +185,68 @@ let print_reactions ~(use_color : bool) (psn : person) (prjs : project Domain.In
       |> List.stable_sort (fun (_, e1) (_, e2) -> compare e1 e2)
       |> List.filter (fun (_, e) -> e <> Other)
       |> List.map (fun (p, e) ->
-           let open Utils in
-           match e with
-           | Laugh -> [ string_of_int p.number; elide p.name; "x"; ""; "" ]
-           | ThumbsUp -> [ string_of_int p.number; elide p.name; ""; "x"; "" ]
-           | ThumbsDown -> [ string_of_int p.number; elide p.name; ""; ""; "x" ]
-           | Other -> [ string_of_int p.number; elide p.name; ""; ""; "" ])
+        let open Utils in
+        match e with
+        | Laugh -> [ string_of_int p.number; elide p.name; "x"; ""; "" ]
+        | ThumbsUp -> [ string_of_int p.number; elide p.name; ""; "x"; "" ]
+        | ThumbsDown -> [ string_of_int p.number; elide p.name; ""; ""; "x" ]
+        | Other -> [ string_of_int p.number; elide p.name; ""; ""; "" ])
     in
     print_heading ~use_color "Reactions";
     print_endline (make_table ~header_rows:1 ~column_padding:1 (header :: table_rows))
+;;
+
+let print_timesheets
+  ~(use_color : bool)
+  (timesheets : (CL.Date.t * CL.Date.t * TimesheetProject.t list) list)
+  : unit
+  =
+  if List.length timesheets = 0
+  then print_endline "No timesheets found for this month."
+  else
+    let open TimesheetProject in
+    let first_date = List.hd timesheets |> fun (first_day, _, _) -> first_day in
+    let year = CL.Date.year first_date in
+    let month = CL.Date.month first_date |> CL.Date.int_of_month in
+    print_heading ~use_color
+    @@ "Timesheets for "
+    ^ Utils.show_month month
+    ^ " "
+    ^ string_of_int year;
+    (* To be useful, we try to print the timesheets in the format that it
+       is entered on ERPx. *)
+    let all_project_names_and_codes =
+      List.flatten
+        (List.map
+           (fun (_, _, ts) -> List.map (fun ts -> ts.project_name, ts.code) ts)
+           timesheets)
+    in
+    let header_row =
+      "Forecast Project name"
+      :: "Work order"
+      :: List.map
+           (fun (first, last, _) ->
+             string_of_int (CL.Date.day_of_month first)
+             ^ " to "
+             ^ string_of_int (CL.Date.day_of_month last))
+           timesheets
+    in
+    let project_rows =
+      List.map
+        (fun (name, code) ->
+          Utils.elide ~max_length:40 name
+          :: code
+          :: List.map
+               (fun (_, _, ts) ->
+                 match List.filter (fun t -> t.project_name = name) ts with
+                 | [] -> "-"
+                 | [ x ] -> FTE.show_hour x.fte_hour
+                 | _ ->
+                   failwith "Multiple timesheet entries for the same project in one day")
+               timesheets)
+        all_project_names_and_codes
+    in
+    print_endline (make_table ~header_rows:1 (header_row :: project_rows))
 ;;
 
 let print
@@ -159,9 +259,9 @@ let print
   let this_asns =
     asns
     |> List.filter (fun a ->
-         a.entity = Person psn
-         && get_last_day a.allocation
-            >= CL.Date.add (CL.Date.today ()) (CL.Date.Period.month (-2)))
+      a.entity = Person psn
+      && get_last_day a.allocation
+         >= CL.Date.add (CL.Date.today ()) (CL.Date.Period.month (-2)))
     |> List.sort Assignment.compare_by_date
   in
   let this_github_prjs =
@@ -170,12 +270,21 @@ let print
     |> IntMap.bindings
     |> List.map snd
   in
+  let timesheets =
+    get_timesheets
+      this_asns
+      (CL.Date.make_year_month
+         (CL.Date.year (CL.Date.today ()))
+         (CL.Date.int_of_month (CL.Date.month (CL.Date.today ()))))
+  in
   print_info ~use_color psn;
   print_endline "";
   print_endline "";
   print_github_assignments ~use_color this_github_prjs;
   print_endline "";
   print_assignments ~use_color this_asns;
+  print_endline "";
+  print_timesheets ~use_color timesheets;
   print_endline "";
   print_capacity ~use_color this_asns;
   print_endline "";
@@ -247,9 +356,9 @@ let make_slack_output
   let this_asns =
     asns
     |> List.filter (fun a ->
-         a.entity = Person psn
-         && get_last_day a.allocation
-            >= CL.Date.add (CL.Date.today ()) (CL.Date.Period.month (-2)))
+      a.entity = Person psn
+      && get_last_day a.allocation
+         >= CL.Date.add (CL.Date.today ()) (CL.Date.Period.month (-2)))
     |> List.sort Assignment.compare_by_date
   in
   let this_github_prjs =
