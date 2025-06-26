@@ -55,13 +55,18 @@ Each line in this file should look like:
 
 Once you have added the two tokens, you should be able to run `whatwhat` from the command line.
 
-For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help` for the subcommands.
+The main commands you are likely to use are shown here.
+For extensive usage options, you can run `whatwhat --help`, or `whatwhat <subcommand> --help`.
 
- - `whatwhat`: Fetch all projects and detect inconsistencies and errors.
- - `whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
- - `whatwhat person [NAME]`: Print an overview of a person, as specified by their name, Turing email username, or GitHub username (a substring is fine).
- - `whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
- - `whatwhat open [NUM]`: Open a GitHub issue in a browser (macOS only, as this uses `open(1)`).
+| Command | Description |
+| ------  | ----------- |
+| `whatwhat` | Fetch all projects, detecting inconsistencies and errors |
+| `whatwhat project [NUM|NAME]` | Print information about a project, as specified by its GitHub issue number, or (a substring of) its title |
+| `whatwhat person [NAME]` | Print information about a person, as specified by their name, Turing email username, or GitHub username (a substring is fine) |
+| `whatwhat overview` | Print a TL;DR of what's happening in REG |
+| `whatwhat export-project` | Create a Forecast project export CSV file (useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354)) |
+| `whatwhat export-team` | Create a Forecast team export CSV file |
+| `whatwhat open [NUM]` | Open a GitHub issue in a browser (macOS only, as this uses `open(1)`) |
 
 ## A historical note
 
