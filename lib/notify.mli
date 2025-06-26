@@ -5,9 +5,7 @@
     up notifications because sometimes we may be unsure where to send a
     notification until we have both GitHub and Forecast data.
 
-    {{!page-reporting}An explanations of what gets reported is here} 
-    
- *)
+    {{!page-reporting} An explanations of what gets reported is here} *)
 
 module IntMap : module type of Map.Make (Int)
 

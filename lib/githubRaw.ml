@@ -154,8 +154,9 @@ let get_person_async username =
 ;;
 
 let all_users =
-  lazy (let* usernames = get_assignable_usernames_async () in
-        List.map get_person_async usernames |> Utils.all_throttled)
+  lazy
+    (let* usernames = get_assignable_usernames_async () in
+     List.map get_person_async usernames |> Utils.all_throttled)
 ;;
 
 let find_person_by_login login =

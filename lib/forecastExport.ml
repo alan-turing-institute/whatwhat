@@ -124,7 +124,7 @@ let export_project_schedule ~start_date ~end_date =
   let data =
     assignments
     |> List.filter (fun a ->
-         (not a.project.archived) && not (ForecastRaw.get_entity_archived a.entity))
+      (not a.project.archived) && not (ForecastRaw.get_entity_archived a.entity))
     |> List.sort compare_assignments
     |> Utils.group_by (fun a1 a2 -> compare_assignments a1 a2 = 0)
     |> List.map (make_assignment_output weeks)

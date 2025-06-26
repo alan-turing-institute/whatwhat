@@ -49,7 +49,7 @@ type person =
   ; roles : string list
   ; archived : bool
   ; weekly_capacity : float
-      (** Seconds per week. This is not used except in Forecast team export. *)
+  (** Seconds per week. This is not used except in Forecast team export. *)
   }
 
 val show_person : person -> string
@@ -116,7 +116,7 @@ type assignment =
 val show_assignment : assignment -> string
 
 (** {1 Get the schedule}
-    
+
     The main function of this module. *)
 
 (** Retrieves all assignments from Forecast between the two given dates, as
@@ -131,7 +131,7 @@ val get_the_schedule_async
      * placeholder IntMap.t
      * project IntMap.t
      * assignment list)
-     Lwt.t
+       Lwt.t
 
 val get_the_schedule
   :  start_date:CalendarLib.Date.t

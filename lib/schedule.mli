@@ -3,8 +3,7 @@
     assignments, and allocations.
 
     Forecast is authoritative for persons and assignments; GitHub is
-    authoritative for projects.
- *)
+    authoritative for projects. *)
 
 open Domain
 

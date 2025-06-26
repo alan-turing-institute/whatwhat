@@ -6,8 +6,7 @@ module StringMap : module type of Map.Make (String)
 (** The types in this module represent all the useful information we can
     obtain from Forecast (after validation). They are not the same as the types
     in the Domain module: those represent all possible information on a person /
-    project / etc. after merging data from GitHub and Forecast.
-    *)
+    project / etc. after merging data from GitHub and Forecast. *)
 type person =
   { full_name : string
   ; email : string
@@ -27,8 +26,7 @@ type entity =
 val get_entity_name : entity -> string
 
 (** This type contains all the useful information about a project which can be
-    extracted from Forecast.
-    *)
+    extracted from Forecast. *)
 type project =
   { number : int (** The issue number on GitHub. *)
   ; name : string

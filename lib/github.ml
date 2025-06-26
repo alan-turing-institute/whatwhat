@@ -336,8 +336,7 @@ let find_programme (issue : Raw.issue) =
 ;;
 
 let make_issue (issue : Raw.issue) : issue =
-  let plan = parse_metadata issue
-  in
+  let plan = parse_metadata issue in
   { number = issue.number
   ; name = issue.title
   ; programme = find_programme issue

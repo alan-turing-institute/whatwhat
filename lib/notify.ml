@@ -44,10 +44,7 @@ let make_github_message events =
     ];
   events
   |> List.map (fun (e : Log.event) ->
-       Printf.sprintf
-         " - **%s**: %s\n"
-         (Log.show_level e.level)
-         (Utils.gfm_escape e.message))
+    Printf.sprintf " - **%s**: %s\n" (Log.show_level e.level) (Utils.gfm_escape e.message))
   |> List.iter (Buffer.add_string buf);
 
   List.iter

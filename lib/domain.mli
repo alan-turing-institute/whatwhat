@@ -4,9 +4,7 @@
     of how GitHub and Forecast (or other systems) store the information.
 
     It also defines a set of utilities for working with some of those types
-    (primarily the ones involving periods of time).
-
- *)
+    (primarily the ones involving periods of time). *)
 
 module IntMap : module type of Map.Make (Int)
 module StringMap : module type of Map.Make (String)
@@ -16,8 +14,7 @@ module DateMap : module type of Map.Make (CalendarLib.Date)
 
 module FTE : sig
   (** An [FTE.hour] is a number, representing the number of hours a person works
-      on a given project on a day. 1 FTE is 8 hours per day.
-      *)
+      on a given project on a day. 1 FTE is 8 hours per day. *)
   type hour
 
   (** Print an [FTE.hour]. *)
@@ -81,19 +78,18 @@ end
     try to ensure that allocations are aligned to weeks (starting on Monday and
     ending on Sunday) and, if possible, to months (starting on the Monday of the
     first week in a month).
-     
+
     In order to assign weeks to months we use the following rule: A week belongs
     to a month if, and only if, the Thursday of the week falls in the month. (We
     use this rule to be consistent with the ISO 8601 rule for when a week
     belongs to a year.)
-    
+
     The total resource available for a project tends to be specified in months
     of FTE. However, we occasionally need to assign people at fractions of the
     nominal maximum rate, or add non--month-aligned dates. In these cases it may
     be necessary to convert to a finer granularity of time, such as weeks of
     FTE. To make this conversion we use a ratio of 12 months to 52 weeks, no
-    matter which months were originally scheduled.
- *)
+    matter which months were originally scheduled. *)
 
 (** An [allocation] is conceptually a map from days to rates, representing the
     total time that a person is allocated to a project on a given day. *)
@@ -143,9 +139,9 @@ type project_plan =
   ; finance_codes : string list
   ; latest_start_date : CalendarLib.Date.t
   ; earliest_start_date : CalendarLib.Date.t option
-      (** [earliest_start_date = None] means "can start as soon as you like" *)
+  (** [earliest_start_date = None] means "can start as soon as you like" *)
   ; latest_end_date : CalendarLib.Date.t option
-      (** [latest_end_date = None] means "can end whenever you like" *)
+  (** [latest_end_date = None] means "can end whenever you like" *)
   ; nominal_fte_percent : float
   ; max_fte_percent : float
   ; min_fte_percent : float

@@ -12,26 +12,24 @@
     We use the body of the issue to hold project-level metadata encoded as a
     YAML block (described below). The additional comments are not returned by
     this module.
-    
+
     {2 Validation and reporting}
 
     Errors are logged to the console when metadata is malformed, and the issue
     is dropped from the list of all issues.
 
     Errors currently occur when:
-      - Metadata does not have 8 keys.
-      - Cannot break a metadata line into a (key,value) pair, which means it is
-        incorrect yaml.
-      - A crucial key cannot be parsed (missing, or there is an error when dealing
-        with the value). Currently all keys are marked as non-crucial, but this may
-        change in the future.
+    - Metadata does not have 8 keys.
+    - Cannot break a metadata line into a (key,value) pair, which means it is
+      incorrect yaml.
+    - A crucial key cannot be parsed (missing, or there is an error when dealing
+      with the value). Currently all keys are marked as non-crucial, but this may
+      change in the future.
 
     Warnings are given for other inconsisties (e.g. no one is
     assigned). Warnings are given due to:
-      - There being additional information in the value entry.
-      - A non-crucial entry is missing or null.
-
- *)
+    - There being additional information in the value entry.
+    - A non-crucial entry is missing or null. *)
 
 module Raw = GithubRaw
 

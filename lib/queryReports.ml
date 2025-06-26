@@ -30,8 +30,8 @@ let test_issue_title (issue_title : string) (i : Raw.issue_r) =
 ;;
 
 (* For each element in all_names, get the name *)
-(* 
-  TODO: have a look-up for these names 
+(*
+   TODO: have a look-up for these names
 *)
 let get_name (single_person : Raw.person) =
   if single_person.name <> None
@@ -177,7 +177,7 @@ let person_summary (name : string) =
   let persons_reactions =
     issues_subset |> List.map (fun x -> get_person_reaction x name) |> List.flatten
   in
-  (* This line repeats the project name to create long format tables in cases 
+  (* This line repeats the project name to create long format tables in cases
      where someone reacts multiple times on the same issue *)
   let project_names =
     List.map2

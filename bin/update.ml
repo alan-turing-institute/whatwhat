@@ -72,7 +72,9 @@ module ExitError = struct
 
   let homebrew_bottle_failed = 13, "Failed to create Homebrew bottle"
 
-  let bottle_cleanup_failed = 14, "Failed to remove Homebrew bottles from working directory"
+  let bottle_cleanup_failed =
+    14, "Failed to remove Homebrew bottles from working directory"
+  ;;
 
   let exit (code, msg) =
     prerr ~use_color:true [ Bold; Foreground Red ] "Error: ";
@@ -198,7 +200,8 @@ let get_new_version current_version =
           ; _commit = None
           ; dirty = false
           }
-      ; description = Printf.sprintf "New major version: v%d.0.0" (current_version.major + 1)
+      ; description =
+          Printf.sprintf "New major version: v%d.0.0" (current_version.major + 1)
       }
     ]
   in
@@ -674,8 +677,8 @@ let main branch_name remote_name ignore_dirty =
   update_homebrew_hut23_formula_bottle new_version bottle_do_block;
 
   prout ~use_color:true [ Foreground Green; Bold ] "✨✨✨ Success! ✨✨✨\n";
-  prout ~use_color:true [ ] "You can check that everything worked by running: \n";
-  prout ~use_color:true [ ] "    brew update && brew reinstall whatwhat\n"
+  prout ~use_color:true [] "You can check that everything worked by running: \n";
+  prout ~use_color:true [] "    brew update && brew reinstall whatwhat\n"
 ;;
 
 let main_cmd =

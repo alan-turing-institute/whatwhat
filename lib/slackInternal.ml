@@ -21,7 +21,7 @@ let check_response (response, body) =
   | Some true ->
     (match warning_opt with
      (* TODO We could try to use the Log module here to raise this Warning, but that runs
-       the risk of an infinite loop. *)
+        the risk of an infinite loop. *)
      | Some x -> print_endline ("Slack response warning: " ^ x)
      | None -> () (* Got ok: true and no warning, nothing to report. *))
   | _ ->
@@ -62,8 +62,7 @@ type slack_event =
 
 (** --- CONNECTION SETUP ------------------------
     In this library, we use the WebSocket protocol to connect to Slack using
-    'socket mode'. This requires an app-level token (see the Config module).
-    *)
+    'socket mode'. This requires an app-level token (see the Config module). *)
 
 (** Obtain the web socket URL from Slack, using an app-level token. This URL
     will be the one used for communication. *)
@@ -82,7 +81,7 @@ let get_websocket_url (app_token : string) : Uri.t Lwt.t =
     (match List.assoc_opt "url" ps with
      | Some (`String url) ->
        (* wss doesn't exist in Unix /etc/services, so we need to replace it
-           with https, see https://github.com/mirage/ocaml-conduit/issues/79 *)
+          with https, see https://github.com/mirage/ocaml-conduit/issues/79 *)
        Lwt.return
          (Uri.of_string (Str.replace_first (Str.regexp_string "wss") "https" url))
      | _ -> Lwt.fail (Failure "url was not found"))
@@ -106,7 +105,7 @@ let connect_websocket (uri : Uri.t) : Websocket_lwt_unix.conn Lwt.t =
     actual contents that we are interested in.
 
     In OCaml, a frame is defined by the Websocket.Frame.t type:
-      https://ocaml.org/p/websocket/2.2/doc/Websocket_lwt/Frame/index.html
+    https://ocaml.org/p/websocket/2.2/doc/Websocket_lwt/Frame/index.html
 
     The functions in this section parse raw frames into known Slack events, so
     that they can subsequently be handled. *)
@@ -230,8 +229,7 @@ let print_frame_json (frame : Websocket.Frame.t) : unit Lwt.t =
     For example, this could be posting a message to the channel, or reacting to
     a message. *)
 
-(** Send a pong back to the server. This should be done in response to a ping.
-    *)
+(** Send a pong back to the server. This should be done in response to a ping. *)
 let pong (conn : Websocket_lwt_unix.conn) : unit Lwt.t =
   let frame = Websocket.Frame.create ~opcode:Websocket.Frame.Opcode.Pong () in
   Websocket_lwt_unix.write conn frame
@@ -277,7 +275,7 @@ let post_message (bot_token : string) (channel : string) (message : string) : un
 ;;
 
 (** Add a reaction to a message.
- 
+
     The reaction is specified as a string, without the surrounding colons. For
     example, if you want to react with :eyes:, pass "eyes" as this argument. *)
 let add_reaction (bot_token : string) (message : message) (reaction : string) : unit Lwt.t
@@ -318,8 +316,7 @@ let get_current_user (bot_token : string) : string Lwt.t =
 ;;
 
 (** Get the username of a person with a given user_id. Not all user IDs
-    correspond to real people (for example, bots don't), so those return None.
-    *)
+    correspond to real people (for example, bots don't), so those return None. *)
 let get_username (bot_token : string) (user_id : string) : string option Lwt.t =
   let userUri =
     "https://slack.com/api/users.profile.get"

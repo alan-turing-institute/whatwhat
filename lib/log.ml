@@ -1,6 +1,5 @@
-(** Utilities for logging issues during the course of ingesting the data for 
-    later summary and notification 
- *)
+(** Utilities for logging issues during the course of ingesting the data for
+    later summary and notification *)
 
 (* We need [Error'] here instead of just [Error], because of an unfortunate bug
    in ppx_deriving: https://github.com/ocaml-ppx/ppx_deriving/issues/254 *)
@@ -82,7 +81,7 @@ let extract_issue_number event =
 ;;
 
 (* Show the source of an event, which is often an issue, but some other string
-when we can't get an issue. *)
+   when we can't get an issue. *)
 let extract_source event =
   match event.entity with
   | RawForecastProject (Right n) -> Printf.sprintf "Issue %-5d" n

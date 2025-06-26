@@ -4,5 +4,5 @@
  (names main update)
  (modules Main Update)
  (libraries whatwhat dune-build-info cmdliner base64)
- (preprocess (pps ppx_deriving.show))
- )
+ (preprocess
+  (pps ppx_deriving.show)))

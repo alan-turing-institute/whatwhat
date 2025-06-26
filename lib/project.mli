@@ -6,8 +6,7 @@
     - Metadata from the GitHub issue
     - A comparison between the budgeted FTEs and currently assigned FTEs on
       Forecast
-    - Emoji reactions on the GitHub issue
-    *)
+    - Emoji reactions on the GitHub issue *)
 val print
   :  use_color:bool
   -> Domain.project
@@ -19,8 +18,7 @@ val print
     details are shown:
 
     - The project name, issue number, and GitHub link
-    - People working on them any time in the past or next 1 month
-    *)
+    - People working on them any time in the past or next 1 month *)
 val print_current_people
   :  use_color:bool
   -> Domain.project

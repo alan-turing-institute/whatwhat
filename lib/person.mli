@@ -4,8 +4,7 @@
 
     - Their full name, email, and GitHub username
     - Current assignments
-    - Emoji reactions on all GitHub issues
-    *)
+    - Emoji reactions on all GitHub issues *)
 val print
   :  use_color:bool
   -> Domain.person
