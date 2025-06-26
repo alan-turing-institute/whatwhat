@@ -25,7 +25,7 @@ In `~/.config/whatwhat/secrets.json`, you should see the following JSON template
     "githubToken"    : "<yours here>",
     "forecastToken"  : "<yours here>",
 
-    # other stuff can be ignored
+    // other stuff can be ignored
 }
 ```
 
