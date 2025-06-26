@@ -136,37 +136,43 @@ let find_setting json_parser key file_json_opt =
   | None, None -> None
 ;;
 
-let attempt_file (path : string) (message : string) (update_message : bool) =
-  (* get the directory name *)
+let create_file
+  ?(force : bool = false)
+  (path : string)
+  (message : string)
+  (is_secrets_file : bool)
+  =
+  (* Create the parent directory if needed *)
   let dir =
     String.split_on_char '/' path |> List.rev |> List.tl |> List.rev |> String.concat "/"
   in
-  (* strip all before characters before last/ from string *)
-  let file_type = String.split_on_char '/' path |> List.rev |> List.hd in
+  let _ = Unix.system ("mkdir -p " ^ dir) in
 
-  try
-    (* File exists *)
-    let _ = open_in path in
-    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "Information: ";
-    Printf.printf
-      "The %s file exists. If you want to make any changes, please update the file \
-       yourself in %s.\n"
-      file_type
-      path
-  with
-  | Sys_error _ ->
-    (* File doesn't exist. Create directory first *)
-    let _ = Unix.system ("mkdir -p " ^ dir) in
-    (* Populate file with message *)
+  if (not (Sys.file_exists path)) || force
+  then (
+    (* File does not exist, or force is true, so create it *)
     let oc = open_out path in
     Printf.fprintf oc "%s" message;
     close_out oc;
     (* Notify *)
-    Printf.printf "I have written a %s file to %s.\n" file_type path;
-    if update_message
+    Printf.printf
+      "Created %s file at %s.\n"
+      (if is_secrets_file then "secrets" else "config")
+      path;
+    if is_secrets_file
     then
-      print_endline
-        "Make sure you update the tokens there following the instructions in the comments.\n"
+      Pretty.prout
+        ~use_color:true
+        [ Bold ]
+        "You will now need to update the tokens in that file, following the instructions \
+         in the comments.\n\n")
+  else (
+    Pretty.prout ~use_color:true [ Bold; Foreground Yellow ] "[WARNING] ";
+    Printf.printf
+      "The file '%s' already exists. Please update it yourself, or run `whatwhat init \
+       -f` to overwrite it with the default contents (note that this will delete any \
+       tokens or settings).\n"
+      path)
 ;;
 
 let default_config_contents : string =
@@ -223,76 +229,55 @@ let default_secrets_contents : string =
 ;;
 
 let load_settings () : t =
-  try
-    let secrets_required_setup, secrets_json_opt =
-      try false, Some (Yojson.Basic.from_file secrets_path) with
-      | Sys_error _ ->
-        (* Ask user if its ok to set up new file *)
-        Pretty.prout ~use_color:true [ Bold; Foreground Green ] "Attention!: ";
-        print_string
-          ("The file "
-           ^ secrets_path
-           ^ " was not found.\n\
-              Are you happy for me to set up a secrets template for you? (yes/no): ");
-        let answer = read_line () in
+  (* Arbitrarily chosen *)
+  let no_secrets_exit_code = 155 in
+  let no_config_exit_code = 156 in
 
-        (* If answer starts with Y or y *)
-        if String.lowercase_ascii (String.sub answer 0 1) = "y"
-        then (
-          (* run attempt_file on the secrets_path *)
-          let _ = attempt_file secrets_path default_secrets_contents true in
+  let secrets_json_opt =
+    try Some (Yojson.Basic.from_file secrets_path) with
+    | Sys_error _ ->
+      (* Ask user if its ok to set up new file *)
+      Pretty.prout ~use_color:true [ Bold; Foreground Red ] "[ERROR] ";
+      print_string
+        ("The file "
+         ^ secrets_path
+         ^ " was not found.\n\
+           \ Run `whatwhat init` to set up your whatwhat configuration.\n");
+      exit no_secrets_exit_code
+  in
 
-          true, Some (Yojson.Basic.from_file secrets_path) (* If no, exit *))
-        else (
-          Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...\n";
-          exit 0)
-    in
-    let _config_required_setup, config_json_opt =
-      try false, Some (Yojson.Basic.from_file config_path) with
-      | Sys_error _ ->
-        (* Ask user if its ok to set up new file *)
-        print_string
-          ("The file "
-           ^ config_path
-           ^ " was not found.\n\
-              Are you happy for me to set up a config template for you? (yes/no): ");
-        let answer = read_line () in
-        (* If answer starts with Y or y *)
-        if String.lowercase_ascii (String.sub answer 0 1) = "y"
-        then (
-          (* run attempt_file on the config_path *)
-          let _ = attempt_file config_path default_config_contents false in
-          true, Some (Yojson.Basic.from_file config_path) (*  If no, exit *))
-        else (
-          Pretty.prout ~use_color:true [ Bold; Foreground Red ] "Exiting...\n";
-          exit 0)
-    in
-    (* Don't continue if the secrets file was found to be missing, it'll just
-       give an error anyway, because the tokens are not present. *)
-    if secrets_required_setup then exit 0;
-    (* Otherwise parse them and continue *)
-    { github_project_name =
-        find_setting string_opt_of_json "githubProjectName" config_json_opt
-    ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
-    ; github_repo_owner =
-        find_setting string_opt_of_json "githubRepoOwner" config_json_opt
-    ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
-    ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
-    ; github_project_columns =
-        find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
-    ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
-    ; forecast_token = find_setting string_opt_of_json "forecastToken" secrets_json_opt
-    ; slack_bot_token = find_setting string_opt_of_json "slackBotToken" secrets_json_opt
-    ; slack_app_token = find_setting string_opt_of_json "slackAppToken" secrets_json_opt
-    }
-  with
-  | _ -> exit 0
+  let config_json_opt =
+    try Some (Yojson.Basic.from_file config_path) with
+    | Sys_error _ ->
+      (* Ask user if its ok to set up new file *)
+      Pretty.prout ~use_color:true [ Bold; Foreground Red ] "[ERROR] ";
+      print_string
+        ("The file "
+         ^ config_path
+         ^ " was not found.\n\
+           \ Run `whatwhat init` to set up your whatwhat configuration.\n");
+      exit no_config_exit_code
+  in
+
+  { github_project_name =
+      find_setting string_opt_of_json "githubProjectName" config_json_opt
+  ; github_repo_name = find_setting string_opt_of_json "githubRepoName" config_json_opt
+  ; github_repo_owner = find_setting string_opt_of_json "githubRepoOwner" config_json_opt
+  ; github_token = find_setting string_opt_of_json "githubToken" secrets_json_opt
+  ; githubbot_token = find_setting string_opt_of_json "githubBotToken" secrets_json_opt
+  ; github_project_columns =
+      find_setting string_list_opt_of_json "githubProjectColumns" config_json_opt
+  ; forecast_id = find_setting string_opt_of_json "forecastId" config_json_opt
+  ; forecast_token = find_setting string_opt_of_json "forecastToken" secrets_json_opt
+  ; slack_bot_token = find_setting string_opt_of_json "slackBotToken" secrets_json_opt
+  ; slack_app_token = find_setting string_opt_of_json "slackAppToken" secrets_json_opt
+  }
 ;;
 
-let settings = load_settings ()
+let settings = lazy (load_settings ())
 
 let get_github_project_name () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.github_project_name with
   | Some value -> value
   | None ->
@@ -301,12 +286,12 @@ let get_github_project_name () =
 ;;
 
 let get_github_project_columns () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   settings.github_project_columns
 ;;
 
 let get_github_repo_name () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.github_repo_name with
   | Some value -> value
   | None ->
@@ -315,7 +300,7 @@ let get_github_repo_name () =
 ;;
 
 let get_github_repo_owner () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.github_repo_owner with
   | Some value -> value
   | None ->
@@ -324,7 +309,7 @@ let get_github_repo_owner () =
 ;;
 
 let get_github_token () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.github_token with
   | Some "" ->
     log_event (EmptySecret "githubToken");
@@ -336,7 +321,7 @@ let get_github_token () =
 ;;
 
 let get_githubbot_token () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.githubbot_token with
   | Some value -> value
   | None ->
@@ -345,7 +330,7 @@ let get_githubbot_token () =
 ;;
 
 let get_forecast_id () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.forecast_id with
   | Some value -> value
   | None ->
@@ -354,7 +339,7 @@ let get_forecast_id () =
 ;;
 
 let get_forecast_token () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.forecast_token with
   | Some "" ->
     log_event (EmptySecret "forecastToken");
@@ -366,7 +351,7 @@ let get_forecast_token () =
 ;;
 
 let get_slack_bot_token () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.slack_bot_token with
   | Some value -> value
   | None ->
@@ -375,7 +360,7 @@ let get_slack_bot_token () =
 ;;
 
 let get_slack_app_token () =
-  (* let* settings = load_settings () in *)
+  let settings = Lazy.force settings in
   match settings.slack_app_token with
   | Some value -> value
   | None ->

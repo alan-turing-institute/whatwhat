@@ -73,10 +73,10 @@ type person =
   ; email : string option
   }
 
-(** [get_all_users_async] is a promise which returns a list of all users who can
-    be assigned to issues in the repository, which essentially means anybody who
-    can view the repository. *)
-val get_all_users_async : person list Lwt.t
+(** [all_users] is a deferred computation which returns a list of all users who
+    can be assigned to issues in the repository, which essentially means anybody
+    who can view the repository. *)
+val all_users : person list Lazy.t
 
 (** {1 Issues}
 

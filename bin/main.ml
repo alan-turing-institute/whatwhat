@@ -519,8 +519,9 @@ let ww_overview_cmd : unit Cmd.t =
 (* - Use this for experimenting! - *)
 
 let ww_test () =
-  let _ = Github.get_issues_async [ 631] |> Lwt_main.run in
+  let _ = Github.get_issues_async [ 631 ] |> Lwt_main.run in
   print_endline "Testing."
+;;
 
 let ww_test_cmd : unit Cmd.t =
   Cmd.v
@@ -539,23 +540,27 @@ let ww_test_cmd : unit Cmd.t =
 (*----------------------------------*)
 (*------- whatwhat config --------- *)
 
-let ww_init () =
+let ww_init (force : bool) =
   let config_dir = XDGBaseDir.default.config_home ^ "/whatwhat/" in
 
-  (* First check for the secrets file*)
+  (* First check for the secrets file *)
   let secrets_path = config_dir ^ "secrets.json" in
-  let _ = Config.attempt_file secrets_path Config.default_secrets_contents false in
+  Config.create_file ~force secrets_path Config.default_secrets_contents true;
 
   (* Now check for the config file *)
   let config_path = config_dir ^ "config.json" in
-  let _ = Config.attempt_file config_path Config.default_config_contents false in
-  ()
+  Config.create_file ~force config_path Config.default_config_contents false
+;;
+
+let force_arg : bool Term.t =
+  let doc = "Force-overwrite existing config and secrets files" in
+  Arg.(value & flag & info [ "f"; "force" ] ~doc)
 ;;
 
 let ww_init_cmd : unit Cmd.t =
   Cmd.v
     (Cmd.info "init" ~doc:"Update your config files. ")
-    Term.(const ww_init $ const ())
+    Term.(const ww_init $ force_arg)
 ;;
 
 (* ------------------------------- *)

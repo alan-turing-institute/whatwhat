@@ -547,7 +547,7 @@ let get_the_schedule_async ~start_date ~end_date =
     |> List.to_seq
     |> IntMap.of_seq
   in
-  let* gh_people = Github.get_all_users_async in
+  let gh_people = Lazy.force Github.all_users in
   let people = merge_people fc_people gh_people fc_assignments in
   let projects = merge_projects fc_projects gh_issues_map people in
   let assignments = List.filter_map (merge_assignment people projects) fc_assignments in

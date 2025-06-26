@@ -14,7 +14,7 @@ type github_event =
   | NoFinanceCodesError of Raw.issue (* E2010 *)
 
 (** Re-exporting for convenience *)
-let get_all_users_async = Raw.get_all_users_async
+let all_users = Raw.all_users
 
 (** Log an error given the error type, Github issue number, and explanatory message.*)
 let log_event (gh_event : github_event) : unit =

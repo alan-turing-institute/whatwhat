@@ -72,8 +72,8 @@ val show_person : person -> string
 val compare_person : person -> person -> int
 
 (** This is re-exported from [GithubRaw] for convenience. See
-    {!GithubRaw.get_all_users_async}. *)
-val get_all_users_async : person list Lwt.t
+    {!GithubRaw.all_users}. *)
+val all_users : person list Lazy.t
 
 (** Fetch a list of issues from GitHub, given a list of issue numbers. *)
 val get_issues_async : int list -> issue list Lwt.t
