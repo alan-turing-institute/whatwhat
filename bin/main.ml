@@ -378,9 +378,19 @@ let ww_project project_name_or_number no_color months_around =
   match project_name_or_number with
   (* Searched for project number *)
   | Either.Left n ->
-    (match Domain.IntMap.find_opt n projects with
-     | Some prj -> Project.print ~use_color prj people assignments
-     | None -> Printf.printf "No project with number %d was found.\n" n)
+    (match
+       Domain.IntMap.filter (fun _ p -> p.Domain.number = n) projects
+       |> Domain.IntMap.bindings
+       |> List.map snd
+     with
+     | [ prj ] -> Project.print ~use_color prj people assignments
+     | [] -> Printf.printf "No project with number %d was found.\n" n
+     | prjs ->
+       Pretty.prout ~use_color [ Bold; Foreground Yellow ] "[WARNING] ";
+       Printf.printf
+         "Multiple Forecast projects were found with number %d; displaying only the first.\n"
+         n;
+       Project.print ~use_color (List.hd prjs) people assignments)
   (* Searched for project name *)
   | Either.Right s ->
     let matched_projects =

@@ -8,7 +8,9 @@ open Domain
 type schedule_event =
   | MissingGithubProjectError of Forecast.project (* E3001 *)
   | FinanceCodeNotMatchingError of Github.issue (* E3002 *)
-  | MissingForecastProjectWarning of Github.issue (* W3001 *)
+  (* MissingForecastProjectWarning cannot ever happen now because projects
+     are fetched from Forecast rather than from GitHub. *)
+  (* | MissingForecastProjectWarning of Github.issue (* W3001 *) *)
   | AllocationEndsTooLateWarning of assignment (* W3002 *)
   | AllocationStartsTooEarlyWarning of assignment (* W3003 *)
   | FTEDiscrepancyWarning of project (* W3004 *)
@@ -44,12 +46,12 @@ let log_event (error : schedule_event) =
       ; entity = Log.Project issue.number
       ; message = "Finance codes on Forecast and GitHub do not match."
       }
-  | MissingForecastProjectWarning issue ->
-    Log.log'
-      { level = Log.Warning 3001
-      ; entity = Log.Project issue.number
-      ; message = "No matching Forecast project found."
-      }
+  (* | MissingForecastProjectWarning issue -> *)
+  (*   Log.log' *)
+  (*     { level = Log.Warning 3001 *)
+  (*     ; entity = Log.Project issue.number *)
+  (*     ; message = "No matching Forecast project found." *)
+  (*     } *)
   | AllocationEndsTooLateWarning asn ->
     Log.log'
       { level = Log.Warning 3002
@@ -321,8 +323,6 @@ let merge_people
 (* ---------------------------------------------------------------------- *)
 (* MERGE PROJECTS FROM FORECAST AND GITHUB *)
 
-type project_pair = Pair of (Forecast.project option * Github.issue option)
-
 (* Convert a Forecast.project to a Domain.project without using any info from
    GitHub. *)
 let upconvert (prj : Forecast.project) : project =
@@ -344,29 +344,15 @@ let merge_projects
   (gh_issues : Github.issue IntMap.t)
   (people : person list)
   =
-  (* Pair the Forecast and GitHub projects *)
-  let pair_projects _ fc_opt gh_opt =
-    match fc_opt, gh_opt with
-    | None, None -> None
-    | x, y -> Some (Pair (x, y))
-  in
-  let combined_map = IntMap.merge pair_projects fc_projects gh_issues in
-
-  (* Iterate over the combined map, checking for inconsistencies, and merging
-     metadata when both are present. *)
-  let combine_projects _key (pair : project_pair) =
-    (* Check that they both exist *)
-    match pair with
-    | Pair (None, None) -> None
-    | Pair (Some fc_p, None) ->
+  let add_github_info (fc_p : Forecast.project) : Domain.project =
+    (* Try to find the matching GitHub issue *)
+    match IntMap.find_opt fc_p.number gh_issues with
+    | None ->
+      (* If there is no matching GitHub issue, we can still return the Forecast
+         project, but without any GitHub info. *)
       log_event (MissingGithubProjectError fc_p);
-      Some (upconvert fc_p)
-    | Pair (None, Some gh_p) ->
-      log_event (MissingForecastProjectWarning gh_p);
-      (* This shouldn't happen, because the list of projects is obtained
-         from Forecast to begin with. *)
-      None
-    | Pair (Some fc_p, Some gh_p) ->
+      upconvert fc_p
+    | Some gh_p ->
       (* Check that their client/programme match *)
       if Some fc_p.programme <> gh_p.programme
       then log_event (DifferentClientWarning (gh_p, fc_p.programme, gh_p.programme));
@@ -394,16 +380,15 @@ let merge_projects
           (fun p -> List.find_opt (fun psn -> psn.github_handle = Some p) people)
           gh_p.assignees
       in
-      Some
-        { number = gh_p.number
-        ; name = gh_p.name
-        ; programme
-        ; plan = gh_p.plan
-        ; assignees
-        ; erpx_finance_code = fc_p.erpx_finance_code
-        }
+      { number = gh_p.number
+      ; name = gh_p.name
+      ; programme
+      ; plan = gh_p.plan
+      ; assignees
+      ; erpx_finance_code = fc_p.erpx_finance_code
+      }
   in
-  IntMap.filter_map combine_projects combined_map
+  IntMap.map add_github_info fc_projects
 ;;
 
 (* ---------------------------------------------------------------------- *)
@@ -539,7 +524,9 @@ let get_the_schedule_async ~start_date ~end_date =
     Forecast.get_the_schedule_async ~start_date ~end_date
   in
   let fc_people = fc_people' |> Forecast.StringMap.bindings |> List.map snd in
-  let issue_numbers = fc_projects |> IntMap.bindings |> List.map fst in
+  let issue_numbers =
+    fc_projects |> IntMap.bindings |> List.map (fun (_, prj) -> prj.Forecast.number)
+  in
   let* gh_issues = Github.get_issues_async issue_numbers in
   let gh_issues_map =
     gh_issues

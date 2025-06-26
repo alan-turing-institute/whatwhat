@@ -160,12 +160,20 @@ let print_capacity ~(use_color : bool) (asns : assignment list) =
 ;;
 
 let print_reactions ~(use_color : bool) (psn : person) (prjs : project Domain.IntMap.t) =
-  let prj_numbers = Domain.IntMap.bindings prjs |> List.map fst in
+  (* the keys of prjs are Forecast IDs; we want to convert to GitHub issue
+     numbers for the purposes of this function *)
+  let prjs_indexed_by_github =
+    Domain.IntMap.fold
+      (fun _ prj acc -> Domain.IntMap.add prj.number prj acc)
+      prjs
+      Domain.IntMap.empty
+  in
+  let prj_numbers = Domain.IntMap.bindings prjs_indexed_by_github |> List.map fst in
   let reactions = GithubRaw.get_multiple_reactions prj_numbers in
   let parsed_reactions =
     Domain.IntMap.filter_map
       (fun number reactions ->
-        let prj = Domain.IntMap.find number prjs in
+        let prj = Domain.IntMap.find number prjs_indexed_by_github in
         match
           List.find_opt
             (fun (_, (person : GithubRaw.person)) ->
@@ -222,7 +230,7 @@ let print_timesheets
            timesheets)
     in
     let header_row =
-      "Forecast Project name"
+      "Forecast project name"
       :: "Work order"
       :: List.map
            (fun (first, last, _) ->

@@ -431,9 +431,8 @@ let make_people_map people_id =
   people_id |> IntMap.to_seq |> Seq.map (fun (_, p) -> p.email, p) |> StringMap.of_seq
 ;;
 
-(* Make map number => project, with the slight complication that there may be
-   two projects with the same issue number *)
-let make_project_map projects_id : project IntMap.t =
+(* Issue a warning if any two projects on Forecast have the same issue number *)
+let warn_duplicate_projects projects_id : unit =
   let add_project m (_, (p : project)) =
     match IntMap.find_opt p.number m with
     | None -> IntMap.add p.number p m
@@ -442,7 +441,7 @@ let make_project_map projects_id : project IntMap.t =
       then log_event (DuplicateIssueNumberWarning p);
       m
   in
-  Seq.fold_left add_project IntMap.empty (IntMap.to_seq projects_id)
+  ignore @@ Seq.fold_left add_project IntMap.empty (IntMap.to_seq projects_id)
 ;;
 
 (* ------------------------------------------------------------ *)
@@ -457,7 +456,8 @@ let get_the_schedule_async ~start_date ~end_date =
     List.filter_map (validate_assignment people_id projects_id) asnts
     |> collate_allocations
   in
-  Lwt.return (make_project_map projects_id, make_people_map people_id, assignments)
+  warn_duplicate_projects projects_id;
+  Lwt.return (projects_id, make_people_map people_id, assignments)
 ;;
 
 let get_the_schedule ~start_date ~end_date =
