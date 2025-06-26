@@ -1,57 +1,82 @@
 # WhatWhat
 
 `whatwhat` is an OCaml command-line tool to help monitor project status and allocations in the [Research Engineering Group](https://www.turing.ac.uk/research-engineering), aka Hut23.
-It is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwhat) (F#) and [WhatNow](https://github.com/alan-turing-institute/whatnow) (Racket); the latter contains [an illuminating backbrief](https://github.com/alan-turing-institute/whatnow/blob/main/backbrief/backbrief.org) describing the history of project allocations in REG.
 
-## Brew install WhatWhat
-The simplest way to use `whatwhat` is to brew install it. It is hosted in our local [Hut23 tap](https://github.com/alan-turing-institute/homebrew-hut23). You will need to run the following commands:
+## Install
+
+`whatwhat` is available via Homebrew:
 
 ```sh
 brew update
 brew tap alan-turing-institute/hut23
 brew install alan-turing-institute/hut23/whatwhat
 ```
-This is likely to install `whatwhat` from the pre-compiled Homebrew bottle (associated with a GitHub release), which will make the installation quicker. However, if there is not a bottle that matches your computer build it will automatically build from the source.
 
-Once you have installed it, you will need to create a secrets.json file to store your personal access tokens, which you can do
-by running `whatwhat init` then populating the file with your github and forecast tokens.
+Once installation is complete, run `whatwhat init`.
+This will set up some configuration files in `~/.config/whatwhat`.
+You will now have to edit them to add your personal tokens, as described below.
 
-These tokens can be found here:
- - `githubToken` here refers to a "classic" personal access token, which you can generate at https://github.com/settings/tokens.
-   The token will need to have the permissions: `repo` (top level), `read:user` and `user:email` (both within `user`).
- - `forecastToken` can be obtained from https://id.getharvest.com/oauth2/access_tokens/new (log in if necessary).
+## Configure
 
-`whatwhat` should now work, the following examples can get you started.
+In `~/.config/whatwhat/secrets.json`, you should see the following JSON template:
 
-For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help` for the subcommands.
+```json
+{
+    "githubToken"    : "<yours here>",
+    "forecastToken"  : "<yours here>",
 
- - `whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
- - `whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
- - `whatwhat person [NAME]`: Print an overview of a person, as specified by their name or GitHub username (a substring is fine).
- - `whatwhat --notify github`: Same as `whatwhat`, but additionally post GitHub comments on all of those issues.
- - `whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
- - `whatwhat open [NUM]`: Open a GitHub issue in a browser (macOS only, as this uses `open(1)`.
+    # other stuff can be ignored
+}
+```
 
-### Lookup table for GitHub usernames
+`githubToken` can be obtained from https://github.com/settings/tokens.
+**Note that you have to use the "classic" tokens, not the "fine-grained, repo-scoped" tokens.**
+The token will need to have the permissions: `read:user`, `repo`, and `user:email`.
 
-`whatwhat` attempts to match people's full names on Forecast with GitHub usernames.
-It is quite successful at doing this, but there are a few edge cases where people's GitHub profiles do not have enough data.
-To get around this, you can manually add a mapping inside the file `~/.config/whatwhat/users`.
+`forecastToken` can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.
+
+The other fields in this file can be ignored.
+
+<details><summary>Extra: creating a lookup table for GitHub usernames</summary>
+
+`whatwhat` attempts to match people's full names on Forecast with GitHub usernames using some heuristics.
+It is generally quite successful at doing this, but there are a few edge cases where people's GitHub profiles do not have enough data.
+To see what `whatwhat`'s automatic username detection is doing, you can run `whatwhat dump-users`.
+
+If you find that the automatic detection for a person is wrong or missing, you can override it by manually add a mapping inside the file `~/.config/whatwhat/users`.
 Each line in this file should look like:
 
     {Full name on Forecast}:{GitHub username}
 
 (without the curly braces).
-If `whatwhat`'s automatic username detection is turning up false positives for a person, you can also override it by entering their info in this file.
+</details>
 
+## Usage
 
-## Developers Contents
+Once you have added the two tokens, you should be able to run `whatwhat` from the command line.
+
+For extensive usage options, do `whatwhat --help`, or `whatwhat <COMMAND> --help` for the subcommands.
+
+ - `whatwhat`: Fetch all projects and detect inconsistencies and errors.
+ - `whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
+ - `whatwhat person [NAME]`: Print an overview of a person, as specified by their name, Turing email username, or GitHub username (a substring is fine).
+ - `whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
+ - `whatwhat open [NUM]`: Open a GitHub issue in a browser (macOS only, as this uses `open(1)`).
+
+## A historical note
+
+Whatwhat is the successor to [NowWhat](https://github.com/alan-turing-institute/nowwhat) (F#) and [WhatNow](https://github.com/alan-turing-institute/whatnow) (Racket).
+
+The latter contains [an illuminating backbrief](https://github.com/alan-turing-institute/whatnow/blob/main/backbrief/backbrief.org) describing the history of project allocations in REG.
+
+----------------------------------------------------------
+
+## Developers' Contents
 
 1. [Setting up OCaml on macOS](#setting-up-ocaml-on-macos)
 1. [Installation and configuration](#installation-and-configuration)
-1. [Usage](#usage)
 1. [Resources for getting started with OCaml](#resources-for-getting-started-with-ocaml)
-1. [New Tags and Releases](#new-tags-and-releases)
+1. [Creating a new release](#creating-a-new-release)
 
 ## Setting up OCaml on macOS
 
@@ -100,77 +125,13 @@ If you got to this point without errors, you should be able to run (the local ve
 dune exec -- whatwhat
 ```
 
-It will most likely complain about a missing configuration or missing secret.
-To get around this, you will have to set up two files, one containing secrets and one containing other non-sensitive info.
+If it complains about a missing configuration or missing secret, you will have to run the initialisation as described above.
 
-### Secrets
+## Extra configuration for developers
 
-Put this in `~/.config/whatwhat/secrets.json` (and **make sure that it is not stored in source control**, e.g. in your personal dotfiles / config!):
-
-```json
-{
-    "githubToken"    : "<yours here>",
-    "githubBotToken" : "<get from the Shared Drive>",
-    "forecastToken"  : "<yours here>",
-    "slackToken"     : "<get from the Shared Drive>"
-}
-```
-
- - `githubToken` here refers to a "classic" personal access token, which you can generate at https://github.com/settings/tokens.
-   The token will need to have the permissions: `read:user`, `repo`, and `user:email`.
- - `forecastToken` can be obtained from https://id.getharvest.com/oauth2/access_tokens/new.
- - To obtain `githubBotToken` and `slackToken`, you need to be added to the `hut23-1206-nowwhat@turing.ac.uk` group
-   (ask someone else on the `whatwhat` developer team to add you, e.g. the person who most recently committed to `main`).
-   However, for initial development purposes, it suffices to use an empty string, because these tokens are only used if you wish to actually post to GitHub or Slack respectively.
-
-### Configuration
-
-Separately, place this in `~/.config/whatwhat/config.json`:
-
-```json
-{
-    "githubProjectName"    : "Project Tracker",
-    "githubProjectColumns" : ["Active", "Awaiting start", "Finding people", "Awaiting go/no-go"],
-    "forecastId"           : "<yours here>",
-    "githubRepoName"       : "Hut23",
-    "githubRepoOwner"      : "alan-turing-institute"
-}
-```
-
- - `forecastID` can be obtained by opening [Forecast](https://forecastapp.com).
-   It will redirect you to another URL that contains your ID, which is a series of several digits.
-   Paste the ID in as a string.
-
-You shouldn't need to change any of the other settings here.
-
-### Lookup table for GitHub usernames
-
-`whatwhat` attempts to match people's full names on Forecast with GitHub usernames.
-It is quite successful at doing this, but there are a few edge cases where people's GitHub profiles do not have enough data.
-To get around this, you can manually add a mapping inside the file `~/.config/whatwhat/users`.
-Each line in this file should look like:
-
-    {Full name on Forecast}:{GitHub username}
-
-(without the curly braces).
-If `whatwhat`'s automatic username detection is turning up false positives for a person, you can also override it by entering their info in this file.
-
-## Usage
-
-Note that, to compile and execute the source code *in your working directory*, `whatwhat` should always be run using `dune exec -- whatwhat [options]`.
-Just running `whatwhat [options]` will use the installed version inside `~/.opam` (if it exists).
-(You can create a shell alias if you're lazy: something like `alias dew='dune exec -- whatwhat'`).
-
-The following examples can get you started.
-For extensive usage options, do `dune exec -- whatwhat --help`, or `dune exec -- whatwhat <COMMAND> --help` for the subcommands.
-
- - `dune exec -- whatwhat`: Report errors for projects on the four main columns of the issue tracker. Print output to terminal.
- - `dune exec -- whatwhat init`: Sets up the secrets and config files from a template.
- - `dune exec -- whatwhat --notify github`: Same as above, but additionally post GitHub comments on all of those issues.
- - `dune exec -- whatwhat project [NUM|NAME]`: Print an overview of a project, as specified by its GitHub issue number, or a (sub)string of its title.
- - `dune exec -- whatwhat person [NAME]`: Print an overview of a person, as specified by their name or GitHub username (a substring is fine).
- - `dune exec -- whatwhat export-{project,team}`: Create Forecast project or team export CSV files. Useful for [other reporting purposes](https://github.com/alan-turing-institute/Hut23/issues/1354).
- - `dune exec -- whatwhat open [NUM]`: Open a GitHub issue in a browser (macOS only, as this uses `open(1)`.
+The secrets file also contains `githubBotToken` and `slackToken`.
+To obtain this, you need to be added to the `hut23-1206-nowwhat@turing.ac.uk` group (ask someone else on the `whatwhat` developer team to add you, e.g. the person who most recently committed to `main`).
+However, for initial development purposes, it suffices to use an empty string, because these tokens are only used if you wish to actually post to GitHub or Slack respectively.
 
 ## Documentation
 
@@ -217,7 +178,7 @@ See the [Documentation wiki page](https://github.com/alan-turing-institute/whatw
   However, note that it relies on Jane Street's alternative standard library, which `whatwhat` doesn't use.)
 - [Developing Applications with Objective Caml (Book)](https://caml.inria.fr/pub/docs/oreilly-book/html/index.html) 
 
-## New Tags and Releases
+## Creating a new release
 
 When you make changes to the `whatwhat` code, the Homebrew tap of whatwhat needs to be updated.
 To do this, run **`dune exec update_whatwhat`** from the top level of the git repository.
