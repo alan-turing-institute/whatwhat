@@ -169,7 +169,7 @@ let get_new_version current_version =
         }
     ; description =
         Printf.sprintf
-          "New patch: v%d.%d.%d"
+          "New patch version: v%d.%d.%d"
           current_version.major
           current_version.minor
           (current_version.patch + 1)
@@ -186,7 +186,7 @@ let get_new_version current_version =
           }
       ; description =
           Printf.sprintf
-            "New patch: v%d.%d.0"
+            "New minor version: v%d.%d.0"
             current_version.major
             (current_version.minor + 1)
       }
@@ -198,7 +198,7 @@ let get_new_version current_version =
           ; _commit = None
           ; dirty = false
           }
-      ; description = Printf.sprintf "New patch: v%d.0.0" (current_version.major + 1)
+      ; description = Printf.sprintf "New major version: v%d.0.0" (current_version.major + 1)
       }
     ]
   in
