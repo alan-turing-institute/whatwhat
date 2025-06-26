@@ -154,15 +154,13 @@ let get_person_async username =
 ;;
 
 let all_users =
-  lazy
-    (Lwt_main.run
-       (let* usernames = get_assignable_usernames_async () in
-        List.map get_person_async usernames |> Utils.all_throttled))
+  lazy (let* usernames = get_assignable_usernames_async () in
+        List.map get_person_async usernames |> Utils.all_throttled)
 ;;
 
 let find_person_by_login login =
-  let all_users = Lazy.force all_users in
-  List.find_opt (fun p -> p.login = login) all_users
+  let* all_users = Lazy.force all_users in
+  Lwt.return (List.find_opt (fun p -> p.login = login) all_users)
 ;;
 
 (** Issues ------------------------------------------- *)
@@ -267,7 +265,7 @@ let rec get_reactions_async ?(page = 1) id =
       then Lwt.return None
       else (
         let rxn = r |> member "content" |> to_string in
-        let psn = login |> to_string |> find_person_by_login in
+        let* psn = login |> to_string |> find_person_by_login in
         match rxn, psn with
         | p, Some q -> Lwt.return (Some (p, q))
         | p, None ->
