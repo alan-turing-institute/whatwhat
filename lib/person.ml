@@ -254,7 +254,10 @@ let print_timesheets
                timesheets)
         all_project_names_and_codes
     in
-    print_endline (make_table ~header_rows:1 (header_row :: project_rows))
+    print_endline (make_table ~header_rows:1 (header_row :: project_rows));
+    print_endline
+      "Don't forget to add some high-level details in the 'Description' field, e.g. \
+       'software development', 'project management'."
 ;;
 
 let print
